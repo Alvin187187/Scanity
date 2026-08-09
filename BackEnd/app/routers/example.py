@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from backend.app.schemas.example import ExampleResponse
-from backend.app.services.example import get_example_message
+from app.schemas.example import ExampleResponse
+from app.services.example import get_example_message
 
 router = APIRouter()
 

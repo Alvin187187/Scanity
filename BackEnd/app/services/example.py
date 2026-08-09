@@ -1,4 +1,4 @@
-from backend.app.utils.helpers import format_message
+from app.utils.helpers import format_message
 
 
 def get_example_message() -> str:
