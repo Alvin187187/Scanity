@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanity — Know what you eat</title>
+<style>
+:root{
+  /* main scheme: mocha (primary/brand/actions) + green (health-safety signal only) */
+  --mocha:#8B6F5B;
+  --mocha-dark:#5B4636;
+  --mocha-light:#F3EAE3;
+  --green:#3F7D5B;
+  --green-dark:#2C5A41;
+  --green-light:#E7F3EC;
+  --black:#1C1714;
+  --white:#FFFFFF;
+  --bg:#FAF7F4;
+  --border:#E6DED4;
+  --muted:#8A7E73;
+  --amber:#C08A2E;
+  --amber-bg:#FBF0DC;
+  --red:#B3423A;
+  --red-bg:#F8E3E0;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--black);}
+h1{font-size:20px;margin:0 0 18px;}
+h2{font-size:20px;margin:0 0 4px;}
+h3{font-size:16px;margin:0 0 4px;}
+.lead{font-size:13px;color:var(--muted);margin:0 0 16px;line-height:1.5;}
+.hidden{display:none !important;}
+button{font-family:inherit;cursor:pointer;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
+.topbar-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:none;background:transparent;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--black);}
+.icon-btn.filled{background:var(--mocha-light);}
+
+.logo-ph{border:2px dashed var(--mocha);color:var(--mocha-dark);background:var(--mocha-light);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;letter-spacing:.05em;border-radius:50%;flex-shrink:0;text-align:center;}
+.logo-ph.tiny{width:28px;height:28px;font-size:7px;}
+.logo-ph.small{width:34px;height:34px;font-size:8px;}
+.logo-ph.big{width:88px;height:88px;font-size:11px;margin-bottom:14px;}
+
+.auth-wrapper{display:none;min-height:100vh;}
+.auth-wrapper.active-wrapper{display:block;}
+.auth-wrapper .screen{display:none;min-height:calc(100vh - 56px);align-items:center;justify-content:center;padding:32px 18px;}
+.auth-wrapper .screen.active{display:flex;flex-direction:column;}
+.auth-wrapper .screen.split.active{flex-direction:column;padding:0;}
+.split .formside{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 18px;}
+.split .brandside{display:none;background:linear-gradient(155deg,var(--mocha),var(--mocha-dark));color:var(--white);flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center;}
+.split .brandside .logo-ph{border-color:rgba(255,255,255,.7);background:rgba(255,255,255,.12);color:#fff;}
+.authcard{width:100%;max-width:360px;text-align:left;}
+.authcard.center{text-align:center;align-items:center;}
+.authcard.narrow{max-width:340px;}
+.authcard.wide{max-width:560px;}
+.brand-name{font-size:22px;font-weight:800;}
+.brand-tag{font-size:13px;opacity:.9;margin-top:4px;}
+
+.field{position:relative;margin-bottom:14px;}
+.field.left{text-align:left;}
+.field input{width:100%;padding:14px 14px 14px 42px;border-radius:12px;border:1.5px solid var(--border);font-size:13.5px;background:var(--white);color:var(--black);}
+.field input::placeholder{color:#B6AA9E;}
+.field .fi{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#B6AA9E;}
+.field .eye{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:#B6AA9E;cursor:pointer;}
+.hint{font-size:11px;color:var(--muted);margin:-8px 0 14px 2px;}
+.link{color:var(--mocha-dark);font-weight:700;text-decoration:none;font-size:12.5px;cursor:pointer;background:none;border:none;padding:0;}
+.center-text{text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;}
+.between{display:flex;justify-content:space-between;align-items:center;}
+.between.top{align-items:flex-start;margin-bottom:4px;}
+
+.btn{border:none;border-radius:12px;padding:14px 18px;font-size:14px;font-weight:700;text-align:center;}
+.btn.primary{background:linear-gradient(135deg,var(--mocha),var(--mocha-dark));color:#fff;box-shadow:0 8px 18px rgba(91,70,54,.28);}
+.btn.primary.disabled{background:#D8D2CB;box-shadow:none;color:#fff;pointer-events:none;}
+.btn.secondary{background:var(--white);border:1.5px solid var(--border);color:var(--black);}
+.btn.dark{background:var(--mocha-dark);color:#fff;}
+.btn.dangerfill{background:var(--red);color:#fff;}
+.btn.full{width:100%;}
+.btnrow{display:flex;gap:10px;margin-top:18px;}
+.btnrow .btn{flex:1;}
+
+.icon-badge{width:70px;height:70px;border-radius:50%;background:var(--mocha-light);color:var(--mocha-dark);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;}
+.icon-badge.warn{background:var(--red-bg);color:var(--red);}
+.icon-badge.ok{background:var(--green-light);color:var(--green-dark);}
+.icon-badge.dark{background:var(--mocha-light);color:var(--mocha-dark);}
+
+.pillgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0;}
+.pill{border:1.5px solid var(--border);border-radius:12px;padding:12px 12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;background:var(--white);color:var(--black);}
+.pill.selected{border-color:var(--mocha);background:var(--mocha-light);color:var(--mocha-dark);}
+.pill .dot{width:18px;height:18px;border-radius:50%;border:1.5px solid #CFC6BB;margin-left:auto;flex-shrink:0;position:relative;background:#fff;}
+.pill.selected .dot{background:var(--mocha);border-color:var(--mocha);}
+.pill.selected .dot::after{content:'✓';color:#fff;font-size:11px;font-weight:800;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.pill-add{border:1.5px dashed var(--mocha);border-radius:12px;padding:12px 12px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--mocha-dark);background:var(--mocha-light);grid-column:span 1;transition:grid-column .1s;}
+.pill-add.wide{grid-column:span 2;}
+.selcount{font-size:12.5px;font-weight:700;color:var(--muted);}
+
+.progress-ring{width:150px;height:150px;margin:14px auto;position:relative;display:flex;align-items:center;justify-content:center;}
+.progress-ring .pct{font-size:28px;font-weight:800;position:absolute;}
+.steplist{display:flex;justify-content:space-between;width:100%;margin-top:10px;font-size:10px;color:var(--muted);font-weight:700;text-align:center;}
+.steplist div{flex:1;}
+.steplist div.done{color:var(--mocha-dark);}
+
+.row{display:flex;align-items:center;gap:12px;padding:13px 0;text-align:left;}
+.row+.row{border-top:1px solid var(--border);}
+.row.clickable{cursor:pointer;}
+.row .ricon{width:36px;height:36px;border-radius:10px;background:var(--green-light);color:var(--green-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;}
+.row .ricon.danger{background:var(--red-bg);color:var(--red);}
+.row .rtext{flex:1;}
+.row .rtitle{font-weight:700;font-size:13.5px;}
+.row .rtitle.danger{color:var(--red);}
+.row .rsub{font-size:11px;color:var(--muted);}
+.chev{color:var(--muted);}
+
+.shell{display:none;min-height:100vh;}
+.shell.active-wrapper{display:flex;}
+.sidebar-overlay{position:fixed;inset:0;background:rgba(28,23,20,.4);z-index:59;display:none;}
+.sidebar-overlay.show{display:block;}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:230px;background:var(--white);border-right:1px solid var(--border);padding:20px 16px;z-index:60;transform:translateX(-100%);transition:transform .2s ease;overflow-y:auto;}
+.sidebar.show{transform:translateX(0);}
+.sidebar-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px;font-size:15px;font-weight:800;}
+.sidebar nav{display:flex;flex-direction:column;gap:2px;}
+.navlink{display:flex;align-items:center;gap:10px;padding:11px 10px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--muted);background:none;border:none;text-align:left;}
+.navlink.active-nav{background:var(--mocha-light);color:var(--mocha-dark);}
+.navlink.logout{color:var(--red);margin-top:12px;border-top:1px solid var(--border);padding-top:16px;}
+
+.main{flex:1;padding:20px 16px 60px;min-height:100vh;}
+.main .screen{display:none;}
+.main .screen.active{display:block;}
+.topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--mocha-light);color:var(--mocha-dark);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;}
+.avatar.big{width:66px;height:66px;font-size:19px;}
+
+.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
+.feature-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:18px 10px;text-align:center;box-shadow:0 4px 10px rgba(28,23,20,.03);}
+.feature-card.primary{grid-column:span 2;background:linear-gradient(135deg,var(--mocha),var(--mocha-dark));color:#fff;border:none;box-shadow:0 10px 24px rgba(91,70,54,.28);}
+.feature-icon{width:42px;height:42px;border-radius:12px;background:var(--mocha-light);color:var(--mocha-dark);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-weight:800;}
+.feature-card.primary .feature-icon{background:rgba(255,255,255,.2);color:#fff;}
+.feature-name{font-size:12.5px;font-weight:700;}
+
+.section-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:18px 0 8px;}
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:14px;}
+.card.note{font-size:12.5px;line-height:1.55;}
+.card.note.danger-border{border-color:var(--red);}
+.card.wide-note{max-width:520px;margin-top:14px;font-size:13px;}
+.placeholder{background:linear-gradient(135deg,#F1ECE7,#E6DED4);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#B6AA9E;font-size:26px;height:60px;}
+.placeholder.tall{height:180px;font-size:44px;margin-bottom:12px;}
+
+.recent-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.recent-item:last-child{border-bottom:none;}
+.recent-item .placeholder{width:42px;height:42px;border-radius:10px;flex-shrink:0;}
+.recent-item .meta{flex:1;}
+.recent-item .name{font-weight:700;font-size:13px;}
+.recent-item .date{font-size:11px;color:var(--muted);}
+.score-badge{width:36px;height:36px;border-radius:50%;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.score-badge.green{background:var(--green);}
+.score-badge.amber{background:var(--amber);}
+.score-badge.red{background:var(--red);}
+
+.toggle{width:42px;height:24px;border-radius:20px;background:#D8D2CB;position:relative;flex-shrink:0;border:none;padding:0;}
+.toggle.on{background:var(--mocha);}
+.toggle .knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+.toggle.on .knob{left:21px;}
+
+.two-col{display:flex;flex-direction:column;gap:22px;}
+.narrow-col{max-width:420px;}
+
+.searchbox{display:flex;align-items:center;gap:8px;border:1.5px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:12px;color:var(--muted);background:var(--white);}
+.searchbox input{border:none;outline:none;flex:1;font-size:13px;color:var(--black);background:none;}
+.searchresult{display:flex;align-items:center;gap:10px;padding:11px 6px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;width:100%;background:none;border-left:none;border-right:none;border-top:none;color:var(--black);text-align:left;}
+.searchresult .box{width:18px;height:18px;border-radius:5px;border:1.5px solid #CFC6BB;margin-left:auto;flex-shrink:0;position:relative;}
+.searchresult.checked .box{background:var(--mocha);border-color:var(--mocha);}
+.searchresult.checked .box::after{content:'✓';color:#fff;font-size:11px;font-weight:800;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+
+.pname{font-weight:800;font-size:16px;}
+.psub{font-size:11.5px;color:var(--muted);}
+.colfixed{margin-bottom:4px;}
+.score-circle{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;border:4px solid;flex-shrink:0;background:var(--white);}
+.score-circle.green{border-color:var(--green);color:var(--green);}
+.score-circle.amber{border-color:var(--amber);color:var(--amber);}
+.score-circle.red{border-color:var(--red);color:var(--red);}
+.legend-bar{display:flex;height:7px;border-radius:6px;overflow:hidden;position:relative;margin:10px 0 4px;max-width:340px;}
+.legend-bar div{flex:1;}
+.legend-bar .r{background:var(--red);}
+.legend-bar .y{background:var(--amber);}
+.legend-bar .g{background:var(--green);}
+.legend-marker{position:absolute;top:-5px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--black);transform:translateX(-50%);}
+.legend-labels{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-bottom:14px;max-width:340px;}
+.chip{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:20px;padding:5px 11px;font-size:11.5px;margin:2px 5px 2px 0;background:var(--white);font-weight:600;}
+.chip.flag{border-color:var(--red);color:var(--red);background:var(--red-bg);}
+.banner{border-radius:12px;padding:12px 13px;font-size:12.5px;font-weight:700;display:flex;gap:9px;align-items:flex-start;margin-bottom:14px;}
+.banner.danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red);}
+.banner.ok{background:var(--green-light);color:var(--green-dark);border:1px solid var(--green);}
+.banner.center{justify-content:center;}
+.sub2{font-weight:500;font-size:11.5px;margin-top:2px;color:#8A342C;}
+.devtoggle{display:flex;gap:8px;}
+.devbtn{border:1.5px solid var(--border);background:var(--white);border-radius:20px;padding:7px 13px;font-size:11.5px;font-weight:700;color:var(--muted);}
+.devbtn.active{background:var(--mocha-dark);border-color:var(--mocha-dark);color:#fff;}
+
+.compare-grid{display:flex;gap:14px;flex-wrap:wrap;}
+.compare-card{flex:1;min-width:150px;position:relative;border:2px solid var(--border);border-radius:14px;padding:14px;}
+.compare-card.rec{border-color:var(--green);}
+.recbadge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:12px;white-space:nowrap;}
+.cname{font-weight:700;font-size:13px;margin:8px 0 6px;}
+.cmeta{font-size:11px;color:var(--muted);margin-top:8px;}
+
+.filterrow{display:flex;gap:8px;margin-bottom:14px;}
+.filterchip{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;background:var(--mocha-light);color:var(--mocha-dark);border:none;}
+.filterchip.active{background:var(--mocha-dark);color:#fff;}
+
+.profile-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+
+.scan-wrap{display:flex;flex-direction:column;gap:20px;}
+.scan-window{background:#2A241F;border-radius:16px;height:300px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.ocr-word{color:#fff;font-weight:800;font-size:30px;letter-spacing:.06em;}
+.scan-corner{position:absolute;width:26px;height:26px;border-color:#fff;}
+.tc1{top:16px;left:16px;border-top:3px solid;border-left:3px solid;border-radius:6px 0 0 0;}
+.tc2{top:16px;right:16px;border-top:3px solid;border-right:3px solid;border-radius:0 6px 0 0;}
+.tc3{bottom:16px;left:16px;border-bottom:3px solid;border-left:3px solid;border-radius:0 0 0 6px;}
+.tc4{bottom:16px;right:16px;border-bottom:3px solid;border-right:3px solid;border-radius:0 0 6px 0;}
+.scan-actions{display:flex;justify-content:space-around;align-items:center;}
+.scan-actions .sa{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:9.5px;font-weight:700;}
+.scan-actions .sa .circ{width:44px;height:44px;border-radius:50%;background:var(--mocha-light);border:none;display:flex;align-items:center;justify-content:center;color:var(--black);font-size:16px;}
+.scan-actions .sa.shutter .circ{width:56px;height:56px;background:var(--mocha);color:#fff;}
+.tip{display:flex;gap:12px;margin-bottom:16px;}
+.tip .ti{width:34px;height:34px;border-radius:10px;background:var(--mocha-light);color:var(--mocha-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tip b{font-size:13px;}
+.tip p{margin:2px 0 0;font-size:11.5px;color:var(--muted);}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(28,23,20,.48);display:none;align-items:flex-end;justify-content:center;z-index:100;}
+.modal-overlay.show{display:flex;}
+.sheet{background:var(--white);width:100%;max-width:440px;border-radius:20px 20px 0 0;padding:20px 18px 22px;max-height:80vh;overflow-y:auto;}
+.sheet.center-sheet{text-align:center;}
+.sheet-handle{width:38px;height:4px;background:#E2DAD0;border-radius:4px;margin:0 auto 12px;}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.sheet-title{font-weight:800;font-size:15px;}
+.add-results{max-height:260px;overflow-y:auto;}
+.empty-msg{font-size:12.5px;color:var(--muted);text-align:center;padding:14px 0;}
+
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--mocha-dark);color:#fff;font-size:13px;font-weight:700;padding:12px 18px;border-radius:12px;display:none;align-items:center;gap:8px;box-shadow:0 10px 24px rgba(0,0,0,.25);z-index:110;}
+.toast.show{display:flex;}
+
+@media (min-width:900px){
+  .topbar{display:none;}
+  .auth-wrapper .screen.split.active{flex-direction:row;min-height:100vh;}
+  .split .brandside{display:flex;width:44%;}
+  .split .formside{padding:60px;}
+  .sidebar-overlay{display:none !important;}
+  .sidebar{position:sticky;top:0;transform:none;height:100vh;}
+  .main{padding:32px 40px 60px;max-width:1100px;}
+  .feature-grid{grid-template-columns:repeat(4,1fr);}
+  .feature-card.primary{grid-column:span 1;}
+  .two-col{flex-direction:row;gap:30px;}
+  .two-col>div{flex:1;}
+  #resultSafe .two-col, #resultUnsafe .two-col{flex-direction:row;gap:30px;}
+  .colfixed{width:280px;flex-shrink:0;margin-bottom:0;}
+  .placeholder.tall{height:240px;}
+  .scan-wrap{flex-direction:row;gap:34px;}
+  .scan-window{width:420px;flex-shrink:0;}
+  .scan-actions{display:flex;flex-direction:row;gap:16px;}
+  .compare-grid{max-width:640px;}
+  .modal-overlay{align-items:center;}
+  .sheet{border-radius:18px;}
+}
+@media (min-width:1200px){ .main{max-width:1280px;} }
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <button class="icon-btn" id="hamburgerBtn" aria-label="Open menu">☰</button>
+  <div class="topbar-brand"><div class="logo-ph tiny">LOGO</div><span>Scanity</span></div>
+  <button class="icon-btn" id="topbarMoreBtn" aria-label="More">⋯</button>
+</header>
+
+<div class="auth-wrapper" id="authViews">
+
+  <section class="screen split active" data-screen="splash">
+    <div class="brandside">
+      <div class="logo-ph big">LOGO</div>
+      <div class="brand-name">Scanity</div>
+      <div class="brand-tag">Scan it. Know it. Eat it.</div>
+    </div>
+    <div class="formside">
+      <div class="authcard center">
+        <p class="lead">Scan any packaged food and instantly know if it's safe for you — allergies, conditions, and all.</p>
+        <button class="btn primary full" data-go="login">Get Started</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen split" data-screen="login">
+    <div class="formside">
+      <div class="authcard">
+        <h2>Welcome back!</h2>
+        <p class="lead">Please login to continue</p>
+        <div class="field"><span class="fi">✉</span><input type="email" placeholder="Email"></div>
+        <div class="field"><span class="fi">🔒</span><input type="password" placeholder="Password"><span class="eye">👁</span></div>
+        <div class="between"><span></span><a class="link" data-go="forgot-password">Forgot Password?</a></div>
+        <button class="btn primary full" data-go="dashboard">Login</button>
+        <p class="center-text">Don't have an account? <a class="link" data-go="register">Register</a></p>
+      </div>
+    </div>
+    <div class="brandside">
+      <div class="logo-ph big">LOGO</div>
+      <div class="brand-name">Scanity</div>
+    </div>
+  </section>
+
+  <section class="screen split" data-screen="register">
+    <div class="formside">
+      <div class="authcard">
+        <h2>Create account</h2>
+        <p class="lead">Sign up to get started</p>
+        <div class="field"><span class="fi">👤</span><input placeholder="Full name"></div>
+        <div class="field"><span class="fi">✉</span><input type="email" placeholder="Email"></div>
+        <div class="field"><span class="fi">🔒</span><input type="password" placeholder="Password"><span class="eye">👁</span></div>
+        <div class="hint">Min 8 characters, 1 number</div>
+        <div class="field"><span class="fi">🔒</span><input type="password" placeholder="Confirm password"><span class="eye">👁</span></div>
+        <button class="btn primary full" data-go="register-success">Register</button>
+        <p class="center-text">Already have an account? <a class="link" data-go="login">Login</a></p>
+      </div>
+    </div>
+    <div class="brandside">
+      <div class="logo-ph big">LOGO</div>
+      <div class="brand-name">Scanity</div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="register-success">
+    <div class="authcard center narrow">
+      <div class="icon-badge ok">✓</div>
+      <h2>Registration successful!</h2>
+      <p class="lead">To give you accurate nutrition insights, we need to know about your allergies and health conditions first.</p>
+      <button class="btn primary full" data-go="select-allergies">Get Started</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="select-allergies">
+    <div class="authcard center wide">
+      <h2>Select your allergies</h2>
+      <p class="lead">Choose all that apply to you.</p>
+      <div class="pillgrid" id="onboardAllergyGrid">
+        <button class="pill selected">🥜 Peanuts<span class="dot"></span></button>
+        <button class="pill">🥛 Dairy<span class="dot"></span></button>
+        <button class="pill">🦐 Shellfish<span class="dot"></span></button>
+        <button class="pill">🌰 Tree Nuts<span class="dot"></span></button>
+        <button class="pill">🌾 Gluten<span class="dot"></span></button>
+        <button class="pill">🥚 Eggs<span class="dot"></span></button>
+        <button class="pill-add" data-add-target="onboardAllergyGrid" data-add-label="Allergy">＋ Add</button>
+      </div>
+      <div class="between">
+        <span class="selcount" id="onboardAllergyGridCount">1 selected</span>
+        <button class="btn primary" data-go="select-health">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="select-health">
+    <div class="authcard center wide">
+      <h2>Select health conditions</h2>
+      <p class="lead">Choose all that apply to you.</p>
+      <div class="pillgrid" id="onboardHealthGrid">
+        <button class="pill">Diabetes<span class="dot"></span></button>
+        <button class="pill">Hypertension<span class="dot"></span></button>
+        <button class="pill">Kidney Disease<span class="dot"></span></button>
+        <button class="pill">High Cholesterol<span class="dot"></span></button>
+        <button class="pill">None of the above<span class="dot"></span></button>
+        <button class="pill-add" data-add-target="onboardHealthGrid" data-add-label="Health condition">＋ Add</button>
+      </div>
+      <div class="between">
+        <span class="selcount" id="onboardHealthGridCount">0 selected</span>
+        <button class="btn primary disabled" id="healthContinueBtn" data-go="loading">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="loading">
+    <div class="authcard center narrow">
+      <h2>Personalizing your experience…</h2>
+      <p class="lead">This may take a few seconds.</p>
+      <div class="progress-ring">
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          <circle cx="75" cy="75" r="62" fill="none" stroke="#E6DED4" stroke-width="10"/>
+          <circle id="progressCircle" cx="75" cy="75" r="62" fill="none" stroke="#8B6F5B" stroke-width="10" stroke-dasharray="390" stroke-dashoffset="390" stroke-linecap="round" transform="rotate(-90 75 75)"/>
+        </svg>
+        <div class="pct" id="pctLabel">0%</div>
+      </div>
+      <div class="steplist">
+        <div id="step1">○ Setting up profile</div>
+        <div id="step2">○ Analyzing preferences</div>
+        <div id="step3">○ Preparing recs</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="allset">
+    <div class="authcard center narrow">
+      <div class="icon-badge ok">🛡</div>
+      <h2>You're all set!</h2>
+      <p class="lead">We'll now provide personalized nutrition insights just for you.</p>
+      <div class="row"><div class="ricon">✓</div><div class="rtitle">Allergies saved</div></div>
+      <div class="row"><div class="ricon">✓</div><div class="rtitle">Health conditions saved</div></div>
+      <div class="row"><div class="ricon">✓</div><div class="rtitle">Personalization complete</div></div>
+      <button class="btn primary full" style="margin-top:16px;" data-go="dashboard">Go to Dashboard</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="forgot-password">
+    <div class="authcard center narrow">
+      <div class="icon-badge warn">⚠</div>
+      <h2>Forgot password</h2>
+      <p class="lead">Enter your email and we'll send you a code to reset your password.</p>
+      <div class="field left"><span class="fi">✉</span><input type="email" placeholder="Email"></div>
+      <button class="btn primary full" data-go="reset-password">Continue</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="reset-password">
+    <div class="authcard center narrow">
+      <div class="icon-badge warn">⚠</div>
+      <h2>Reset password</h2>
+      <p class="lead">Please enter your new password and confirm it.</p>
+      <div class="field left"><span class="fi">🔒</span><input type="password" placeholder="New password"><span class="eye">👁</span></div>
+      <div class="field left"><span class="fi">🔒</span><input type="password" placeholder="Confirm password"><span class="eye">👁</span></div>
+      <button class="btn primary full" data-go="reset-success">Continue</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="reset-success">
+    <div class="authcard center narrow">
+      <div class="icon-badge ok">✓</div>
+      <h2>Your password has been reset successfully.</h2>
+      <button class="btn primary full" style="margin-top:16px;" data-go="login">Back to login</button>
+    </div>
+  </section>
+
+</div>
+
+<div class="shell" id="appShell">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><div class="logo-ph small">LOGO</div><b>Scanity</b></div>
+    <nav>
+      <button class="navlink" data-nav="dashboard" data-go="dashboard">🏠 <span>Dashboard</span></button>
+      <button class="navlink" data-nav="profile" data-go="profile">👤 <span>My Profile</span></button>
+      <button class="navlink" data-nav="settings" data-go="settings">⚙ <span>Settings</span></button>
+      <button class="navlink" data-nav="help">❓ <span>Help &amp; FAQ</span></button>
+      <button class="navlink" data-nav="about">ℹ <span>About</span></button>
+      <button class="navlink logout" id="sidebarLogoutBtn">↪ <span>Logout</span></button>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <section class="screen" data-screen="dashboard">
+      <div class="topline">
+        <div><h1>Hello, Cedric!</h1><p class="lead">Scan it. Know it. Eat it.</p></div>
+        <div class="avatar">CH</div>
+      </div>
+      <div class="feature-grid">
+        <button class="feature-card primary" data-go="scan-barcode"><div class="feature-icon">▮▯▮</div><div class="feature-name">Scan Barcode</div></button>
+        <button class="feature-card" data-go="scan-ocr"><div class="feature-icon">OCR</div><div class="feature-name">Scan Label</div></button>
+        <button class="feature-card" data-go="history"><div class="feature-icon">🕘</div><div class="feature-name">Scan History</div></button>
+        <button class="feature-card" data-go="compare"><div class="feature-icon">⇄</div><div class="feature-name">Compare Products</div></button>
+      </div>
+      <div class="section-label between"><span>Recent Scans</span><a class="link" data-go="history">View All</a></div>
+      <div class="card">
+        <div class="recent-item"><div class="placeholder">🥛</div><div class="meta"><div class="name">Milk</div><div class="date">Aug 5, 2026 · 7:30 AM</div></div><div class="score-badge green">87</div></div>
+        <div class="recent-item"><div class="placeholder">🧃</div><div class="meta"><div class="name">Juice</div><div class="date">Aug 3, 2026 · 4:30 PM</div></div><div class="score-badge amber">72</div></div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="settings">
+      <h1>Settings</h1>
+      <div class="two-col">
+        <div>
+          <div class="section-label">Preferences</div>
+          <div class="card">
+            <div class="row"><div class="ricon">🔔</div><div class="rtext"><div class="rtitle">Notifications</div><div class="rsub">Receive updates &amp; reminders</div></div><button class="toggle on" id="notifToggle"><span class="knob"></span></button></div>
+            <div class="row clickable" data-go="settings-language"><div class="ricon">🌐</div><div class="rtext"><div class="rtitle">Language</div><div class="rsub">English</div></div><span class="chev">›</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">Support &amp; Account</div>
+          <div class="card">
+            <div class="row"><div class="ricon">ℹ</div><div class="rtext"><div class="rtitle">About Scanity</div></div><span class="chev">›</span></div>
+            <div class="row"><div class="ricon">🛡</div><div class="rtext"><div class="rtitle">Privacy Policy</div></div><span class="chev">›</span></div>
+            <div class="row"><div class="ricon">📄</div><div class="rtext"><div class="rtitle">Terms of Service</div></div><span class="chev">›</span></div>
+            <div class="row clickable" id="openDeleteModalBtn"><div class="ricon danger">🗑</div><div class="rtext"><div class="rtitle danger">Delete Account</div></div><span class="chev">›</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="settings-language">
+      <div class="topline"><button class="icon-btn filled" data-go="settings">‹</button><h1>Language</h1><span></span></div>
+      <div class="narrow-col">
+        <div class="searchbox">🔍<input placeholder="Search languages"></div>
+        <div class="section-label">Language you may know</div>
+        <div class="searchresult checked">English (US)<span class="box"></span></div>
+        <div class="searchresult">Filipino<span class="box"></span></div>
+        <div class="section-label">All languages</div>
+        <div class="searchresult">Af-Soomaali<span class="box"></span></div>
+        <div class="searchresult">Afrikaans<span class="box"></span></div>
+        <div class="searchresult">Bahasa Indonesia<span class="box"></span></div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="scan-barcode">
+      <h1>Scan Barcode</h1>
+      <div class="scan-wrap">
+        <div class="scan-window">
+          <div class="scan-corner tc1"></div><div class="scan-corner tc2"></div><div class="scan-corner tc3"></div><div class="scan-corner tc4"></div>
+          <svg width="140" height="64" viewBox="0 0 130 60"><rect x="0" width="4" height="60" fill="#fff"/><rect x="8" width="2" height="60" fill="#fff"/><rect x="14" width="6" height="60" fill="#fff"/><rect x="24" width="2" height="60" fill="#fff"/><rect x="30" width="4" height="60" fill="#fff"/><rect x="40" width="2" height="60" fill="#fff"/><rect x="46" width="6" height="60" fill="#fff"/><rect x="56" width="2" height="60" fill="#fff"/><rect x="62" width="4" height="60" fill="#fff"/><rect x="72" width="6" height="60" fill="#fff"/><rect x="82" width="2" height="60" fill="#fff"/><rect x="88" width="4" height="60" fill="#fff"/><rect x="98" width="2" height="60" fill="#fff"/><rect x="104" width="6" height="60" fill="#fff"/><rect x="114" width="2" height="60" fill="#fff"/><rect x="120" width="4" height="60" fill="#fff"/></svg>
+        </div>
+        <div class="scan-tips">
+          <div class="tip"><div class="ti">▤</div><div><b>Position the barcode</b><p>Place the barcode within the frame.</p></div></div>
+          <div class="tip"><div class="ti">☀</div><div><b>Keep it steady</b><p>Make sure it's clear and well-lit.</p></div></div>
+          <div class="tip"><div class="ti">✓</div><div><b>Hold steady</b><p>Wait for the scan to complete automatically.</p></div></div>
+          <div class="scan-actions">
+            <div class="sa"><div class="circ">📷</div>Camera</div>
+            <div class="sa"><div class="circ">🔄</div>Rotate</div>
+            <div class="sa shutter"><button class="circ" id="scanBarcodeBtn">●</button>Scan</div>
+            <div class="sa"><div class="circ">🖼</div>Gallery</div>
+            <div class="sa"><div class="circ">⚡</div>Flash</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="scan-ocr">
+      <h1>Scan Nutrition Label</h1>
+      <div class="scan-wrap">
+        <div class="scan-window"><div class="scan-corner tc1"></div><div class="scan-corner tc2"></div><div class="scan-corner tc3"></div><div class="scan-corner tc4"></div><div class="ocr-word">OCR</div></div>
+        <div class="scan-tips">
+          <div class="tip"><div class="ti">▤</div><div><b>Position the label</b><p>Place the label within the frame.</p></div></div>
+          <div class="tip"><div class="ti">☀</div><div><b>Keep it steady</b><p>Make sure it's clear and well-lit.</p></div></div>
+          <div class="tip"><div class="ti">✓</div><div><b>Hold steady</b><p>Wait for the scan to complete automatically.</p></div></div>
+          <div class="scan-actions">
+            <div class="sa"><div class="circ">📷</div>Camera</div>
+            <div class="sa"><div class="circ">🔄</div>Rotate</div>
+            <div class="sa shutter"><button class="circ" id="scanOcrBtn">●</button>Scan</div>
+            <div class="sa"><div class="circ">🖼</div>Gallery</div>
+            <div class="sa"><div class="circ">⚡</div>Flash</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="product-result">
+      <div class="topline"><h1>Product Result</h1>
+        <div class="devtoggle">
+          <button class="devbtn active" id="viewSafeBtn">✓ Safe example</button>
+          <button class="devbtn" id="viewUnsafeBtn">⚠ Unsafe example</button>
+        </div>
+      </div>
+      <div id="resultSafe">
+        <div class="two-col">
+          <div class="colfixed"><div class="placeholder tall">🍜</div></div>
+          <div>
+            <div class="between top">
+              <div><div class="pname">Instant Noodles – Chicken</div><div class="psub">Brand: Miguel's · 85g pack</div></div>
+              <div class="score-circle green">78</div>
+            </div>
+            <div class="legend-bar"><div class="r"></div><div class="y"></div><div class="g"></div><div class="legend-marker" style="left:78%;"></div></div>
+            <div class="legend-labels"><span>0–40 Red</span><span>41–70 Yellow</span><span>71–100 Green</span></div>
+            <div class="banner ok">✓ No allergens from your profile detected</div>
+            <div class="section-label">Contains</div>
+            <span class="chip">Wheat</span><span class="chip">Soy</span><span class="chip">Milk</span>
+            <div class="section-label">Nutrition Notes</div>
+            <div class="card note">Moderate sodium (420mg/serving). Good source of protein (9g). No ingredients flagged against your allergy or health profile.</div>
+            <div class="btnrow"><button class="btn secondary">Save</button><button class="btn primary" data-go="compare">Compare</button></div>
+          </div>
+        </div>
+      </div>
+      <div id="resultUnsafe" class="hidden">
+        <div class="banner danger"><span>⚠</span><div>ALLERGEN DETECTED<div class="sub2">This product contains Peanuts</div></div></div>
+        <div class="two-col">
+          <div class="colfixed"><div class="placeholder tall">🥜</div></div>
+          <div>
+            <div class="between top">
+              <div><div class="pname">Peanut Butter Crackers</div><div class="psub">Brand: Wigcarld · 60g pack</div></div>
+              <div class="score-circle red">28</div>
+            </div>
+            <div class="legend-bar"><div class="r"></div><div class="y"></div><div class="g"></div><div class="legend-marker" style="left:28%;"></div></div>
+            <div class="legend-labels"><span>0–40 Red</span><span>41–70 Yellow</span><span>71–100 Green</span></div>
+            <div class="section-label">Contains</div>
+            <span class="chip flag">Peanuts</span><span class="chip">Wheat</span><span class="chip">Soy</span>
+            <div class="section-label">⚠ Why It's Flagged</div>
+            <div class="card note danger-border">Contains peanuts, marked as an allergy on your profile. Also high in sodium (890mg/serving), which may affect blood pressure.</div>
+            <div class="btnrow"><button class="btn secondary">Save</button><button class="btn primary" data-go="compare">Compare</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="compare">
+      <h1>Compare Products</h1>
+      <div class="compare-grid" id="compareGrid">
+        <div class="compare-card">
+          <div class="placeholder">🍜</div>
+          <div class="cname">Noodles – Beef</div>
+          <div class="score-circle amber">45</div>
+          <div class="cmeta">Sugar 4g · Sodium 840mg</div>
+        </div>
+        <div class="compare-card rec">
+          <div class="recbadge">✓ Recommended</div>
+          <div class="placeholder">🍗</div>
+          <div class="cname">Noodles – Chicken</div>
+          <div class="score-circle green">82</div>
+          <div class="cmeta">Sugar 1g · Sodium 410mg</div>
+        </div>
+      </div>
+      <div class="card note wide-note">💡 <b>Chicken is the better choice</b> — lower sodium, no flagged allergens.</div>
+      <button class="btn secondary" id="addCompareBtn">+ Add another product</button>
+    </section>
+
+    <section class="screen" data-screen="profile">
+      <h1>My Profile</h1>
+      <div class="profile-head">
+        <div class="avatar big">CH</div>
+        <div><div class="pname">Cedric Hamilton</div><div class="psub">cedrichamilton@gmail.com</div></div>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="section-label">Allergies</div>
+          <div class="pillgrid" id="profileAllergyGrid">
+            <button class="pill selected">🥜 Peanuts<span class="dot"></span></button>
+            <button class="pill selected">🥛 Dairy<span class="dot"></span></button>
+            <button class="pill">🌾 Gluten<span class="dot"></span></button>
+            <button class="pill-add" data-add-target="profileAllergyGrid" data-add-label="Allergy">＋ Add</button>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">Health Conditions</div>
+          <div class="pillgrid" id="profileHealthGrid">
+            <button class="pill selected">Hypertension<span class="dot"></span></button>
+            <button class="pill">Diabetes<span class="dot"></span></button>
+            <button class="pill-add" data-add-target="profileHealthGrid" data-add-label="Health condition">＋ Add</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn primary" id="saveProfileBtn" style="margin-top:18px;">Save changes</button>
+    </section>
+
+    <section class="screen" data-screen="history">
+      <div class="topline"><h1>Scan History</h1><span>🔍</span></div>
+      <div class="filterrow">
+        <button class="filterchip active" data-filter="recent">Recent</button>
+        <button class="filterchip" data-filter="favourite">Favourite</button>
+      </div>
+      <div class="card">
+        <div class="recent-item" data-fav="0"><div class="placeholder">🍪</div><div class="meta"><div class="name">Athlene Crackers</div><div class="date">Aug 3 · 10:35 AM</div></div><div class="score-badge green">78</div></div>
+        <div class="recent-item" data-fav="1"><div class="placeholder">🥜</div><div class="meta"><div class="name">Athlene Peanut Bar</div><div class="date">Aug 3 · 10:20 AM</div></div><div class="score-badge red">28</div></div>
+        <div class="recent-item" data-fav="0"><div class="placeholder">🍜</div><div class="meta"><div class="name">Athlene Instant Cup</div><div class="date">Aug 2 · 6:05 PM</div></div><div class="score-badge amber">54</div></div>
+        <div class="recent-item" data-fav="1"><div class="placeholder">🥛</div><div class="meta"><div class="name">Athlene Milk Drink</div><div class="date">Aug 1 · 9:12 AM</div></div><div class="score-badge green">85</div></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-overlay" id="addModal">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head"><div class="sheet-title">Add <span id="addModalLabel">Allergy</span></div><button class="icon-btn filled" id="closeAddModalBtn">✕</button></div>
+    <div class="searchbox"><span>🔍</span><input type="text" id="addModalSearch" placeholder="Search..."></div>
+    <div class="add-results" id="addModalResults">
+      <button class="searchresult" data-name="Sesame">Sesame<span class="box"></span></button>
+      <button class="searchresult" data-name="Sulfites">Sulfites<span class="box"></span></button>
+      <button class="searchresult" data-name="Corn">Corn<span class="box"></span></button>
+      <button class="searchresult" data-name="Celery">Celery<span class="box"></span></button>
+      <button class="searchresult" data-name="Mustard">Mustard<span class="box"></span></button>
+      <button class="searchresult" data-name="Lupin">Lupin<span class="box"></span></button>
+      <button class="searchresult" data-name="Fish">Fish<span class="box"></span></button>
+      <button class="searchresult" data-name="Molluscs">Molluscs<span class="box"></span></button>
+    </div>
+    <p class="empty-msg hidden" id="addModalEmpty">No matches found.</p>
+    <button class="btn primary full" id="addSelectedBtn" style="margin-top:14px;">Add selected</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="logoutModal">
+  <div class="sheet center-sheet">
+    <div class="icon-badge dark">↪</div>
+    <h3>Are you sure you want to logout?</h3>
+    <p class="lead">You'll need to login again to access your account.</p>
+    <div class="btnrow">
+      <button class="btn secondary" id="cancelLogoutBtn">Cancel</button>
+      <button class="btn dark" id="confirmLogoutBtn">Logout</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="sheet center-sheet">
+    <div class="icon-badge warn">🗑</div>
+    <h3>Delete your account?</h3>
+    <p class="lead">This action cannot be undone. All your data, scan history, and preferences will be permanently deleted.</p>
+    <div class="banner danger center">⚠ This action cannot be undone.</div>
+    <button class="btn dangerfill full" id="confirmDeleteBtn">Yes, delete my account</button>
+    <button class="btn secondary full" id="cancelDeleteBtn" style="margin-top:8px;">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Profile updated successfully</div>
+
+<script>
+const AUTH_SCREENS = ['splash','login','register','register-success','select-allergies',
+  'select-health','loading','allset','forgot-password','reset-password','reset-success'];
+
+const authWrapper = document.getElementById('authViews');
+const appShell = document.getElementById('appShell');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+function goTo(screenId){
+  const isAuth = AUTH_SCREENS.includes(screenId);
+  authWrapper.classList.toggle('active-wrapper', isAuth);
+  appShell.classList.toggle('active-wrapper', !isAuth);
+  const pool = isAuth ? authWrapper : appShell;
+  pool.querySelectorAll('.screen').forEach(s=> s.classList.toggle('active', s.dataset.screen === screenId));
+  if(!isAuth){
+    document.querySelectorAll('.navlink[data-nav]').forEach(n=> n.classList.toggle('active-nav', n.dataset.nav === screenId));
+  }
+  closeSidebar();
+  window.scrollTo(0,0);
+  if(screenId === 'loading') runLoadingAnimation();
+}
+document.querySelectorAll('[data-go]').forEach(el=> el.addEventListener('click', ()=> goTo(el.dataset.go)));
+
+function openSidebar(){ sidebar.classList.add('show'); sidebarOverlay.classList.add('show'); }
+function closeSidebar(){ sidebar.classList.remove('show'); sidebarOverlay.classList.remove('show'); }
+document.getElementById('hamburgerBtn').addEventListener('click', openSidebar);
+sidebarOverlay.addEventListener('click', closeSidebar);
+document.getElementById('topbarMoreBtn').addEventListener('click', ()=> openModal('logoutModal'));
+document.getElementById('sidebarLogoutBtn').addEventListener('click', ()=> openModal('logoutModal'));
+
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+document.getElementById('cancelLogoutBtn').addEventListener('click', ()=> closeModal('logoutModal'));
+document.getElementById('confirmLogoutBtn').addEventListener('click', ()=>{ closeModal('logoutModal'); goTo('login'); });
+document.getElementById('openDeleteModalBtn').addEventListener('click', ()=> openModal('deleteModal'));
+document.getElementById('cancelDeleteBtn').addEventListener('click', ()=> closeModal('deleteModal'));
+document.getElementById('confirmDeleteBtn').addEventListener('click', ()=>{ closeModal('deleteModal'); goTo('login'); });
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  if(msg) t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> t.classList.remove('show'), 2400);
+}
+document.getElementById('saveProfileBtn').addEventListener('click', ()=> showToast('✓ Profile updated successfully'));
+
+function updateSelCount(gridId){
+  const grid = document.getElementById(gridId);
+  if(!grid) return;
+  const count = grid.querySelectorAll('.pill.selected').length;
+  const counter = document.getElementById(gridId + 'Count');
+  if(counter) counter.textContent = count + ' selected';
+  if(gridId === 'onboardHealthGrid'){
+    document.getElementById('healthContinueBtn').classList.toggle('disabled', count === 0);
+  }
+}
+function updateAddTileSpan(gridId){
+  const grid = document.getElementById(gridId);
+  const addTile = grid && grid.querySelector('.pill-add');
+  if(!addTile) return;
+  const pillCount = grid.querySelectorAll('.pill').length;
+  addTile.classList.toggle('wide', pillCount % 2 === 0);
+}
+document.querySelectorAll('.pillgrid').forEach(grid=>{
+  grid.addEventListener('click', e=>{
+    const pill = e.target.closest('.pill');
+    if(!pill) return;
+    pill.classList.toggle('selected');
+    updateSelCount(grid.id);
+  });
+  updateAddTileSpan(grid.id);
+});
+updateSelCount('onboardAllergyGrid');
+updateSelCount('onboardHealthGrid');
+
+let addModalTargetGrid = null;
+const addModal = document.getElementById('addModal');
+const addModalResults = document.getElementById('addModalResults');
+const addModalSearch = document.getElementById('addModalSearch');
+const addModalEmpty = document.getElementById('addModalEmpty');
+
+document.querySelectorAll('.pill-add').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    addModalTargetGrid = btn.dataset.addTarget;
+    document.getElementById('addModalLabel').textContent = btn.dataset.addLabel || 'Item';
+    addModalSearch.value = '';
+    addModalResults.querySelectorAll('.searchresult').forEach(r=>{ r.classList.remove('checked'); r.style.display='flex'; });
+    addModalEmpty.classList.add('hidden');
+    openModal('addModal');
+    addModalSearch.focus();
+  });
+});
+document.getElementById('closeAddModalBtn').addEventListener('click', ()=> closeModal('addModal'));
+addModal.addEventListener('click', e=>{ if(e.target === addModal) closeModal('addModal'); });
+
+addModalSearch.addEventListener('input', ()=>{
+  const q = addModalSearch.value.trim().toLowerCase();
+  let visible = 0;
+  addModalResults.querySelectorAll('.searchresult').forEach(r=>{
+    const match = r.dataset.name.toLowerCase().includes(q);
+    r.style.display = match ? 'flex' : 'none';
+    if(match) visible++;
+  });
+  addModalEmpty.classList.toggle('hidden', visible !== 0);
+});
+addModalResults.addEventListener('click', e=>{
+  const row = e.target.closest('.searchresult');
+  if(row) row.classList.toggle('checked');
+});
+document.getElementById('addSelectedBtn').addEventListener('click', ()=>{
+  if(!addModalTargetGrid){ closeModal('addModal'); return; }
+  const grid = document.getElementById(addModalTargetGrid);
+  const addTile = grid.querySelector('.pill-add');
+  addModalResults.querySelectorAll('.searchresult.checked').forEach(row=>{
+    const name = row.dataset.name;
+    const already = Array.from(grid.querySelectorAll('.pill')).some(p => p.textContent.trim().startsWith(name));
+    if(already) return;
+    const pill = document.createElement('button');
+    pill.className = 'pill selected';
+    pill.innerHTML = name + '<span class="dot"></span>';
+    grid.insertBefore(pill, addTile);
+  });
+  updateSelCount(addModalTargetGrid);
+  updateAddTileSpan(addModalTargetGrid);
+  closeModal('addModal');
+});
+
+function runLoadingAnimation(){
+  const circle = document.getElementById('progressCircle');
+  const label = document.getElementById('pctLabel');
+  const steps = [document.getElementById('step1'), document.getElementById('step2'), document.getElementById('step3')];
+  const circumference = 2 * Math.PI * 62;
+  let pct = 0;
+  steps.forEach(s=> s.classList.remove('done'));
+  clearInterval(runLoadingAnimation._interval);
+  runLoadingAnimation._interval = setInterval(()=>{
+    pct += 4;
+    if(pct >= 100){ pct = 100; clearInterval(runLoadingAnimation._interval); setTimeout(()=> goTo('allset'), 500); }
+    label.textContent = pct + '%';
+    circle.setAttribute('stroke-dashoffset', circumference - (circumference*pct/100));
+    if(pct > 30) steps[0].classList.add('done');
+    if(pct > 65) steps[1].classList.add('done');
+    if(pct >= 100) steps[2].classList.add('done');
+  }, 60);
+}
+
+document.getElementById('notifToggle').addEventListener('click', function(){ this.classList.toggle('on'); });
+
+document.getElementById('scanBarcodeBtn').addEventListener('click', ()=> simulateScan('safe'));
+document.getElementById('scanOcrBtn').addEventListener('click', ()=> simulateScan('unsafe'));
+function simulateScan(which){ goTo('product-result'); setTimeout(()=> setResultView(which), 50); }
+function setResultView(which){
+  document.getElementById('resultSafe').classList.toggle('hidden', which !== 'safe');
+  document.getElementById('resultUnsafe').classList.toggle('hidden', which !== 'unsafe');
+  document.getElementById('viewSafeBtn').classList.toggle('active', which === 'safe');
+  document.getElementById('viewUnsafeBtn').classList.toggle('active', which === 'unsafe');
+}
+document.getElementById('viewSafeBtn').addEventListener('click', ()=> setResultView('safe'));
+document.getElementById('viewUnsafeBtn').addEventListener('click', ()=> setResultView('unsafe'));
+
+const compareExtras = [
+  {emoji:'🍫', name:'Choco Wafer', score:63, cls:'amber', meta:'Sugar 12g · Sodium 90mg'},
+  {emoji:'🧀', name:'Cheese Snack', score:70, cls:'amber', meta:'Sugar 2g · Sodium 520mg'}
+];
+document.getElementById('addCompareBtn').addEventListener('click', function(){
+  const grid = document.getElementById('compareGrid');
+  const cards = grid.querySelectorAll('.compare-card').length;
+  if(cards >= 4){ showToast('Maximum 4 products'); return; }
+  const data = compareExtras[(cards-2) % compareExtras.length];
+  const card = document.createElement('div');
+  card.className = 'compare-card';
+  card.innerHTML = `<div class="placeholder">${data.emoji}</div><div class="cname">${data.name}</div><div class="score-circle ${data.cls}">${data.score}</div><div class="cmeta">${data.meta}</div>`;
+  grid.appendChild(card);
+});
+
+document.querySelectorAll('.filterchip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.filterchip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    const showFavOnly = chip.dataset.filter === 'favourite';
+    document.querySelectorAll('.recent-item').forEach(item=>{
+      const isFav = item.dataset.fav === '1';
+      item.style.display = (showFavOnly && !isFav) ? 'none' : 'flex';
+    });
+  });
+});
+
+goTo('splash');
+</script>
+</body>
+</html>
