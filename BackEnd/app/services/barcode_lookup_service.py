@@ -6,7 +6,6 @@ barcode scans.
 """
 from typing import Optional
 from app.services.openfoodfacts_service import fetch_product_by_barcode, OpenFoodFactsError
-from app.database import get_db  # existing SessionLocal-based dependency
 
 
 class ProductNotFoundError(Exception):
