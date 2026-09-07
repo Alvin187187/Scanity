@@ -1,0 +1,58 @@
+:root {
+  /* Scanity Colors */
+  --scanity-green: #2D6A4F;
+  --scanity-green-light: #7DC242;
+  --scanity-green-mid: #40916C;
+
+  --scanity-mocha: #7B5B3A;
+  --scanity-mocha-dark: #5C3D20;
+  --scanity-mocha-light: #A67C5B;
+  --scanity-mocha-pale: #F0E8DF;
+
+  --scanity-white: #FFFFFF;
+  --scanity-off-white: #FAF7F4;
+
+  --scanity-black: #1A1209;
+  --scanity-gray: #C8BDB5;
+  --scanity-gray-light: #EDE7E1;
+
+  --scanity-input-bg: #F2EBE4;
+  --scanity-border: #D4C8BE;
+
+  /* Status */
+  --scanity-success: #4CAF50;
+  --scanity-warning: #F5C518;
+  --scanity-danger: #E8453C;
+  --scanity-danger-bg: #FBEAEA;
+
+  /* Accents */
+  --scanity-gold: #E0A72E;
+  --scanity-gold-dark: #C98A1F;
+  --scanity-text-on-dark: #F0F0E8;
+
+  /* Typography */
+  --scanity-font-heading: "General Sans", "Inter", sans-serif;
+  --scanity-font-body: "General Sans", "Inter", sans-serif;
+
+  /* Spacing */
+  --scanity-space-1: 4px;
+  --scanity-space-2: 8px;
+  --scanity-space-3: 12px;
+  --scanity-space-4: 16px;
+  --scanity-space-5: 20px;
+  --scanity-space-6: 24px;
+  --scanity-space-7: 32px;
+  --scanity-space-8: 40px;
+
+  /* Radius */
+  --scanity-radius-sm: 8px;
+  --scanity-radius-md: 12px;
+  --scanity-radius-lg: 16px;
+  --scanity-radius-xl: 20px;
+  --scanity-radius-full: 9999px;
+
+  /* Shadows */
+  --scanity-shadow-sm: 0 2px 6px rgba(26, 18, 9, 0.08);
+  --scanity-shadow-md: 0 6px 18px rgba(26, 18, 9, 0.10);
+  --scanity-shadow-lg: 0 12px 30px rgba(26, 18, 9, 0.12);
+}
