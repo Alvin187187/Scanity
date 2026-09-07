@@ -3,9 +3,11 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.database.session import Base, engine
 from app.routers.example import router as example_router
+from app.routers.scan import router as scan_router
 
 app = FastAPI(title=settings.PROJECT_NAME)
 app.include_router(example_router, prefix="/api/v1")
+app.include_router(scan_router, prefix="/api/v1")
 
 
 @app.on_event("startup")
