@@ -206,3 +206,107 @@ The exact list of additional shared/cloud records is pending team confirmation.
 
 This document should be updated once the Backend and Full Stack teams confirm those records.
 
+## Local Development Setup
+
+The Scanity backend can run using a local PostgreSQL database without connecting to Supabase.
+
+### Requirements
+
+Install:
+
+- Python
+- PostgreSQL 17
+- Git
+
+PostgreSQL should run locally using:
+
+- Host: localhost
+- Port: 5432
+- Database: scanity
+- User: postgres
+
+### 1. Create the local database
+
+Open PostgreSQL and create the database:
+
+    CREATE DATABASE scanity;
+
+### 2. Configure the backend environment
+
+Copy:
+
+    BackEnd/.env.example
+
+to:
+
+    BackEnd/.env
+
+Set DATABASE_URL using your local PostgreSQL password:
+
+    DATABASE_URL=postgresql+psycopg://postgres:YOUR_LOCAL_PASSWORD@localhost:5432/scanity?sslmode=disable
+
+Do not commit the real `.env` file or database password.
+
+Supabase variables may remain empty during local/offline development if cloud authentication is not being tested.
+
+### 3. Install backend dependencies
+
+From the project root:
+
+    .\.venv\Scripts\Activate.ps1
+
+Then enter the backend:
+
+    cd BackEnd
+
+Install the dependencies:
+
+    python -m pip install -r requirements.txt
+
+### 4. Apply database migrations
+
+Run:
+
+    alembic upgrade head
+
+This creates the application tables defined by the finalized Scanity ERD.
+
+### 5. Test the PostgreSQL connection
+
+Run:
+
+    python -m scripts.check_database
+
+A successful setup should end with:
+
+    All PostgreSQL checks passed. Application tables were not changed.
+
+### 6. Start FastAPI
+
+Run:
+
+    python -m uvicorn main:app --reload
+
+The backend should start at:
+
+    http://127.0.0.1:8000
+
+### 7. Verify FastAPI and PostgreSQL
+
+In another terminal, run:
+
+    Invoke-RestMethod http://127.0.0.1:8000/health/db
+
+Expected result:
+
+    status   database
+    ------   --------
+    ok       postgresql
+
+The main API endpoint can also be checked with:
+
+    Invoke-RestMethod http://127.0.0.1:8000/
+
+Expected result:
+
+    Welcome to Scanity API
