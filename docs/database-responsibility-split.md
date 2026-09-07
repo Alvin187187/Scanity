@@ -310,3 +310,42 @@ The main API endpoint can also be checked with:
 Expected result:
 
     Welcome to Scanity API
+
+## Connection Proof
+
+### Local PostgreSQL
+
+Local PostgreSQL was tested successfully using:
+
+    python -m scripts.check_database
+
+The checks confirmed:
+
+- PostgreSQL connection
+- Parameterized read query
+- INSERT and commit
+- UPDATE and commit
+- DELETE and commit
+- Transaction rollback
+- Temporary table cleanup
+
+FastAPI was also tested against the local database using:
+
+    Invoke-RestMethod http://127.0.0.1:8000/health/db
+
+Expected result:
+
+    status   database
+    ------   --------
+    ok       postgresql
+
+### Supabase
+
+Supabase Auth reachability was tested using the project URL and publishable key.
+
+The Auth health endpoint returned:
+
+    Supabase Auth status: 200
+    Reachable: True
+
+This confirms that the Supabase project is reachable while the application database remains configured for local PostgreSQL.
