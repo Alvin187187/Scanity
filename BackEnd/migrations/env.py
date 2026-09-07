@@ -7,6 +7,7 @@ from sqlalchemy.engine import engine_from_config
 
 from app.core.config import settings
 from app.database.session import Base
+import app.models.schema  # noqa: F401
 
 
 config = context.config
