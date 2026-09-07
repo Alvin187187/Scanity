@@ -2,12 +2,12 @@ import logging
 
 import psycopg
 import pytest
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError, SQLAlchemyError
 from sqlalchemy.exc import TimeoutError as DatabaseTimeoutError
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 import main
 from app.database import session as database
@@ -49,6 +49,30 @@ def test_request_failure_rolls_back_a_flushed_write(local_engine, monkeypatch):
         assert another_session.scalar(select(ExampleModel)) is None
 
 
+@pytest.mark.parametrize("fail_request", [False, True])
+def test_fastapi_session_dependency_commits_or_rolls_back_an_actual_request(local_engine, monkeypatch, fail_request):
+    factory = sessionmaker(bind=local_engine)
+    monkeypatch.setattr(database, "SessionLocal", factory)
+    test_app = FastAPI()
+    test_app.add_exception_handler(SQLAlchemyError, database_exception_handler)
+
+    @test_app.post("/test-write")
+    def write(db: Session = Depends(database.get_db)):
+        db.add(ExampleModel(name="request write"))
+        db.flush()
+        if fail_request:
+            raise OperationalError("private SQL", {}, RuntimeError("credential-canary"))
+        db.commit()
+        return {"saved": True}
+
+    with TestClient(test_app) as client:
+        response = client.post("/test-write")
+    assert response.status_code == (503 if fail_request else 200)
+    assert "credential-canary" not in response.text
+    with factory() as another_session:
+        assert another_session.scalar(select(ExampleModel.name)) == (None if fail_request else "request write")
+
+
 def test_postgresql_driver_gets_ssl_timeout_and_no_sqlite_argument(monkeypatch):
     captured = {}
 
@@ -69,10 +93,23 @@ def test_postgresql_driver_gets_ssl_timeout_and_no_sqlite_argument(monkeypatch):
 
 
 def test_database_health_executes_a_query():
+    assert main.engine is database.engine
+    assert database.SessionLocal.kw["bind"] is database.engine
+    statements = []
+
+    def record_query(connection, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
     with TestClient(main.app) as client:
-        response = client.get("/health/db")
+        # Record only the HTTP request query, after the startup query has finished.
+        event.listen(database.engine, "before_cursor_execute", record_query)
+        try:
+            response = client.get("/health/db")
+        finally:
+            event.remove(database.engine, "before_cursor_execute", record_query)
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "database": "sqlite"}
+    assert "SELECT 1" in statements
 
 
 def test_database_outage_after_startup_returns_503(monkeypatch, caplog):

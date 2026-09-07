@@ -16,7 +16,7 @@ git check-ignore -v -- BackEnd/.env
 
 The first command stages removal of those files from Git tracking and keeps the local copies. The second should return no filenames. The third should show the `.env` ignore rule. The `.env.example` template remains tracked. `.gitignore` does not affect files that Git already tracks. [Git documentation](https://git-scm.com/docs/gitignore)
 
-Review these staged removals with the code changes in GitHub Desktop. Teammates should preserve their own local `.env` before pulling the commit that removes the tracked file. This change does not erase old Git history. If a real secret was previously committed, coordinate its replacement with the project owner.
+Review these staged removals with the code changes in GitHub Desktop. Keep the work on your feature branch while completing verification; these instructions do not require a push. Teammates should preserve their own local `.env` before pulling a future commit that removes the tracked file. This change does not erase old Git history. If a real secret was previously committed, coordinate its replacement with the project owner.
 
 ## 2. Install requirements in the project environment
 
@@ -63,6 +63,8 @@ The role needs permission to create temporary tables. These checks do not establ
 
 ## 5. Run FastAPI and check readiness
 
+Save your `.env` edits first. If the API is already running, stop it with **Ctrl + C** and restart it with the following command. Environment changes are loaded at process startup; do not rely on `--reload` to notice `.env` edits.
+
 ```powershell
 ..\.venv\Scripts\python.exe -m uvicorn main:app --reload
 ```
@@ -77,13 +79,30 @@ The app runs `SELECT 1` during startup and closes its pool during shutdown. If t
 
 `/` and `/api/v1/example` preserve their existing behavior. The example endpoint is still a static demonstration; `/health/db` makes a database query. Startup no longer calls `Base.metadata.create_all()`. Existing shared schema changes should use the team's migration process, rather than creating tables whenever the API starts. This update neither applies migrations nor creates persistent Supabase tables.
 
+### Verify the running app, loaded settings, and Git rules together
+
+Keep the Uvicorn terminal running. Open a **second** PowerShell terminal and run:
+
+```powershell
+cd "C:\Users\Kyle\Documents\Scanity Project\Scanity\BackEnd"
+..\.venv\Scripts\python.exe -m scripts.verify_backend
+```
+
+This command checks the local `.env` exists, PostgreSQL/Psycopg is selected, request sessions share the configured engine, and the actual engine pool size/wait timeout match the loaded settings. It reports only timeout/pool numbers and the names of overriding environment variables; it does not print the database URL, password, or application secret. Automated tests additionally verify that custom `.env` values reach the driver connection timeout and pool overflow limit.
+
+It asks Git whether `.env`, local overrides, `.venv`, Python/pytest caches, and the local database are excluded, whether `.env.example` remains available to Git, and whether ignored files are already tracked. A tracked file remains tracked even when its ignore rule is correct, so both checks are necessary. [Git check-ignore documentation](https://git-scm.com/docs/git-check-ignore)
+
+Finally it requests the running API's `/health/db`. Success requires HTTP `200` with `status=ok` and `database=postgresql`. An old API returning `404`, an API still using SQLite, an unavailable database, and an unreachable API all fail the check. Exit code `0` means all checks passed; `1` means an item needs attention. The script does not stage, commit, push, edit `.env`, or change database tables.
+
+Local settings are inspected in the verification process; HTTP health is inspected in the running API process. Restart Uvicorn from this checkout after saving settings so both use the same configuration. Health confirms PostgreSQL query execution, not the exact project identity or application-table permissions. For a different local port, pass `--url http://127.0.0.1:8001/health/db`.
+
 ## 6. Run automated tests
 
 ```powershell
 ..\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Default tests replace database settings before importing the app and use isolated, in-memory SQLite. They cover saved writes, rollback after a request error, correct PostgreSQL driver arguments, startup and health failures, redacted HTTP errors, `.env` loading from another folder, and password encoding. The PostgreSQL integration test is skipped unless `TEST_POSTGRES_URL` is explicitly set. A skipped PostgreSQL test is not a failed connection and is not proof that Supabase works; use the diagnostic command in step 4.
+Default tests replace database settings before importing the app and use isolated, in-memory SQLite. They cover saved writes and rollback through actual FastAPI test requests, shared engine wiring and real health SQL execution, custom PostgreSQL pool/driver settings loaded from `.env`, startup and health failures, redacted HTTP errors, `.env` loading from another folder, password encoding, real Git ignore/index checks, and HTTP verification failures. HTTP verifier tests use a local test server and Git tests use disposable checkouts. The PostgreSQL integration test is skipped unless `TEST_POSTGRES_URL` is explicitly set. A skipped PostgreSQL test is not a failed connection and is not proof that Supabase works; use the diagnostic command in step 4.
 
 If you want the opt-in pytest check to use the URL already configured privately in `.env`, run these from `BackEnd`:
 
@@ -114,6 +133,24 @@ PostgreSQL connections default to encrypted SSL. An explicit SSL mode in the URL
 
 Use `Depends(get_db)` from `app.database.session` in synchronous route functions when doing synchronous SQLAlchemy work. A service should explicitly call `db.commit()` for successful writes. The dependency rolls back if an exception escapes the request and always closes the session. No automatic retry repeats write operations.
 
+For example, this standalone FastAPI route demonstrates a bound read parameter without depending on any application table:
+
+```python
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from app.database.session import get_db
+
+router = APIRouter()
+
+@router.get("/query-example")
+def query_example(number: int = 41, db: Session = Depends(get_db)):
+    result = db.scalar(text("SELECT CAST(:number AS INTEGER) + 1"), {"number": number})
+    return {"result": result}
+```
+
+This is a documentation example, not a route added to the application. For writes, use `db.add(...)` with an implemented model or a bound SQL statement, then `db.commit()` after the operation succeeds. Register new routers explicitly with the app.
+
 Database exception handling returns a generic `503` for connection/pool failures, `409` for constraint violations, and `500` for other SQLAlchemy errors. Logs record the exception class, not raw driver messages, SQL, parameters, or database URLs.
 
 ## Troubleshooting
@@ -134,14 +171,6 @@ For server-side connection issues, use [Supabase's connection troubleshooting](h
 
 ## Task evidence
 
-| Requested work | Included implementation | Remaining verification |
-| --- | --- | --- |
-| Required packages | Updated requirements with Psycopg 3 and the test HTTP client | Install on each laptop. |
-| `.env` creation/configuration | Local interactive helper, preserving existing other values | Run with the team's credentials locally. |
-| `.env.example` | PostgreSQL placeholder URL and settings | Ready for team review. |
-| `DATABASE_URL` and app settings | Validated driver selection, stable `.env` and SQLite paths | Live target must return PostgreSQL health. |
-| `.gitignore` | Root ignore rules and specific tracking-cleanup commands | Run cleanup in the original Git checkout. |
-| Connect to Supabase | Psycopg engine, SSL default, pool and timeouts | Run the PostgreSQL diagnostic. |
-| Basic queries and writes | Temporary-table read/write/commit/rollback/cleanup diagnostic | Actual Supabase checks are pending. |
-| Connection errors | Startup check, health endpoint, rollback, safe HTTP responses | Automated local tests plus live diagnostic. |
-| Developer documentation | This README | Review with the backend team. |
+See [the task verification record](docs/DATABASE_TASK_STATUS.md) for the distinction between implemented/tested code, the successful live checks already shown on Kyle's laptop, and the final app verification still needed there.
+
+The references are summarized in [database design notes](docs/DATABASE_DESIGN_NOTES.md), including differences between the revised ERD and older system design. They guide future application models and queries; completing these connection tasks does not mean every SRS feature is implemented.

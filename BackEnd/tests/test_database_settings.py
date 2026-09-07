@@ -3,11 +3,17 @@ import importlib.util
 import shutil
 
 from dotenv import dotenv_values
+import psycopg
 from pydantic import ValidationError
 import pytest
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import sessionmaker
 
+from app.core import config
 from app.core.config import BACKEND_DIR, Settings
+from app.database import session as database
+from scripts import verify_backend
 from scripts.configure_database import configure_env
 
 
@@ -47,6 +53,49 @@ def test_env_is_loaded_from_backend_from_another_working_directory(tmp_path, mon
     spec.loader.exec_module(module)
     assert module.settings.PROJECT_NAME == values["PROJECT_NAME"]
     assert Path(make_url(module.settings.DATABASE_URL).database) == backend / "scanity.db"
+
+
+def test_custom_env_pool_and_connection_settings_reach_sqlalchemy_and_psycopg(tmp_path, monkeypatch):
+    values = {
+        "DATABASE_URL": "postgresql://user:test-only-password@localhost:5432/postgres",
+        "DATABASE_CONNECT_TIMEOUT": "4",
+        "DATABASE_POOL_SIZE": "3",
+        "DATABASE_MAX_OVERFLOW": "1",
+        "DATABASE_POOL_TIMEOUT": "7",
+    }
+    env_path = tmp_path / ".env"
+    env_path.write_text("\n".join(f"{key}={value}" for key, value in values.items()))
+    for key in values:
+        monkeypatch.delenv(key, raising=False)
+    settings = Settings(_env_file=env_path)
+    monkeypatch.setattr(database, "settings", settings)
+    captured = {}
+
+    def unavailable_connection(*args, **kwargs):
+        captured.update(kwargs)
+        raise psycopg.OperationalError("simulated unavailable database")
+
+    monkeypatch.setattr(psycopg, "connect", unavailable_connection)
+    engine = database.create_database_engine(settings.DATABASE_URL)
+    try:
+        assert engine.pool.size() == 3
+        assert engine.pool.timeout() == 7
+        # SQLAlchemy has no public getter for the configured overflow ceiling.
+        assert engine.pool._max_overflow == 1
+        monkeypatch.setattr(config, "settings", settings)
+        monkeypatch.setattr(database, "engine", engine)
+        monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=engine))
+        monkeypatch.setattr(verify_backend, "BACKEND_DIR", tmp_path)
+        report = "\n".join(verify_backend.check_local_settings())
+        assert "pool size=3" in report
+        assert "max overflow=1" in report
+        assert "test-only-password" not in report
+        with pytest.raises(OperationalError):
+            engine.connect()
+        assert captured["connect_timeout"] == 4
+        assert captured["sslmode"] == "require"
+    finally:
+        engine.dispose()
 
 
 def test_invalid_database_url_does_not_appear_in_validation_errors():
