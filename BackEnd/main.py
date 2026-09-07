@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from app.core.config import settings
 from app.database.errors import database_exception_handler
 from app.database.session import engine
+from app.routers.auth import router as auth_router
 from app.routers.example import router as example_router
 from app.routers.scan import router as scan_router
 
@@ -39,6 +40,7 @@ app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 app.add_exception_handler(SQLAlchemyError, database_exception_handler)
 app.include_router(example_router, prefix="/api/v1")
 app.include_router(scan_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/")
