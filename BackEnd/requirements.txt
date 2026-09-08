@@ -6,4 +6,6 @@ pydantic-settings
 python-dotenv
 pytest
 requests
+psycopg[binary]>=3.3,<4
+httpx>=0.28,<1
 httpx>=0.27.0
