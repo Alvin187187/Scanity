@@ -12063,20 +12063,17 @@ function OCRScannerScreen({
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
 
-  const score = 68
+  // Nutrition grade (A–E) reflects ingredient/nutrition quality only — it is
+  // calculated from the product itself and is never lowered just because an
+  // ingredient happens to match this user's saved allergy profile. A product
+  // can be Grade A and still be flagged unsafe for a specific person; that
+  // personalized check is the separate Safety verdict below.
+  const grade: NutritionGrade = "a"
 
-  const scoreColor =
-    score >= 71
-      ? C.statusSafe
-      : score >= 42
-        ? C.statusCaution
-        : C.statusDanger
-
-  const flags = [
-    { warn: true, text: "Contains Sodium benzoate" },
-    { warn: true, text: "Contains Maltodextrin" },
-    { warn: false, text: "No Allergy Detected" },
-  ]
+  const verdict: CompareVerdict = "avoid"
+  const verdictReason =
+    "Flagged against your saved allergy profile — see allergens below."
+  const allergens = ["wheat", "soy"]
 
   return (
     <div
@@ -12151,7 +12148,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             </svg>
           </div>
 
-          {/* ── Product Name + Score ──────────────────────────────────────── */}
+          {/* ── Product Name + Grade ──────────────────────────────────────── */}
           <div
             style={{
               display: "flex",
@@ -12186,174 +12183,43 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               </p>
             </div>
 
-            {/* Score Circle */}
+            {/* Grade Badge */}
             <div
               style={{
-                position: "relative",
-                width: 56,
-                height: 56,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
                 flexShrink: 0,
               }}
             >
-              <svg
-                width="56"
-                height="56"
-                viewBox="0 0 56 56"
-              >
-                <circle
-                  cx="28"
-                  cy="28"
-                  r="24"
-                  fill="none"
-                  stroke="rgba(26,18,9,0.08)"
-                  strokeWidth="5"
-                />
+              <GradeBadge grade={grade} size={56} />
 
-                <circle
-                  cx="28"
-                  cy="28"
-                  r="24"
-                  fill="none"
-                  stroke={scoreColor}
-                  strokeWidth="5"
-                  strokeDasharray={`${(score / 100) * 150.8} 150.8`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 28 28)"
-                />
-              </svg>
-
-              <p
+              <span
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: 0,
-                  fontFamily: FONT_HEAD,
-                  fontWeight: 400,
-                  fontSize: 15,
-                  color: scoreColor,
+                  fontFamily: FONT_BODY,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  color: "rgba(26,18,9,0.42)",
                 }}
               >
-                {score}
-              </p>
+                grade
+              </span>
             </div>
           </div>
 
-          {/* ── Score Scale ───────────────────────────────────────────────── */}
+          {/* ── Grade Scale ──────────────────────────────────────────────── */}
           <div
             style={{
               marginBottom: 20,
             }}
           >
-            <div
-              style={{
-                height: 8,
-                borderRadius: 4,
-                background:
-                  "linear-gradient(to right, #E8453C 0%, #E8453C 40%, #F5C518 40%, #F5C518 70%, #E0A72E 70%, #E0A72E 100%)",
-                marginBottom: 4,
-              }}
-            />
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-              }}
-            >
-              {[
-                "0-40 Bad",
-                "42-70 Concerns",
-                "71-100 Good",
-              ].map((label, i) => (
-                <p
-                  key={i}
-                  style={{
-                    margin: 0,
-                    fontFamily: FONT_BODY,
-                    fontSize: 9,
-                    color: "rgba(26,18,9,0.4)",
-                  }}
-                >
-                  {label}
-                </p>
-              ))}
-            </div>
+            <GradeScale grade={grade} />
           </div>
 
-          {/* ── Flags ────────────────────────────────────────────────────── */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              marginBottom: 16,
-            }}
-          >
-            {flags.map((flag, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                {flag.warn ? (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={C.statusCaution}
-                    strokeWidth="2"
-                  >
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                    <line
-                      x1="12"
-                      y1="9"
-                      x2="12"
-                      y2="13"
-                    />
-                    <line
-                      x1="12"
-                      y1="17"
-                      x2="12.01"
-                      y2="17"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={C.greenLight}
-                    strokeWidth="2.2"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-
-                <p
-                  style={{
-                    margin: 0,
-                    fontFamily: FONT_BODY,
-                    fontSize: 13,
-                    color: flag.warn
-                      ? C.black
-                      : "rgba(26,18,9,0.5)",
-                  }}
-                >
-                  {flag.text}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Why Is It Flagged ─────────────────────────────────────────── */}
+          {/* ── Allergy & Safety ─────────────────────────────────────────── */}
           <div
             style={{
               borderRadius: 14,
@@ -12361,51 +12227,28 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               border: `1.5px solid rgba(224,167,46,0.2)`,
               padding: "14px 16px",
               marginBottom: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 6,
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill={C.statusCaution}
-                stroke={C.statusCaution}
-                strokeWidth="1"
-              >
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: FONT_HEAD,
-                  fontWeight: 400,
-                  fontSize: 13,
-                  color: C.black,
-                }}
-              >
-                Why is it flagged
-              </p>
-            </div>
-
             <p
               style={{
                 margin: 0,
-                fontFamily: FONT_BODY,
-                fontSize: 12,
-                color: "rgba(26,18,9,0.55)",
-                lineHeight: 1.5,
+                fontFamily: FONT_HEAD,
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "rgba(26,18,9,0.5)",
               }}
             >
-              High sodium may affect your hypertension
+              Allergy &amp; safety
             </p>
+
+            <StatusBadge verdict={verdict} reason={verdictReason} size="lg" />
+
+            <AllergenList allergens={allergens} />
           </div>
 
           {/* ── Action Buttons ────────────────────────────────────────────── */}
@@ -12463,6 +12306,131 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
 
 // ── Product Comparison ───────────────────────────────────────────────────────
 
+// Nutrition Grade — a Nutri-Score-style A (best) to E (worst) letter grade
+// for a product's overall ingredient/nutrition quality. It is computed from
+// the product alone (nutrients, ingredients, processing) and is intentionally
+// independent of any one user's saved allergies or health conditions — a
+// product can be Grade A and still be unsafe for a specific person. Personal
+// safety against that user's profile is the separate `CompareVerdict` below.
+//
+// Colors come from the dedicated --scanity-grade-* tokens in tokens.css
+// (each aliased to an existing base token, so there is one source of truth
+// per color) rather than reusing base tokens directly here.
+type NutritionGrade = "a" | "b" | "c" | "d" | "e"
+
+const GRADE_ORDER: NutritionGrade[] = ["a", "b", "c", "d", "e"]
+
+const GRADE_COLORS: Record<NutritionGrade, string> = {
+  a: "var(--scanity-grade-a)",
+  b: "var(--scanity-grade-b)",
+  c: "var(--scanity-grade-c)",
+  d: "var(--scanity-grade-d)",
+  e: "var(--scanity-grade-e)",
+}
+
+function gradeColor(grade: NutritionGrade | null): string {
+  if (grade === null) {
+    return "rgba(26,18,9,0.35)"
+  }
+
+  return GRADE_COLORS[grade]
+}
+
+function GradeBadge({
+  grade,
+  size = 56,
+}: {
+  grade: NutritionGrade | null
+  size?: number
+}) {
+  const color = gradeColor(grade)
+
+  return (
+    <div
+      role="img"
+      aria-label={
+        grade === null
+          ? "Nutrition grade not available"
+          : `Nutrition grade ${grade.toUpperCase()}`
+      }
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: grade === null ? "rgba(26,18,9,0.08)" : color,
+        border:
+          grade === null
+            ? "1.5px dashed rgba(26,18,9,0.25)"
+            : "none",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: FONT_HEAD,
+          fontWeight: 800,
+          fontSize: grade === null ? size * 0.16 : size * 0.42,
+          color: grade === null ? "rgba(26,18,9,0.4)" : C.white,
+          lineHeight: 1,
+        }}
+      >
+        {grade === null ? "N/A" : grade.toUpperCase()}
+      </span>
+    </div>
+  )
+}
+
+function GradeScale({ grade }: { grade: NutritionGrade | null }) {
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      {GRADE_ORDER.map((g) => {
+        const active = g === grade
+        const color = GRADE_COLORS[g]
+
+        return (
+          <div
+            key={g}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                height: 8,
+                borderRadius: 4,
+                background: color,
+                opacity: active ? 1 : 0.32,
+                boxShadow: active
+                  ? `0 0 0 2px ${C.white}, 0 0 0 3.5px ${color}`
+                  : "none",
+              }}
+            />
+
+            <span
+              style={{
+                fontFamily: FONT_HEAD,
+                fontWeight: active ? 800 : 600,
+                fontSize: 10,
+                color: active ? color : "rgba(26,18,9,0.4)",
+              }}
+            >
+              {g.toUpperCase()}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 type CompareVerdict = "safe" | "caution" | "avoid" | null
 
 type CompareProduct = {
@@ -12470,7 +12438,9 @@ type CompareProduct = {
   brand?: string
   quantity?: string
   imageUrl?: string
-  score: number | null
+  // Nutrition grade (A–E) — quality only, never affected by this user's
+  // saved allergies. See `verdict` for the personalized safety check.
+  grade: NutritionGrade | null
   verdict: CompareVerdict
   verdictReason?: string
   allergens?: string[]
@@ -12497,9 +12467,10 @@ const COMPARE_PRODUCT_A: CompareProduct = {
   brand: "Golden Wok",
   quantity: "85g pack",
   imageUrl: beefNoodlesImg,
-  score: 68,
-  verdict: "caution",
-  verdictReason: "High sodium may not suit a hypertension profile.",
+  grade: "a",
+  verdict: "avoid",
+  verdictReason:
+    "Flagged against your saved allergy profile — see allergens detected below.",
   allergens: ["wheat", "soy"],
   ingredientsText:
     "Wheat flour, palm oil, salt, beef flavoring (contains soy), sodium benzoate, maltodextrin, monosodium glutamate, dried vegetables (cabbage, carrot, scallion), spices, sugar, caramel color, disodium inosinate, disodium guanylate.",
@@ -12525,7 +12496,7 @@ const COMPARE_PRODUCT_B: CompareProduct = {
   brand: "Golden Wok",
   quantity: "85g pack",
   imageUrl: chickenNoodlesImg,
-  score: 72,
+  grade: "b",
   verdict: "safe",
   verdictReason:
     "No allergens or ingredients flagged against your saved profile.",
@@ -12547,93 +12518,6 @@ const COMPARE_PRODUCT_B: CompareProduct = {
     nutrition: 61,
     processing: 55,
   },
-}
-
-function scoreColor(score: number | null): string {
-  if (score === null) {
-    return "rgba(26,18,9,0.35)"
-  }
-
-  return score >= 71
-    ? C.statusSafe
-    : score >= 42
-      ? C.statusCaution
-      : C.statusDanger
-}
-
-function ScoreRing({
-  score,
-  size = 56,
-}: {
-  score: number | null
-  size?: number
-}) {
-  const r = size / 2 - 5
-  const circ = 2 * Math.PI * r
-  const pct = score === null ? 0 : score / 100
-  const color = scoreColor(score)
-
-  return (
-    <div
-      role="img"
-      aria-label={
-        score === null
-          ? "Score not available"
-          : `Score ${score} out of 100`
-      }
-      style={{
-        position: "relative",
-        width: size,
-        height: size,
-        flexShrink: 0,
-      }}
-    >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        style={{ transform: "rotate(-90deg)" }}
-      >
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="rgba(26,18,9,0.12)"
-          strokeWidth="5"
-        />
-
-        {score !== null && (
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={`${pct * circ} ${circ}`}
-          />
-        )}
-      </svg>
-
-      <span
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: FONT_HEAD,
-          fontWeight: 400,
-          fontSize: score === null ? size * 0.16 : size * 0.27,
-          color,
-        }}
-      >
-        {score === null ? "N/A" : score}
-      </span>
-    </div>
-  )
 }
 
 // ── Status Glyphs ────────────────────────────────────────────────────────────
@@ -13748,8 +13632,8 @@ function ProductHeaderCard({
             flexShrink: 0,
           }}
         >
-          <ScoreRing
-            score={product.score}
+          <GradeBadge
+            grade={product.grade}
             size={isDesktop ? 58 : 42}
           />
 
@@ -13763,7 +13647,7 @@ function ProductHeaderCard({
               color: "rgba(26,18,9,0.42)",
             }}
           >
-            score
+            grade
           </span>
         </div>
       </div>
@@ -13847,23 +13731,19 @@ function buildInsights(
   const insights: string[] = []
 
   if (
-    a.score !== null &&
-    b.score !== null &&
+    a.grade !== null &&
+    b.grade !== null &&
     recommendation !== "none"
   ) {
-    const diff = Math.abs(a.score - b.score)
-
     const winner =
       recommendation === "a" ? a : b
 
     const loser =
       recommendation === "a" ? b : a
 
-    if (diff > 0) {
+    if (winner.grade !== loser.grade) {
       insights.push(
-        `${winner.name} scores ${diff} point${
-          diff === 1 ? "" : "s"
-        } higher than ${loser.name}.`
+        `${winner.name} has a better nutrition grade (${winner.grade!.toUpperCase()}) than ${loser.name} (${loser.grade!.toUpperCase()}).`
       )
     }
   }
@@ -14066,7 +13946,7 @@ function KeyInsightsCard({
           >
             {recommendation === "none"
               ? "Both products score too closely, or key data is missing, for Scanity to call a clear winner. Use the breakdown above to decide what matters most to you."
-              : "Based on nutrition score, ingredient quality, and your saved health profile."}
+              : "Based on nutrition grade, ingredient quality, and your saved health profile."}
           </p>
         </div>
       </div>
@@ -14491,13 +14371,13 @@ function ProductCompareScreen({
     if (scenario === "success-none") {
       a = {
         ...a,
-        score: 63,
+        grade: "c",
         verdict: "caution",
       }
 
       b = {
         ...b,
-        score: 64,
+        grade: "c",
         verdict: "caution",
       }
     }
@@ -14508,7 +14388,7 @@ function ProductCompareScreen({
         ingredientsText: undefined,
         allergens: undefined,
         breakdown: null,
-        score: null,
+        grade: null,
         verdict: null,
         verdictReason: undefined,
       }
@@ -14520,8 +14400,8 @@ function ProductCompareScreen({
       | "b"
       | "none" = (() => {
       if (
-        a.score === null ||
-        b.score === null
+        a.grade === null ||
+        b.grade === null
       ) {
         return "none"
       }
@@ -14540,11 +14420,15 @@ function ProductCompareScreen({
         return "a"
       }
 
-      if (a.score === b.score) {
+      const aRank = GRADE_ORDER.indexOf(a.grade)
+      const bRank = GRADE_ORDER.indexOf(b.grade)
+
+      if (aRank === bRank) {
         return "none"
       }
 
-      return a.score > b.score ? "a" : "b"
+      // Lower index in GRADE_ORDER ("a") is the better grade.
+      return aRank < bRank ? "a" : "b"
     })()
 
     return (
@@ -14611,7 +14495,7 @@ function ProductCompareScreen({
                 Product B is missing data
               </strong>{" "}
               — ingredients, allergens, and nutrition
-              score weren't returned by the backend.
+              grade weren't returned by the backend.
               Nothing has been guessed to fill the gaps.
             </span>
           </div>
@@ -16748,7 +16632,7 @@ const FAQ_ITEMS = [
   {
     question: "How do I scan a product?",
     answer:
-      "Open the scanner from your dashboard and point your camera at the barcode. Scanity will show the product score and relevant alerts.",
+      "Open the scanner from your dashboard and point your camera at the barcode. Scanity will show the product's nutrition grade and relevant alerts.",
   },
   {
     question: "How are allergy alerts chosen?",
@@ -16761,9 +16645,9 @@ const FAQ_ITEMS = [
       "Yes. Open My Profile from the menu, update your selections, and tap Save changes.",
   },
   {
-    question: "What does the product score mean?",
+    question: "What does the nutrition grade mean?",
     answer:
-      "The score summarizes how well a product fits your saved preferences. Review the individual alerts for more detail.",
+      "The A–E grade summarizes a product's ingredient and nutrition quality on its own — it isn't affected by your personal allergies or health conditions. A product can be Grade A and still be flagged unsafe for you; check the Allergy & Safety result for that.",
   },
 ]
 
