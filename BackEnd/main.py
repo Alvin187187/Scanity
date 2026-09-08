@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.database.errors import database_exception_handler
 from app.database.session import engine
 from app.routers.example import router as example_router
+from app.routers.scan import router as scan_router
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 app.add_exception_handler(SQLAlchemyError, database_exception_handler)
 app.include_router(example_router, prefix="/api/v1")
+app.include_router(scan_router, prefix="/api/v1")
 
 
 @app.get("/")
