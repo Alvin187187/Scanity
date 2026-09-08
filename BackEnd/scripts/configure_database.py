@@ -37,8 +37,22 @@ def parse_postgres_uri(value: str):
     if not url.database:
         raise ValueError("The PostgreSQL URI must include a database name.")
 
-    if url.port is not None and not 1 <= url.port <= 65535:
-        raise ValueError("The PostgreSQL port must be between 1 and 65535.")
+    host = url.host.lower()
+    port = url.port or 5432
+
+    local_hosts = {"localhost", "127.0.0.1", "::1"}
+    is_local = host in local_hosts
+    is_supabase = host.endswith(".pooler.supabase.com")
+
+    if not is_local and not is_supabase:
+        raise ValueError(
+            "Use local PostgreSQL or a Supabase Session pooler connection."
+        )
+
+    if port != 5432:
+        raise ValueError(
+            "Local PostgreSQL and the Supabase Session pooler must use port 5432."
+        )
 
     return url
 
