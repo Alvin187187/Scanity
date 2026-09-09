@@ -45,11 +45,11 @@ async def refresh(request: RefreshRequest):
         raise HTTPException(status_code=401, detail=str(e))
     return RefreshResponse(**result)
 
-
 @router.post("/logout", status_code=204)
 async def logout(current_user: dict = Depends(get_current_user)):
-    logout_user(current_user)
+    logout_user(current_user["access_token"])
     return None
+   
 
 
 @router.post("/password-reset/request", response_model=MessageResponse)
