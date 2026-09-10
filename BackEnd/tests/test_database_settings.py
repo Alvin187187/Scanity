@@ -41,8 +41,6 @@ def test_env_is_loaded_from_backend_from_another_working_directory(tmp_path, mon
         "PROJECT_NAME": "Loaded from the backend env",
         "DATABASE_URL": "sqlite:///./scanity.db",
         "SECRET_KEY": "test-only-value",
-        "SUPABASE_URL": "https://example.supabase.co",
-        "SUPABASE_KEY": "test-only-supabase-key",
         "OLLAMA_HOST": "http://localhost:11434",
         "OPENFOODFACTS_API": "https://example.invalid",
     }
