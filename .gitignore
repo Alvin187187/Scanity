@@ -1,6 +1,8 @@
 # Local credentials; keep the shared template.
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
 
 # Python environments and generated files.
