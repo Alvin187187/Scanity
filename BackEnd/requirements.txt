@@ -11,3 +11,4 @@ httpx>=0.28,<1
 supabase
 PyJWT
 cryptography
+alembic

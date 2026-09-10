@@ -12,12 +12,16 @@ BACKEND_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Scanity API"
     DATABASE_URL: str = Field(repr=False)
-    SECRET_KEY: str = Field(repr=False)
+
     SUPABASE_URL: str
     SUPABASE_KEY: str = Field(repr=False)
+    SUPABASE_SERVICE_ROLE_KEY: str | None = Field(default=None, repr=False)
     SUPABASE_JWT_SECRET: str = Field(default="", repr=False)
+
+    SECRET_KEY: str = Field(repr=False)
     JWT_ALGORITHM: str = "ES256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
     OLLAMA_HOST: str
     OPENFOODFACTS_API: str
 
