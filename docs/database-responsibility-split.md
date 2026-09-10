@@ -1,323 +1,287 @@
-\# Scanity Database Responsibility Split
+# Scanity Database Responsibility Split
 
+## Purpose
 
+Scanity uses a local PostgreSQL database for school development and offline/local demonstrations.
 
-\## Purpose
+Supabase is used for authentication and may also be used for selected shared/cloud records once the team confirms the final list.
 
+The finalized ERD remains the source of truth for the application table set. No extra application tables should be added without team approval.
 
+The current authentication decision changes one local field responsibility: authentication passwords stay in Supabase Auth and are not stored in the local `USERS` table.
 
-Scanity uses a local PostgreSQL database for school development and offline demonstrations.
+---
 
+## Local PostgreSQL
 
+The local PostgreSQL database stores the application data required for Scanity to run during school development and local demonstrations.
 
-Supabase is used for authentication and selected shared/cloud records.
+The local database contains these application tables:
 
+1. `USERS`
+2. `HEALTH_PROFILES`
+3. `USER_ALLERGIES`
+4. `ALLERGY_TYPES`
+5. `USER_HEALTH_CONDITIONS`
+6. `HEALTH_CONDITION_TYPES`
+7. `SCAN_HISTORIES`
+8. `PRODUCTS`
+9. `PRODUCT_INGREDIENTS`
+10. `INGREDIENTS`
+11. `PRODUCT_NUTRITION_FLAGS`
+12. `NUTRITION_RULES`
 
+FastAPI connects to the local PostgreSQL database using SQLAlchemy and Psycopg.
 
-The finalized ERD is the source of truth for application tables. No extra application tables should be added unless the team approves them.
+### Local USERS table
 
+The local `USERS` table contains:
 
+- `user_id`
+- `full_name`
+- `email`
 
-\---
+The local `USERS` table does **not** store a password.
 
+Authentication passwords remain in Supabase Auth.
 
+---
 
-\## Local PostgreSQL
-
-
-
-The local PostgreSQL database stores the application data required for Scanity to run during school development and demonstrations without requiring an internet connection.
-
-
-
-The local database contains the tables from the finalized ERD:
-
-
-
-1\. USERS
-
-2\. HEALTH\_PROFILES
-
-3\. USER\_ALLERGIES
-
-4\. ALLERGY\_TYPES
-
-5\. USER\_HEALTH\_CONDITIONS
-
-6\. HEALTH\_CONDITION\_TYPES
-
-7\. SCAN\_HISTORIES
-
-8\. PRODUCTS
-
-9\. PRODUCT\_INGREDIENTS
-
-10\. INGREDIENTS
-
-11\. PRODUCT\_NUTRITION\_FLAGS
-
-12\. NUTRITION\_RULES
-
-
-
-FastAPI connects to this database using SQLAlchemy and Psycopg.
-
-
-
-The local PostgreSQL database must remain usable even when Supabase or the internet is unavailable.
-
-
-
-\---
-
-
-
-\## Supabase
-
-
+## Supabase
 
 Supabase is responsible for authentication.
 
-
-
 Supabase Auth handles:
 
+- Account registration
+- User login
+- Session/token refresh
+- Logout
+- Password reset
+- Authentication identity
+- Authentication user UUID
 
+The exact list of additional shared/cloud application records is still pending team confirmation.
 
-\- Account registration
+Until that list is confirmed, no additional ERD tables are assigned exclusively to Supabase.
 
-\- User login
+---
 
-\- Authentication identity
+## Supabase Auth to Local User Mapping
 
-\- Authentication user UUID
+Supabase Auth owns the authentication account.
 
-
-
-The final list of additional shared/cloud application records is still pending team confirmation.
-
-
-
-Until the team confirms the agreed shared records, no additional ERD tables are assigned exclusively to Supabase.
-
-
-
-\---
-
-
-
-\## Supabase Auth to Local User Mapping
-
-
-
-When Supabase Auth and the local database are both used, the Supabase Auth user UUID is used as the local USERS.user\_id.
-
-
+When a matching local `USERS` row is created, its `user_id` must use the same UUID assigned by Supabase Auth.
 
 Example flow:
 
-
-
-1\. A user creates an account using Supabase Auth.
-
-2\. Supabase creates an authentication user and assigns a UUID.
-
-3\. The backend receives the authenticated user's UUID.
-
-4\. FastAPI creates the matching row in the local USERS table.
-
-5\. The value of USERS.user\_id matches the Supabase Auth UUID.
-
-
+1. A user registers through Supabase Auth.
+2. Supabase creates the authentication user and assigns a UUID.
+3. The backend receives the Supabase Auth UUID.
+4. When the application creates the matching local `USERS` row, that UUID is used as `USERS.user_id`.
+5. The same user can then be identified consistently in both systems.
 
 Example:
 
+```text
+Supabase Auth user.id:
+550e8400-e29b-41d4-a716-446655440000
 
+Local PostgreSQL USERS.user_id:
+550e8400-e29b-41d4-a716-446655440000
+```
 
-Supabase Auth:
+The current Auth implementation returns the Supabase Auth UUID during registration. The local row creation should follow the mapping rule above when that persistence step is used.
 
+Supabase authentication passwords or credentials must never be copied into the local database.
 
+---
 
-&#x20;   id = 550e8400-e29b-41d4-a716-446655440000
+## Environment Variables
 
+Use `BackEnd/.env.example` as the template.
 
+The real `BackEnd/.env` file must remain local and must not be committed.
 
-Local PostgreSQL:
+### Local PostgreSQL
 
+For local development:
 
+```env
+DATABASE_URL=postgresql+psycopg://postgres:YOUR_LOCAL_PASSWORD@localhost:5432/scanity?sslmode=disable
+```
 
-&#x20;   USERS.user\_id = 550e8400-e29b-41d4-a716-446655440000
+### Optional Supabase PostgreSQL Session Pooler
 
+If the team needs to connect the application database to the Supabase PostgreSQL Session Pooler, use a separate connection string based on the real project values.
 
+The pooler example stays commented in `.env.example` so the local PostgreSQL URL remains the default example.
 
-This allows the application to identify the same user in both environments without creating another ID.
+### Supabase Auth
 
+Keep the current Auth setting names used by `main`:
 
+```env
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+SUPABASE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+```
 
-Supabase authentication passwords or credentials must not be copied from Supabase into the local database.
+Optional server-side value:
 
+```env
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
+```
 
+`SUPABASE_SERVICE_ROLE_KEY` must remain server-side only.
 
-\---
+The backend currently uses:
 
+```env
+JWT_ALGORITHM=ES256
+```
 
+Tokens are verified using the Supabase JWKS endpoint, so `SUPABASE_JWT_SECRET` is not required for the current verification flow.
 
-\## Offline School / Demo Use
+---
 
+## Offline School / Demo Use
 
-
-The local PostgreSQL database is the required database for offline school and demonstration use.
-
-
+The local PostgreSQL database remains the required application database for school and local demonstration use.
 
 A developer should be able to:
 
+1. Start local PostgreSQL.
+2. Configure the local `DATABASE_URL`.
+3. Apply the Alembic migrations.
+4. Start FastAPI.
+5. Use local database functionality without requiring a Supabase PostgreSQL connection.
 
+The current application settings still expect `SUPABASE_URL` and `SUPABASE_KEY` values to exist. For local-only setup, the placeholders from `.env.example` can be copied into `.env` when cloud authentication is not being tested.
 
-1\. Start local PostgreSQL.
+Actual Supabase Auth actions such as registration, login, refresh, logout, and password reset require internet access to Supabase.
 
-2\. Configure the local DATABASE\_URL.
-
-3\. Start FastAPI.
-
-4\. Access the backend without requiring a connection to Supabase.
-
-
-
-Cloud authentication features may require Supabase and an internet connection.
-
-
-
-\---
-
-
-
-\## Current Shared Record Status
-
-
-
-Supabase authentication is confirmed as a Supabase responsibility.
-
-
-
-The exact list of additional shared/cloud records is pending team confirmation.
-
-
-
-This document should be updated once the Backend and Full Stack teams confirm those records.
+---
 
 ## Local Development Setup
-
-The Scanity backend can run using a local PostgreSQL database without connecting to Supabase.
 
 ### Requirements
 
 Install:
 
 - Python
-- PostgreSQL 17
+- PostgreSQL
 - Git
 
 PostgreSQL should run locally using:
 
-- Host: localhost
-- Port: 5432
-- Database: scanity
-- User: postgres
+```text
+Host: localhost
+Port: 5432
+Database: scanity
+User: postgres
+```
 
 ### 1. Create the local database
 
-Open PostgreSQL and create the database:
+Create:
 
-    CREATE DATABASE scanity;
+```sql
+CREATE DATABASE scanity;
+```
 
 ### 2. Configure the backend environment
 
 Copy:
 
-    BackEnd/.env.example
+```text
+BackEnd/.env.example
+```
 
 to:
 
-    BackEnd/.env
+```text
+BackEnd/.env
+```
 
-Set DATABASE_URL using your local PostgreSQL password:
+Replace the local PostgreSQL password and any real Supabase values only inside `.env`.
 
-    DATABASE_URL=postgresql+psycopg://postgres:YOUR_LOCAL_PASSWORD@localhost:5432/scanity?sslmode=disable
-
-Do not commit the real `.env` file or database password.
-
-Supabase variables may remain empty during local/offline development if cloud authentication is not being tested.
+Do not commit the real `.env` file.
 
 ### 3. Install backend dependencies
 
 From the project root:
 
-    .\.venv\Scripts\Activate.ps1
-
-Then enter the backend:
-
-    cd BackEnd
-
-Install the dependencies:
-
-    python -m pip install -r requirements.txt
+```powershell
+.\.venv\Scripts\Activate.ps1
+cd BackEnd
+python -m pip install -r requirements.txt
+```
 
 ### 4. Apply database migrations
 
 Run:
 
-    alembic upgrade head
+```powershell
+alembic upgrade head
+```
 
-This creates the application tables defined by the finalized Scanity ERD.
+The current migration chain includes the ERD schema and the migration that removes the local `users.password` column.
 
-### 5. Test the PostgreSQL connection
+### 5. Test PostgreSQL
 
 Run:
 
-    python -m scripts.check_database
+```powershell
+python -m scripts.check_database
+```
 
 A successful setup should end with:
 
-    All PostgreSQL checks passed. Application tables were not changed.
+```text
+All PostgreSQL checks passed. Application tables were not changed.
+```
 
 ### 6. Start FastAPI
 
 Run:
 
-    python -m uvicorn main:app --reload
+```powershell
+python -m uvicorn main:app --reload
+```
 
 The backend should start at:
 
-    http://127.0.0.1:8000
+```text
+http://127.0.0.1:8000
+```
 
 ### 7. Verify FastAPI and PostgreSQL
 
-In another terminal, run:
+In another terminal:
 
-    Invoke-RestMethod http://127.0.0.1:8000/health/db
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health/db
+```
 
-Expected result:
+Expected database result:
 
-    status   database
-    ------   --------
-    ok       postgresql
+```text
+status   database
+------   --------
+ok       postgresql
+```
 
-The main API endpoint can also be checked with:
-
-    Invoke-RestMethod http://127.0.0.1:8000/
-
-Expected result:
-
-    Welcome to Scanity API
+---
 
 ## Connection Proof
 
 ### Local PostgreSQL
 
-Local PostgreSQL was tested successfully using:
+Local PostgreSQL has been tested successfully using:
 
-    python -m scripts.check_database
+```powershell
+python -m scripts.check_database
+```
 
 The checks confirmed:
 
@@ -329,23 +293,34 @@ The checks confirmed:
 - Transaction rollback
 - Temporary table cleanup
 
-FastAPI was also tested against the local database using:
+The local `USERS` table was also verified after the latest migration and contains:
 
-    Invoke-RestMethod http://127.0.0.1:8000/health/db
+```text
+user_id
+full_name
+email
+```
 
-Expected result:
+There is no local `password` column.
 
-    status   database
-    ------   --------
-    ok       postgresql
+Current Alembic head after the password-removal migration:
+
+```text
+da67baeaba01
+```
 
 ### Supabase
 
-Supabase Auth reachability was tested using the project URL and publishable key.
+Supabase Auth reachability was previously verified using the project URL and publishable key.
 
-The Auth health endpoint returned:
+Cloud Auth remains separate from the local PostgreSQL application database.
 
-    Supabase Auth status: 200
-    Reachable: True
+---
 
-This confirms that the Supabase project is reachable while the application database remains configured for local PostgreSQL.
+## Current Shared Record Status
+
+Supabase Auth is confirmed as a Supabase responsibility.
+
+The exact list of additional shared/cloud application records is still pending team confirmation.
+
+This document should be updated once the Backend and Full Stack teams confirm those shared records.

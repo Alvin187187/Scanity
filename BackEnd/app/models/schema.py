@@ -19,7 +19,6 @@ class User(Base):
     user_id = Column(UUID(as_uuid=True), primary_key=True)
     full_name = Column(String(25))
     email = Column(String(35))
-    password = Column(String(255))
 
 
 class AllergyType(Base):
