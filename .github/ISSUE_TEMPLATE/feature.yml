@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest a change or new work for Scanity
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want
+      description: One short problem statement.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Screens, issue number, or why this should wait.
