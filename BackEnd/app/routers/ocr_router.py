@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from app.dependencies.auth import get_current_user
 
 from app.schemas.ocr import OCRScanRequest, OCRScanResponse
 from app.services.ocr_service import (
@@ -26,12 +27,14 @@ def _map_request_to_service(request: OCRScanRequest) -> dict:
 
 
 @router.post("/scan/ocr", response_model=OCRScanResponse)
-async def scan_ocr(request: OCRScanRequest):
+async def scan_ocr(
+    request: OCRScanRequest,
+    _current_user: dict = Depends(get_current_user),
+):
     """
     OCR scan endpoint for Issue #150.
 
     TODO:
-    - Add authentication after Auth merges into dev.
     - Add image upload / RapidOCR after its interface is available.
     """
 

@@ -11,7 +11,8 @@ from app.database.errors import database_exception_handler
 from app.database.session import engine
 from app.routers.auth import router as auth_router
 from app.routers.example import router as example_router
-from app.routers.scan import router as scan_router
+from app.routers.scan_router import router as scan_router
+from app.routers.ocr_router import router as ocr_router
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ app.add_exception_handler(SQLAlchemyError, database_exception_handler)
 app.include_router(example_router, prefix="/api/v1")
 app.include_router(scan_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(ocr_router, prefix="/api/v1")
 
 
 @app.get("/")
