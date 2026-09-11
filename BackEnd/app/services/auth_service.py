@@ -1,10 +1,15 @@
+import uuid
 """
 Thin wrapper around Supabase Auth. Per the team's decision, Supabase Auth owns
 registration, login, refresh, and password reset entirely — this service never
 hashes or stores a password itself, it just forwards calls and maps errors.
 """
 from supabase import create_client, Client
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
+from app.database.session import engine
+from app.models.schema import User
 
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
@@ -26,6 +31,19 @@ def register_user(full_name: str, email: str, password: str) -> dict:
 
     if result.user is None:
         raise AuthError("Registration failed")
+
+    # Insert matching row into local Postgres USERS table
+    with Session(engine) as db:
+        user_uuid = uuid.UUID(result.user.id) if isinstance(result.user.id, str) else result.user.id
+        existing_user = db.query(User).filter(User.user_id == user_uuid).first()
+        if not existing_user:
+            db_user = User(
+                user_id=user_uuid,  # Supabase Auth UUID
+                email=result.user.email,
+                full_name=full_name,
+            )
+            db.add(db_user)
+            db.commit()
 
     return {
         "user_id": result.user.id,

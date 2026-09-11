@@ -11,7 +11,7 @@ from app.database.errors import database_exception_handler
 from app.database.session import engine
 from app.routers.auth import router as auth_router
 from app.routers.example import router as example_router
-from app.routers.scan import router as scan_router
+from app.routers.scan_router import router as scan_router
 
 logger = logging.getLogger(__name__)
 

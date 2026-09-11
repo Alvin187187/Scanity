@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(repr=False)
     SUPABASE_URL: str
     SUPABASE_KEY: str = Field(repr=False)
-    SUPABASE_JWT_SECRET: str = Field(repr=False)
+    SUPABASE_JWT_SECRET: str | None = Field(default=None, repr=False)
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     OLLAMA_HOST: str
