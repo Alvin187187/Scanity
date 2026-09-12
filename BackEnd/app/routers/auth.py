@@ -10,7 +10,7 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import (
     register_user, login_user, refresh_token, logout_user,
-    request_password_reset, confirm_password_reset, AuthError,
+    request_password_reset, confirm_password_reset, AuthError, LocalUserSyncError,
 )
 from app.dependencies.auth import get_current_user
 from app.database.session import get_db
@@ -22,6 +22,8 @@ router = APIRouter(prefix="/auth")
 async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     try:
         result = register_user(db, request.full_name, request.email, request.password)
+    except LocalUserSyncError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except AuthError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return RegisterResponse(**result)

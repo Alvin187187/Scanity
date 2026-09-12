@@ -1,6 +1,11 @@
 import uuid
+
+from sqlalchemy.exc import SQLAlchemyError
 from supabase import create_client, Client
+
 from app.core.config import settings
+from app.models.schema import User
+
 
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
@@ -10,33 +15,41 @@ class AuthError(Exception):
     pass
 
 
-def register_user(db, full_name: str, email: str, password: str) -> dict:
-    from app.models.user import User
+class LocalUserSyncError(AuthError):
+    """Supabase Auth succeeded but the local users row could not be saved."""
+    pass
 
+
+def register_user(db, full_name: str, email: str, password: str) -> dict:
     try:
         result = supabase.auth.sign_up({
             "email": email,
             "password": password,
             "options": {"data": {"full_name": full_name}},
         })
-    except Exception as e:
-        raise AuthError(str(e))
+    except Exception:
+        raise AuthError("Registration failed")
 
     if result.user is None:
         raise AuthError("Registration failed")
 
-    # Cast Supabase string UUID to native Python UUID object for Postgres
-    local_user = User(
-        auth_uid=uuid.UUID(result.user.id),
-        full_name=full_name,
-        email=result.user.email,
-    )
-    db.add(local_user)
-    db.commit()
-    db.refresh(local_user)
+    try:
+        local_user = User(
+            user_id=uuid.UUID(result.user.id),
+            full_name=full_name,
+            email=result.user.email,
+        )
+        db.add(local_user)
+        db.commit()
+        db.refresh(local_user)
+    except SQLAlchemyError:
+        db.rollback()
+        raise LocalUserSyncError(
+            "Account was created but the local user profile could not be saved."
+        )
 
     return {
-        "user_id": local_user.user_id,
+        "user_id": str(local_user.user_id),
         "full_name": local_user.full_name,
         "email": local_user.email,
     }
@@ -94,5 +107,5 @@ def confirm_password_reset(reset_token: str, new_password: str) -> None:
     try:
         supabase.auth.verify_otp({"token_hash": reset_token, "type": "recovery"})
         supabase.auth.update_user({"password": new_password})
-    except Exception as e:
+    except Exception:
         raise AuthError("Invalid or expired reset token")

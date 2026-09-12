@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def database_exception_handler(request: Request, exc: SQLAlchemyError):
-    logger.error("Database request failed (%s): %s", type(exc).__name__, str(exc))
+    logger.error("Database request failed (%s).", type(exc).__name__)
     if isinstance(exc, (OperationalError, InterfaceError, DatabaseTimeoutError)):
         return JSONResponse(status_code=503, content={"detail": "Database temporarily unavailable. Please try again later."})
     if isinstance(exc, IntegrityError):
