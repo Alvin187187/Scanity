@@ -1,5 +1,6 @@
 # app/routers/auth.py
 from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 
 from app.schemas.auth import (
     RegisterRequest, RegisterResponse,
@@ -9,21 +10,21 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import (
     register_user, login_user, refresh_token, logout_user,
-    request_password_reset, confirm_password_reset, AuthError,
+    request_password_reset, confirm_password_reset, AuthError, LocalUserSyncError,
 )
 from app.dependencies.auth import get_current_user
+from app.database.session import get_db
 
 router = APIRouter(prefix="/auth")
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=201)
-async def register(request: RegisterRequest):
+async def register(request: RegisterRequest, db: Session = Depends(get_db)):
     try:
-        result = register_user(request.full_name, request.email, request.password)
+        result = register_user(db, request.full_name, request.email, request.password)
+    except LocalUserSyncError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except AuthError as e:
-        # Supabase distinguishes duplicate-email internally; surfaced generically
-        # here since AuthError doesn't carry a status code — refine if Supabase's
-        # error object exposes a specific "already registered" type
         raise HTTPException(status_code=409, detail=str(e))
     return RegisterResponse(**result)
 
@@ -45,11 +46,11 @@ async def refresh(request: RefreshRequest):
         raise HTTPException(status_code=401, detail=str(e))
     return RefreshResponse(**result)
 
+
 @router.post("/logout", status_code=204)
 async def logout(current_user: dict = Depends(get_current_user)):
     logout_user(current_user["access_token"])
     return None
-   
 
 
 @router.post("/password-reset/request", response_model=MessageResponse)
