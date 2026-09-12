@@ -1,3 +1,4 @@
+# app/services/auth_service.py
 """
 Thin wrapper around Supabase Auth. Per the team's decision, Supabase Auth owns
 registration, login, refresh, and password reset entirely — this service never
@@ -14,7 +15,9 @@ class AuthError(Exception):
     pass
 
 
-def register_user(full_name: str, email: str, password: str) -> dict:
+def register_user(db, full_name: str, email: str, password: str) -> dict:
+    from app.models.user import User
+
     try:
         result = supabase.auth.sign_up({
             "email": email,
@@ -27,10 +30,21 @@ def register_user(full_name: str, email: str, password: str) -> dict:
     if result.user is None:
         raise AuthError("Registration failed")
 
+    # Create the matching local users row — user_id stays local/int (Option B),
+    # auth_uid links back to the Supabase Auth account. No password stored here.
+    local_user = User(
+        auth_uid=result.user.id,
+        full_name=full_name,
+        email=result.user.email,
+    )
+    db.add(local_user)
+    db.commit()
+    db.refresh(local_user)
+
     return {
-        "user_id": result.user.id,
-        "full_name": full_name,
-        "email": result.user.email,
+        "user_id": local_user.user_id,
+        "full_name": local_user.full_name,
+        "email": local_user.email,
     }
 
 
@@ -70,7 +84,17 @@ def refresh_token(refresh_token_value: str) -> dict:
 
 
 def logout_user(access_token: str) -> None:
+    """
+    Signs out the session associated with the given access token.
+    Note: supabase-py's sign_out() operates on the client's current session
+    state, not an arbitrary passed-in token — in a stateless multi-request
+    API, this only works correctly if the client is set to use this token's
+    session first. Worth flagging to whoever reviews this: for a fully
+    stateless server, invalidating a specific token may require calling
+    Supabase's admin API directly rather than the client SDK's sign_out().
+    """
     try:
+        supabase.auth.set_session(access_token, access_token)
         supabase.auth.sign_out()
     except Exception as e:
         raise AuthError(str(e))

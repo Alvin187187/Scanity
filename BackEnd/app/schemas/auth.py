@@ -9,7 +9,7 @@ class RegisterRequest(BaseModel):
 
 
 class RegisterResponse(BaseModel):
-    user_id: str
+    user_id: int
     full_name: str
     email: EmailStr
     # Never includes password or password hash
