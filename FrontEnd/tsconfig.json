@@ -1,11 +1,4 @@
 {
-<<<<<<< Updated upstream
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
-=======
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -27,5 +20,4 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src", "vite.config.ts"]
->>>>>>> Stashed changes
 }

@@ -30,8 +30,6 @@
   --scanity-gold-dark: #C98A1F;
   --scanity-text-on-dark: #F0F0E8;
 
-<<<<<<< Updated upstream
-=======
   /* Nutrition Grade Scale (A best – E worst). Each aliases an existing
      token above so there is one source of truth per color. */
   --scanity-grade-a: var(--scanity-green);
@@ -40,7 +38,6 @@
   --scanity-grade-d: var(--scanity-gold);
   --scanity-grade-e: var(--scanity-danger);
 
->>>>>>> Stashed changes
   /* Typography */
   --scanity-font-heading: "General Sans", "Inter", sans-serif;
   --scanity-font-body: "General Sans", "Inter", sans-serif;
@@ -66,8 +63,6 @@
   --scanity-shadow-sm: 0 2px 6px rgba(26, 18, 9, 0.08);
   --scanity-shadow-md: 0 6px 18px rgba(26, 18, 9, 0.10);
   --scanity-shadow-lg: 0 12px 30px rgba(26, 18, 9, 0.12);
-<<<<<<< Updated upstream
-=======
 
   /* Additional Scanity UI tokens */
 --scanity-green-dark: #5c3d20;
@@ -91,5 +86,4 @@
 --scanity-sidebar-dark: #24553f;
 
 --scanity-yellow: #c98a1f;
->>>>>>> Stashed changes
 }
