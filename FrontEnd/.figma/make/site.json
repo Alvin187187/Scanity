@@ -1,0 +1,14 @@
+{
+  "title": "Scanity",
+  "description": "Easily create customizable quizzes with various question types and automatic scoring, perfect for educators and trainers seeking to enhance learning engagement.",
+  "icons": {
+    "icon": "/favicon.png"
+  },
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

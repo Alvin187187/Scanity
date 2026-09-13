@@ -1,3 +1,49 @@
 @import "./styles/tokens.css";
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+<<<<<<< Updated upstream
 @import "tailwindcss";
+=======
+@import 'tailwindcss';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+input::placeholder {
+  color: #B5A99F;
+}
+
+input:focus {
+  outline: none;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4B5A8;
+  border-radius: 4px;
+}
+
+@keyframes deleteProgress {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+>>>>>>> Stashed changes

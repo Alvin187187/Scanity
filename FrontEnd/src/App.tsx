@@ -20,6 +20,13 @@ import potatoChipsImg from "@/imports/potato_chips.jpeg"
 import tunaSandwichImg from "@/imports/tuna_sandwhich.jpeg"
 import yogurtImg from "@/imports/yogurt.jpeg"
 import cornflakesImg from "@/imports/corn_flakes_scanity.jpeg"
+<<<<<<< Updated upstream
+=======
+import aboutHeroImg from "@/imports/bgs.png"
+import aboutLabelImg from "@/imports/bgss.png"
+
+import { loginUser, registerUser } from "./api/auth"
+>>>>>>> Stashed changes
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -48,6 +55,31 @@ const C = {
   statusSafe: "var(--scanity-success)",
   statusCaution: "var(--scanity-warning)",
   statusDanger: "var(--scanity-danger)",
+<<<<<<< Updated upstream
+=======
+
+  greenDark: "var(--scanity-green-dark)",
+  greenSoft: "var(--scanity-green-soft)",
+  greenText: "var(--scanity-green-text)",
+
+  dangerBg: "var(--scanity-danger-bg)",
+  dangerText: "var(--scanity-danger-text)",
+
+  warningText: "var(--scanity-warning-text)",
+
+  blue: "var(--scanity-blue)",
+  blueSoft: "var(--scanity-blue-soft)",
+
+  red: "var(--scanity-red)",
+  redSoft: "var(--scanity-red-soft)",
+
+  brown: "var(--scanity-brown)",
+
+  sidebarBg: "var(--scanity-sidebar-bg)",
+  sidebarDark: "var(--scanity-sidebar-dark)",
+
+  yellow: "var(--scanity-yellow)",
+>>>>>>> Stashed changes
 }
 
 // ── Typography ────────────────────────────────────────────────────────────────
@@ -1505,7 +1537,91 @@ function SplashScreen({ go }: { go: (s: Screen) => void }) {
 function LoginScreen({ go }: { go: (s: Screen) => void }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+<<<<<<< Updated upstream
   const isDesktop = useIsDesktop()
+=======
+
+  const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [loginError, setLoginError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  const isDesktop = useIsDesktop()
+
+  const validateLogin = () => {
+    let valid = true
+
+    setEmailError("")
+    setPasswordError("")
+    setLoginError("")
+
+    const identifier = email.trim()
+
+    if (!identifier) {
+      setEmailError("Email or username is required.")
+      valid = false
+    } else {
+      const looksLikeEmail = identifier.includes("@")
+
+      if (
+        looksLikeEmail &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)
+      ) {
+        setEmailError("Please enter a valid email address.")
+        valid = false
+      } else if (
+        !looksLikeEmail &&
+        !/^[a-zA-Z0-9._-]{3,30}$/.test(identifier)
+      ) {
+        setEmailError("Please enter a valid username.")
+        valid = false
+      }
+    }
+
+    if (!password) {
+      setPasswordError("Password is required.")
+      valid = false
+    }
+
+    return valid
+  }
+
+  const handleLogin = async () => {
+    // Prevent double-click / duplicate requests
+    if (isLoading) return
+
+    if (!validateLogin()) return
+
+    setIsLoading(true)
+    setLoginError("")
+
+    try {
+      await loginUser({
+        identifier: email.trim(),
+        password,
+      })
+
+      // Only navigate after the API confirms successful login.
+      go("dashboard")
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "AUTH_API_NOT_READY"
+      ) {
+        setLoginError(
+          "Login service is not connected yet. Please try again later.",
+        )
+      } else {
+        setLoginError(
+          "Incorrect email/username or password.",
+        )
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+>>>>>>> Stashed changes
   return (
     <div
       style={{
@@ -1529,6 +1645,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
           objectPosition: "center",
         }}
       />
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
       <div
         style={{
           position: "absolute",
@@ -1538,6 +1658,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             : "rgba(12, 32, 18, 0.82)",
         }}
       />
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
       <div
         style={{
           position: "relative",
@@ -1577,6 +1701,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
                 mixBlendMode: "screen",
               }}
             />
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
             <p
               style={{
                 marginTop: "-12px",
@@ -1590,6 +1718,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
               <span style={{ color: C.textOnDark }}>Scan</span>
               <span style={{ color: C.greenLight }}>ity</span>
             </p>
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
             <h2
               style={{
                 marginTop: 8,
@@ -1602,6 +1734,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             >
               Welcome Back!
             </h2>
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
             <p
               style={{
                 fontSize: isDesktop ? 14 : 13,
@@ -1614,6 +1750,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
               Please login to continue
             </p>
           </div>
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
           <div>
             <Field
               icon={
@@ -1629,11 +1769,39 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               }
+<<<<<<< Updated upstream
               placeholder="Email"
               type="email"
               value={email}
               onChange={setEmail}
             />
+=======
+              placeholder="Email or username"
+              type="text"
+              value={email}
+              onChange={(value) => {
+                setEmail(value)
+                if (emailError) setEmailError("")
+                if (loginError) setLoginError("")
+              }}
+            />
+
+            {emailError && (
+              <p
+                style={{
+                  marginTop: -8,
+                  marginBottom: 12,
+                  color: C.statusDanger,
+                  fontFamily: FONT_BODY,
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                {emailError}
+              </p>
+            )}
+
+>>>>>>> Stashed changes
             <Field
               icon={
                 <svg
@@ -1658,8 +1826,54 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
               placeholder="Password"
               type="password"
               value={password}
+<<<<<<< Updated upstream
               onChange={setPassword}
             />
+=======
+              onChange={(value) => {
+                setPassword(value)
+                if (passwordError) setPasswordError("")
+                if (loginError) setLoginError("")
+              }}
+            />
+
+            {passwordError && (
+              <p
+                style={{
+                  marginTop: -8,
+                  marginBottom: 12,
+                  color: C.statusDanger,
+                  fontFamily: FONT_BODY,
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                {passwordError}
+              </p>
+            )}
+
+            {loginError && (
+              <div
+                role="alert"
+                style={{
+                  marginTop: 4,
+                  marginBottom: 16,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: C.mochaPale,
+                  border: `1px solid ${C.statusDanger}`,
+                  color: C.statusDanger,
+                  fontFamily: FONT_BODY,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  lineHeight: 1.4,
+                }}
+              >
+                {loginError}
+              </div>
+            )}
+
+>>>>>>> Stashed changes
             <div
               style={{
                 textAlign: "right",
@@ -1684,11 +1898,59 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
                 Forgot Password?
               </button>
             </div>
+<<<<<<< Updated upstream
             <PrimaryBtn
               label="LOGIN"
               onClick={() => go("success")}
               color={C.mocha}
             />
+=======
+
+            <PrimaryBtn
+              label={
+                isLoading ? (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    style={{ display: "block", margin: "0 auto" }}
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="9"
+                      stroke="rgba(255,255,255,0.3)"
+                      strokeWidth="3"
+                      fill="none"
+                    />
+                    <path
+                      d="M21 12a9 9 0 0 0-9-9"
+                      stroke="#fff"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      fill="none"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 12 12"
+                        to="360 12 12"
+                        dur="0.7s"
+                        repeatCount="indefinite"
+                      />
+                    </path>
+                  </svg>
+                ) : (
+                  "LOGIN"
+                )
+              }
+              onClick={handleLogin}
+              color={C.mocha}
+              disabled={isLoading}
+            />
+
+>>>>>>> Stashed changes
             <p
               style={{
                 textAlign: "center",
@@ -1699,7 +1961,14 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             >
               Don't have an account?{" "}
               <button
+<<<<<<< Updated upstream
                 onClick={() => go("register")}
+=======
+                type="button"
+                onClick={() => {
+                  if (!isLoading) go("register")
+                }}
+>>>>>>> Stashed changes
                 style={{
                   background: "none",
                   border: "none",
@@ -1707,13 +1976,22 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
                   fontFamily: FONT_BODY,
                   fontWeight: 500,
                   fontSize: isDesktop ? 14 : 13,
+<<<<<<< Updated upstream
                   cursor: "pointer",
+=======
+                  cursor: isLoading ? "default" : "pointer",
+                  opacity: isLoading ? 0.6 : 1,
+>>>>>>> Stashed changes
                 }}
               >
                 Register
               </button>
             </p>
           </div>
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
           <div
             style={{
               display: "flex",
@@ -1730,6 +2008,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
                 background: C.green,
               }}
             />
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
             <div
               style={{
                 width: 12,
@@ -1738,6 +2020,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
                 background: C.mocha,
               }}
             />
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
             <div
               style={{
                 width: 6,
@@ -1752,12 +2038,126 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
     </div>
   )
 }
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 function RegisterScreen({ go }: { go: (s: Screen) => void }) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+<<<<<<< Updated upstream
   const isDesktop = useIsDesktop()
+=======
+
+  const [nameError, setNameError] = useState("")
+  const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [confirmError, setConfirmError] = useState("")
+  const [registerError, setRegisterError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  const isDesktop = useIsDesktop()
+
+  const validateRegistration = () => {
+    let valid = true
+
+    setNameError("")
+    setEmailError("")
+    setPasswordError("")
+    setConfirmError("")
+    setRegisterError("")
+
+    const trimmedName = name.trim()
+    const trimmedEmail = email.trim()
+
+    if (!trimmedName) {
+      setNameError("Full name is required.")
+      valid = false
+    } else if (trimmedName.length < 2) {
+      setNameError("Please enter your full name.")
+      valid = false
+    }
+
+    if (!trimmedEmail) {
+      setEmailError("Email is required.")
+      valid = false
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)
+    ) {
+      setEmailError("Please enter a valid email address.")
+      valid = false
+    }
+
+    if (!password) {
+      setPasswordError("Password is required.")
+      valid = false
+    } else if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters.")
+      valid = false
+    } else if (!/\d/.test(password)) {
+      setPasswordError("Password must contain at least 1 number.")
+      valid = false
+    }
+
+    if (!confirm) {
+      setConfirmError("Please confirm your password.")
+      valid = false
+    } else if (password !== confirm) {
+      setConfirmError("Passwords do not match.")
+      valid = false
+    }
+
+    return valid
+  }
+
+  const handleRegister = async () => {
+    // Prevent double-click / duplicate registration requests
+    if (isLoading) return
+
+    if (!validateRegistration()) return
+
+    setIsLoading(true)
+    setRegisterError("")
+
+    try {
+      await registerUser({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      })
+
+      // Only show success after the API confirms registration.
+      go("success")
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "AUTH_API_NOT_READY"
+      ) {
+        setRegisterError(
+          "Registration service is not connected yet. Please try again later.",
+        )
+      }
+      else if (
+      error instanceof Error &&
+     /already registered|already exists|duplicate|user_already_exists/i.test(
+      error.message,
+     )
+     ) {
+    setEmailError("An account with this email already exists.")
+     } 
+      else {
+        setRegisterError(
+          "Unable to create your account. Please check your details and try again.",
+        )
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+>>>>>>> Stashed changes
   return (
     <div
       style={{
@@ -1770,8 +2170,11 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
         overflow: "hidden",
       }}
     >
+<<<<<<< Updated upstream
       {/* Same background as splash & login */}
       {/* Background */}
+=======
+>>>>>>> Stashed changes
       <img
         src="https://images.unsplash.com/photo-1518843875459-f738682238a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxmcmVzaCUyMGNvbG9yZnVsJTIwZnJ1aXRzJTIwdmVnZXRhYmxlcyUyMGhlYWx0aHklMjBmb29kfGVufDF8fHx8MTc4NjIzOTc1M3ww&ixlib=rb-4.1.0&q=80&w=1080"
         alt=""
@@ -1784,7 +2187,11 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
           objectPosition: "center",
         }}
       />
+<<<<<<< Updated upstream
       {/* Dark overlay */}
+=======
+
+>>>>>>> Stashed changes
       <div
         style={{
           position: "absolute",
@@ -1794,6 +2201,7 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
             : "rgba(12, 32, 18, 0.82)",
         }}
       />
+<<<<<<< Updated upstream
       <Center maxWidth={440}>
         {/* Main content */}
         <div
@@ -1966,11 +2374,336 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
             Login
           </button>
         </p>
+=======
+
+      <Center maxWidth={440}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            paddingTop: 50,
+            paddingLeft: 28,
+            paddingRight: 28,
+            paddingBottom: 36,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Logo
+              size={120}
+              style={{ borderRadius: 0, mixBlendMode: "screen" }}
+            />
+
+            <p
+              style={{
+                marginTop: -8,
+                fontWeight: 800,
+                fontSize: 24,
+                fontFamily: FONT_HEAD,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              <span style={{ color: C.textOnDark }}>Scan</span>
+              <span style={{ color: C.greenLight }}>ity</span>
+            </p>
+          </div>
+
+          <h2
+            style={{
+              fontWeight: 800,
+              fontSize: 24,
+              color: C.textOnDark,
+              textAlign: "center",
+              marginTop: 0,
+              marginBottom: 2,
+            }}
+          >
+            Create Account
+          </h2>
+
+          <p
+            style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+              textAlign: "center",
+              marginTop: 4,
+              marginBottom: 20,
+            }}
+          >
+            Sign up to get started
+          </p>
+
+          <Field
+            icon={
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            }
+            placeholder="Full Name"
+            value={name}
+            onChange={(value) => {
+              setName(value)
+              if (nameError) setNameError("")
+              if (registerError) setRegisterError("")
+            }}
+          />
+
+          {nameError && (
+            <p
+              style={{
+                marginTop: -8,
+                marginBottom: 12,
+                color: C.statusDanger,
+                fontFamily: FONT_BODY,
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              {nameError}
+            </p>
+          )}
+
+          <Field
+            icon={
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+            }
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(value) => {
+              setEmail(value)
+              if (emailError) setEmailError("")
+              if (registerError) setRegisterError("")
+            }}
+          />
+
+          {emailError && (
+            <p
+              style={{
+                marginTop: -8,
+                marginBottom: 12,
+                color: C.statusDanger,
+                fontFamily: FONT_BODY,
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              {emailError}
+            </p>
+          )}
+
+          <Field
+            icon={
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0110 0v4" />
+              </svg>
+            }
+            placeholder="Password"
+            type="password"
+            value={password}
+            onChange={(value) => {
+              setPassword(value)
+              if (passwordError) setPasswordError("")
+              if (confirmError) setConfirmError("")
+              if (registerError) setRegisterError("")
+            }}
+            hint="Min 8 characters, 1 number"
+          />
+
+          {passwordError && (
+            <p
+              style={{
+                marginTop: -8,
+                marginBottom: 12,
+                color: C.statusDanger,
+                fontFamily: FONT_BODY,
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              {passwordError}
+            </p>
+          )}
+
+          <Field
+            icon={
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0110 0v4" />
+              </svg>
+            }
+            placeholder="Confirm Password"
+            type="password"
+            value={confirm}
+            onChange={(value) => {
+              setConfirm(value)
+              if (confirmError) setConfirmError("")
+              if (registerError) setRegisterError("")
+            }}
+          />
+
+          {confirmError && (
+            <p
+              style={{
+                marginTop: -8,
+                marginBottom: 12,
+                color: C.statusDanger,
+                fontFamily: FONT_BODY,
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              {confirmError}
+            </p>
+          )}
+
+          {registerError && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 4,
+                marginBottom: 16,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: C.mochaPale,
+                border: `1px solid ${C.statusDanger}`,
+                color: C.statusDanger,
+                fontFamily: FONT_BODY,
+                fontSize: 12,
+                fontWeight: 500,
+                lineHeight: 1.4,
+              }}
+            >
+              {registerError}
+            </div>
+          )}
+
+          <div style={{ marginTop: 8 }}>
+            <PrimaryBtn
+              label={
+                isLoading ? (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    style={{ display: "block", margin: "0 auto" }}
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="9"
+                      stroke="rgba(255,255,255,0.3)"
+                      strokeWidth="3"
+                      fill="none"
+                    />
+                    <path
+                      d="M21 12a9 9 0 0 0-9-9"
+                      stroke="#fff"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      fill="none"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 12 12"
+                        to="360 12 12"
+                        dur="0.7s"
+                        repeatCount="indefinite"
+                      />
+                    </path>
+                  </svg>
+                ) : (
+                  "Register"
+                )
+              }
+              onClick={handleRegister}
+              color={C.mocha}
+              disabled={isLoading}
+            />
+          </div>
+
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: 16,
+              fontSize: 13,
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={() => {
+                if (!isLoading) go("login")
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: C.greenLight,
+                fontFamily: FONT_BODY,
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: isLoading ? "default" : "pointer",
+                opacity: isLoading ? 0.6 : 1,
+              }}
+            >
+              Login
+            </button>
+          </p>
+>>>>>>> Stashed changes
         </div>
       </Center>
     </div>
   )
 }
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 function SuccessScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   return (
@@ -3498,6 +4231,7 @@ const RECENT_SCANS: ScanRecord[] = [
   { name: "Instant Noodles", date: "Aug 3, 2026", time: "12:40 PM", score: 55, method: "Barcode", imageUrl: beefNoodlesImg },
   { name: "Tuna Sandwich", date: "Aug 2, 2026", time: "11:15 AM", score: 84, method: "OCR", favorite: true, imageUrl: tunaSandwichImg },
 ]
+<<<<<<< Updated upstream
 function scanStatusInfo(score: number): { label: string; color: string; bg: string } {
   if (score >= 71) return { label: "Safe", color: "#1F9254", bg: "#E4F5EA" }
   if (score >= 42) return { label: "Caution", color: "#B8860B", bg: "#FBF1D9" }
@@ -3507,6 +4241,63 @@ function scanStatusInfo(score: number): { label: string; color: string; bg: stri
 // Scan History page, so the two always look identical. The whole row is the
 // tap target; the trailing chevron is the visible "view detail" affordance.
 function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
+=======
+// Colors are the same Soft Slate status hues DashboardIconRail's logout icon
+// and the Dashboard's own Scan History panel use (SOFT_SLATE.green/caution/
+// unsafe), so a score reads the same way on both screens.
+function scanStatusInfo(score: number): { label: string; color: string; bg: string } {
+  if (score >= 71) return { label: "Safe", color: SOFT_SLATE.green, bg: "#E1EBE5" }
+  if (score >= 42) return { label: "Caution", color: SOFT_SLATE.caution, bg: "#F1E3D8" }
+  return { label: "Avoid", color: SOFT_SLATE.unsafe, bg: "#F1DEDA" }
+}
+// ── "1a Grouped activity list" ───────────────────────────────────────────────
+// Scan History layout direction: date sections, one panel per group, hairline
+// dividers between rows. RECENT_SCANS is already newest-first, so the first
+// distinct date present reads as "Today", the next as "Yesterday", and every
+// older date collapses into one combined "Earlier" section (grouping is based
+// on the data's own chronology rather than the wall clock, since these are
+// fixed demo dates). Rows inside "Earlier" keep showing their date, since the
+// section header no longer states it for them.
+const SCAN_DATE_ORDER = Array.from(new Set(RECENT_SCANS.map((scan) => scan.date)))
+function scanDateGroupLabel(date: string): string {
+  const index = SCAN_DATE_ORDER.indexOf(date)
+  if (index === 0) return "Today"
+  if (index === 1) return "Yesterday"
+  return "Earlier"
+}
+type ScanGroup = { label: string; showDate: boolean; scans: ScanRecord[] }
+function groupScans(scans: ScanRecord[]): ScanGroup[] {
+  const groups: ScanGroup[] = []
+  for (const scan of scans) {
+    const label = scanDateGroupLabel(scan.date)
+    const last = groups[groups.length - 1]
+    if (last && last.label === label) {
+      last.scans.push(scan)
+    } else {
+      groups.push({ label, showDate: label === "Earlier", scans: [scan] })
+    }
+  }
+  return groups
+}
+// Row used by the "1a Grouped activity list" Scan History page. The whole
+// row is the tap target; the trailing chevron is the visible "view detail"
+// affordance. `showDate` is turned off inside a "Today"/"Yesterday" group,
+// where the section header already says which day it is — the "Earlier"
+// group keeps the default of showing it. `isLast` drops the hairline
+// divider for the final row in a group panel, so the panel's own bottom
+// edge stays clean instead of doubling up with a divider.
+function ScanRow({
+  scan,
+  onView,
+  showDate = true,
+  isLast = false,
+}: {
+  scan: ScanRecord
+  onView: () => void
+  showDate?: boolean
+  isLast?: boolean
+}) {
+>>>>>>> Stashed changes
   const status = scanStatusInfo(scan.score)
   return (
     <button
@@ -3520,7 +4311,11 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
         padding: "9px 6px",
         background: "none",
         border: "none",
+<<<<<<< Updated upstream
         borderBottom: `1px solid ${PALETTE.border}`,
+=======
+        borderBottom: isLast ? "none" : "1px solid rgba(198,204,212,0.6)",
+>>>>>>> Stashed changes
         boxSizing: "border-box",
         cursor: "pointer",
         textAlign: "left",
@@ -3528,11 +4323,19 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
     >
       <div
         style={{
+<<<<<<< Updated upstream
           width: 38,
           height: 38,
           borderRadius: 10,
           background: PALETTE.page,
           border: `1px solid ${PALETTE.border}`,
+=======
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          background: SOFT_SLATE.thumbBg,
+          boxShadow: SOFT_SLATE.insetSm,
+>>>>>>> Stashed changes
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -3543,7 +4346,11 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
         {scan.imageUrl ? (
           <img src={scan.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
+<<<<<<< Updated upstream
           <i className="fa fa-shopping-bag" style={{ fontSize: 15, color: PALETTE.textMuted }} />
+=======
+          <i className="fa fa-cube" style={{ fontSize: 15, color: SOFT_SLATE.textMuted }} />
+>>>>>>> Stashed changes
         )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -3551,10 +4358,17 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
           <p
             style={{
               margin: 0,
+<<<<<<< Updated upstream
               fontFamily: FONT_HEAD,
               fontWeight: 700,
               fontSize: 12.5,
               color: PALETTE.textDark,
+=======
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontWeight: 700,
+              fontSize: 12.5,
+              color: SOFT_SLATE.textPrimary,
+>>>>>>> Stashed changes
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -3563,12 +4377,17 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
             {scan.name}
           </p>
           {scan.favorite && (
+<<<<<<< Updated upstream
             <i className="fa fa-star" aria-label="Favorite" style={{ fontSize: 9.5, color: "#D9A600", flexShrink: 0 }} />
+=======
+            <i className="fa fa-star" aria-label="Favorite" style={{ fontSize: 9.5, color: SOFT_SLATE.gold, flexShrink: 0 }} />
+>>>>>>> Stashed changes
           )}
         </div>
         <p
           style={{
             margin: "2px 0 0",
+<<<<<<< Updated upstream
             fontFamily: FONT_BODY,
             fontSize: 9.5,
             color: PALETTE.textMuted,
@@ -3582,6 +4401,47 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
           style={{
             margin: 0,
             fontFamily: FONT_HEAD,
+=======
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontSize: 9.5,
+            color: SOFT_SLATE.textMuted,
+          }}
+        >
+          {showDate ? `${scan.date} • ${scan.time} · ${scan.method}` : `${scan.time} · ${scan.method}`}
+        </p>
+      </div>
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "1px 8px",
+            borderRadius: 999,
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontWeight: 700,
+            fontSize: 8.5,
+            color: status.color,
+            background: status.bg,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: "50%",
+              background: status.color,
+              flexShrink: 0,
+            }}
+          />
+          {status.label}
+        </span>
+        <p
+          style={{
+            margin: "4px 0 0",
+            fontFamily: SOFT_SLATE.fontFamily,
+>>>>>>> Stashed changes
             fontWeight: 800,
             fontSize: 15,
             color: status.color,
@@ -3590,6 +4450,7 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
         >
           {scan.score}
         </p>
+<<<<<<< Updated upstream
         <span
           style={{
             display: "inline-block",
@@ -3605,16 +4466,23 @@ function ScanRow({ scan, onView }: { scan: ScanRecord; onView: () => void }) {
         >
           {status.label}
         </span>
+=======
+>>>>>>> Stashed changes
       </div>
       <i
         className="fa fa-angle-right"
         aria-label="View details"
+<<<<<<< Updated upstream
         style={{ fontSize: 14, color: PALETTE.textMuted, flexShrink: 0, marginLeft: 2 }}
+=======
+        style={{ fontSize: 14, color: SOFT_SLATE.textMuted, flexShrink: 0, marginLeft: 2 }}
+>>>>>>> Stashed changes
       />
     </button>
   )
 }
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
+<<<<<<< Updated upstream
 function DashboardScreen({ go }: { go: (s: Screen) => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
@@ -3629,6 +4497,323 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
       label: "Compare Products",
       icon: <i className="fa fa-balance-scale" />,
       action: () => go("productCompare"),
+=======
+// ── Soft Slate (neumorphic) design tokens — DASHBOARD ONLY ─────────────────────
+// Originally scoped to the Dashboard screen only, per the "1a Soft Slate —
+// extruded rail, raised cards" direction from the design exploration. Scan
+// History now opts into the same tokens too (by request, to match Dashboard's
+// shading) — every other screen still keeps the app's normal PALETTE/theme,
+// so don't reach for these elsewhere without a similar explicit reason.
+const SOFT_SLATE = {
+  bg: "#e9edf2",
+  raisedLg: "9px 9px 22px #c6ccd4, -9px -9px 22px #ffffff",
+  raisedMd: "8px 8px 20px #c6ccd4, -8px -8px 20px #ffffff",
+  raisedSm: "5px 5px 12px #c6ccd4, -5px -5px 12px #ffffff",
+  raisedBtn: "6px 6px 14px #c6ccd4, -4px -4px 10px #ffffff",
+  raisedBtnAlt: "6px 6px 14px #c6ccd4, -6px -6px 14px #ffffff",
+  raisedIconWell: "4px 4px 10px #c0a06a, -3px -3px 8px #ffffff",
+  insetLg: "inset 7px 7px 15px #c6ccd4, inset -7px -7px 15px #ffffff",
+  insetMd: "inset 5px 5px 11px #c6ccd4, inset -5px -5px 11px #ffffff",
+  insetSm: "inset 3px 3px 7px #c6ccd4, inset -3px -3px 7px #ffffff",
+  textPrimary: "#24292f",
+  textSecondary: "#565d64",
+  textMuted: "#5f666d",
+  green: "#1e6b3f",
+  gold: "#d8a02a",
+  caution: "#b8501f",
+  unsafe: "#c23a1f",
+  barDark: "#2b3138",
+  thumbBg: "#dfe4ea",
+  fontFamily: `Archivo, ${FONT_BODY}`,
+}
+
+// ── Dashboard icon rail — 80px, icon-only, own palette ──────────────────────────
+// Replaces AppSidebar on the Dashboard only (per user's "dashboard only" scope
+// decision). Always visible — no mobile drawer/overlay, it's slim enough to
+// stay put at any width. The Scanity wordmark/tagline live in the greeting
+// header instead of the rail.
+// Default nav set for DashboardIconRail — Dashboard's own four links. Scan
+// History passes its own SCAN_HISTORY_RAIL_ITEMS (below) instead, via the
+// `navItems` prop, so this default and Dashboard's call sites are untouched.
+const DASHBOARD_RAIL_ITEMS: {
+  screen: Screen
+  label: string
+  path: ReactNode
+}[] = [
+  {
+    screen: "dashboard",
+    label: "Dashboard",
+    path: (
+      <>
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <path d="M9 22V12h6v10" />
+      </>
+    ),
+  },
+  {
+    screen: "settings",
+    label: "Settings",
+    path: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" />
+      </>
+    ),
+  },
+  {
+    screen: "help",
+    label: "Help & FAQ",
+    path: (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <path d="M12 17h.01" />
+      </>
+    ),
+  },
+  {
+    screen: "about",
+    label: "About",
+    path: (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4" />
+        <path d="M12 8h.01" />
+      </>
+    ),
+  },
+]
+
+// Same clock glyph style as the rest of this rail's Lucide-style icons, used
+// by Scan History's SCAN_HISTORY_RAIL_ITEMS below.
+const CLOCK_ICON_PATH: ReactNode = (
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </>
+)
+
+// Scan History reuses Dashboard's own rail (same shading, same shell) with
+// its own nav set: Dashboard, a "Scan History" entry the full sidebar has
+// never linked to directly, then the same Settings/Help/About as elsewhere.
+const SCAN_HISTORY_RAIL_ITEMS: {
+  screen: Screen
+  label: string
+  path: ReactNode
+}[] = [
+  DASHBOARD_RAIL_ITEMS[0],
+  { screen: "history", label: "Scan History", path: CLOCK_ICON_PATH },
+  DASHBOARD_RAIL_ITEMS[1],
+  DASHBOARD_RAIL_ITEMS[2],
+  DASHBOARD_RAIL_ITEMS[3],
+]
+
+function DashboardIconRail({
+  go,
+  isDesktop,
+  active = "dashboard",
+  navItems = DASHBOARD_RAIL_ITEMS,
+}: {
+  go: (s: Screen) => void
+  isDesktop: boolean
+  active?: Screen
+  navItems?: {
+    screen: Screen
+    label: string
+    path: ReactNode
+  }[]
+}) {
+  return (
+    <div
+      style={{
+        width: isDesktop ? 80 : "100%",
+        height: isDesktop ? "100%" : 72,
+        flex: "none",
+        background: SOFT_SLATE.bg,
+        borderRadius: 26,
+        padding: isDesktop ? "36px 0 6px" : "0 18px",
+        display: "flex",
+        flexDirection: isDesktop ? "column" : "row",
+        alignItems: "center",
+        justifyContent: isDesktop ? "flex-start" : "space-between",
+        gap: isDesktop ? 32 : 20,
+        boxShadow: SOFT_SLATE.raisedLg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Brand leaf mark */}
+      <Tooltip label="Scanity">
+        <div
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 14,
+            background: SOFT_SLATE.bg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: SOFT_SLATE.raisedSm,
+            flexShrink: 0,
+          }}
+        >
+          <svg
+            width="19"
+            height="19"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={SOFT_SLATE.green}
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+            <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+          </svg>
+        </div>
+      </Tooltip>
+
+      {/* Nav icons */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: isDesktop ? "column" : "row",
+          alignItems: "center",
+          gap: isDesktop ? 20 : 12,
+          flex: isDesktop ? undefined : 1,
+          justifyContent: isDesktop ? undefined : "center",
+        }}
+      >
+        {navItems.map((item) => {
+          const isActive = item.screen === active
+          return (
+            <Tooltip key={item.screen} label={item.label}>
+              <button
+                type="button"
+                onClick={() => go(item.screen)}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 14,
+                  border: "none",
+                  background: isActive ? SOFT_SLATE.bg : "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  boxShadow: isActive ? SOFT_SLATE.insetMd : "none",
+                }}
+              >
+                <svg
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={isActive ? SOFT_SLATE.green : SOFT_SLATE.textMuted}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  {item.path}
+                </svg>
+              </button>
+            </Tooltip>
+          )
+        })}
+      </div>
+
+      {/* Divider — sits right above logout; the auto top-margin here (not on
+          logout) is what pushes this whole bottom group down to the bottom
+          of the rail, so the divider and the logout icon stay right next to
+          each other instead of drifting apart. */}
+      {isDesktop && (
+        <div
+          style={{
+            width: 32,
+            height: 1,
+            background: "#c6ccd4",
+            margin: "auto 0 8px",
+            flexShrink: 0,
+          }}
+        />
+      )}
+
+      {/* Logout — pinned to the bottom of the rail, right under the divider */}
+      <Tooltip label="Log out">
+        <button
+          type="button"
+          onClick={() => go("splash")}
+          aria-label="Log out"
+          style={{
+            marginTop: 0,
+            flexShrink: 0,
+            width: 42,
+            height: 42,
+            borderRadius: 14,
+            border: "none",
+            background: SOFT_SLATE.bg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: SOFT_SLATE.raisedSm,
+          }}
+        >
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={SOFT_SLATE.caution}
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="m16 17 5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+        </button>
+      </Tooltip>
+    </div>
+  )
+}
+
+function DashboardScreen({ go }: { go: (s: Screen) => void }) {
+  const isDesktop = useIsDesktop()
+
+  const actionCards: {
+    label: string
+    description: string
+    action: () => void
+    path: ReactNode
+  }[] = [
+    {
+      label: "Scan OCR",
+      description: "Read the label when there is no barcode.",
+      action: () => go("ocr"),
+      path: (
+        <>
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+          <path d="M14 2v5h6" />
+          <path d="M8 13h8" />
+          <path d="M8 17h5" />
+        </>
+      ),
+    },
+    {
+      label: "Compare Products",
+      description: "Put two items side by side.",
+      action: () => go("productCompare"),
+      path: (
+        <>
+          <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+          <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+          <path d="M7 21h10" />
+          <path d="M12 3v18" />
+          <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+        </>
+      ),
+>>>>>>> Stashed changes
     },
   ]
 
@@ -3640,6 +4825,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
         flexDirection: "column",
         position: "relative",
         overflow: "hidden",
+<<<<<<< Updated upstream
         background: PALETTE.page,
       }}
     >
@@ -3982,11 +5168,234 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                     >
                       {BARCODE_BARS.map(
                         (w, i) => (
+=======
+        background: SOFT_SLATE.bg,
+      }}
+    >
+      {/* ── Icon rail ───────────────────────────────────────────────────── */}
+      {/* Pinned to the viewport (position: fixed), not inside the scrolling
+          content — same trick AppSidebar uses elsewhere in the app — so it
+          stays put in place while the content next to it scrolls, instead of
+          scrolling away with it. Stretches to the bottom of the viewport
+          (top:26 to bottom:26) so it reaches all the way down, with the nav
+          icons up top and logout pushed to the very bottom via marginTop:
+          "auto". Desktop only; it's the only nav (settings/help/about/logout)
+          Dashboard has now that AppSidebar's mobile drawer has been replaced
+          here, so on mobile it renders inline as a horizontal bar instead
+          (below). */}
+      {isDesktop && (
+        <div
+          style={{
+            position: "fixed",
+            top: 22,
+            left: 26,
+            bottom: 22,
+            width: 80,
+            zIndex: 5,
+          }}
+        >
+          <DashboardIconRail go={go} isDesktop />
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          minHeight: 0,
+          paddingTop: SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+        }}
+      >
+        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              padding: isDesktop ? "26px 40px 26px 0" : "16px 14px",
+              boxSizing: "border-box",
+              fontFamily: SOFT_SLATE.fontFamily,
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
+            }}
+          >
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} />}
+
+            {/* Greeting */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 20,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: isDesktop ? 30 : 24,
+                      fontWeight: 800,
+                      letterSpacing: "-0.02em",
+                      color: SOFT_SLATE.textPrimary,
+                    }}
+                  >
+                    Hello, User!
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      color: SOFT_SLATE.textSecondary,
+                      marginTop: 4,
+                    }}
+                  >
+                    See It. Know It. Eat It.
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 12 }}>
+                  <Tooltip label="Open profile">
+                    <button
+                      type="button"
+                      onClick={() => go("profile")}
+                      aria-label="Open profile"
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "50%",
+                        background: SOFT_SLATE.bg,
+                        border: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        boxShadow: SOFT_SLATE.raisedSm,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke={SOFT_SLATE.green}
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      >
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M6 21v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
+                      </svg>
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 22,
+                  alignItems: "flex-start",
+                  flexDirection: isDesktop ? "row" : "column",
+                }}
+              >
+                {/* ── Left column — scan actions ─────────────────────────── */}
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 18,
+                  }}
+                >
+                  {/* Scan Barcode */}
+                  <div
+                    style={{
+                      background: SOFT_SLATE.bg,
+                      borderRadius: 26,
+                      padding: isDesktop ? 28 : 20,
+                      boxShadow: SOFT_SLATE.raisedLg,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 12,
+                          background: SOFT_SLATE.gold,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: SOFT_SLATE.raisedIconWell,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#3f2f06"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        >
+                          <path d="M3 5V3h2" />
+                          <path d="M19 3h2v2" />
+                          <path d="M21 19v2h-2" />
+                          <path d="M5 21H3v-2" />
+                          <path d="M7 8v8" />
+                          <path d="M11 8v8" />
+                          <path d="M15 8v8" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                          Scan Barcode
+                        </div>
+                        <div style={{ fontSize: 13, color: SOFT_SLATE.textSecondary }}>
+                          Get product information from the food.
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => go("barcode")}
+                      style={{
+                        width: "100%",
+                        marginTop: 22,
+                        border: "none",
+                        borderRadius: 20,
+                        background: SOFT_SLATE.bg,
+                        padding: isDesktop ? "26px 20px" : "20px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 12,
+                        boxShadow: SOFT_SLATE.insetLg,
+                        cursor: "pointer",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-end",
+                          gap: 3,
+                          height: isDesktop ? 74 : 58,
+                        }}
+                      >
+                        {BARCODE_BARS.map((w, i) => (
+>>>>>>> Stashed changes
                           <div
                             key={i}
                             style={{
                               width: w,
                               height: "100%",
+<<<<<<< Updated upstream
 
                               background:
                                 PALETTE.textDark,
@@ -4241,11 +5650,265 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
             </div>
           </Center>
         </div>
+=======
+                              background: SOFT_SLATE.barDark,
+                              flexShrink: 0,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 600,
+                          letterSpacing: "0.24em",
+                          color: "#555c63",
+                        }}
+                      >
+                        1234567890000
+                      </span>
+                    </button>
+
+                    <div style={{ marginTop: 20, display: "flex", gap: 14 }}>
+                      <button
+                        type="button"
+                        onClick={() => go("barcode")}
+                        style={{
+                          padding: "15px 26px",
+                          border: "none",
+                          borderRadius: 16,
+                          background: SOFT_SLATE.green,
+                          color: "#ffffff",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          boxShadow: SOFT_SLATE.raisedBtn,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Start scan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => go("barcode")}
+                        style={{
+                          padding: "15px 26px",
+                          border: "none",
+                          borderRadius: 16,
+                          background: SOFT_SLATE.bg,
+                          color: "#4a5158",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          boxShadow: SOFT_SLATE.raisedBtnAlt,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Enter code manually
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* OCR + Compare */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 18,
+                    }}
+                  >
+                    {actionCards.map((card) => (
+                      <button
+                        type="button"
+                        key={card.label}
+                        onClick={card.action}
+                        style={{
+                          background: SOFT_SLATE.bg,
+                          border: "none",
+                          borderRadius: 22,
+                          padding: 24,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: 14,
+                          boxShadow: SOFT_SLATE.raisedMd,
+                          cursor: "pointer",
+                          boxSizing: "border-box",
+                          textAlign: "left",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 16,
+                            background: SOFT_SLATE.bg,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: SOFT_SLATE.insetMd,
+                          }}
+                        >
+                          <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke={SOFT_SLATE.green}
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          >
+                            {card.path}
+                          </svg>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 17, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                            {card.label}
+                          </div>
+                          <div style={{ fontSize: 13, color: SOFT_SLATE.textSecondary, marginTop: 3 }}>
+                            {card.description}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Right column — scan history ────────────────────────── */}
+                <div
+                  style={{
+                    width: isDesktop ? 384 : "100%",
+                    flex: "none",
+                    background: SOFT_SLATE.bg,
+                    borderRadius: 26,
+                    padding: "24px 22px",
+                    boxShadow: SOFT_SLATE.raisedLg,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                      Scan History
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => go("history")}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        padding: 0,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: SOFT_SLATE.green,
+                        cursor: "pointer",
+                      }}
+                    >
+                      View All
+                    </button>
+                  </div>
+
+                  <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+                    {RECENT_SCANS.map((scan) => {
+                      const status = scanStatusInfo(scan.score)
+                      const statusColor =
+                        status.label === "Safe"
+                          ? SOFT_SLATE.green
+                          : status.label === "Caution"
+                            ? SOFT_SLATE.caution
+                            : SOFT_SLATE.unsafe
+                      return (
+                        <button
+                          type="button"
+                          key={`${scan.name}-${scan.time}`}
+                          onClick={() => go("productResult")}
+                          style={{
+                            width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 14,
+                            padding: "13px 15px",
+                            border: "none",
+                            borderRadius: 18,
+                            background: SOFT_SLATE.bg,
+                            boxShadow: SOFT_SLATE.raisedSm,
+                            cursor: "pointer",
+                            textAlign: "left",
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 38,
+                              height: 38,
+                              flexShrink: 0,
+                              borderRadius: 12,
+                              background: SOFT_SLATE.thumbBg,
+                              boxShadow: SOFT_SLATE.insetSm,
+                              overflow: "hidden",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {scan.imageUrl && (
+                              <img
+                                src={scan.imageUrl}
+                                alt=""
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              />
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>
+                              {scan.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: SOFT_SLATE.textMuted }}>
+                              {scan.date} · {scan.time} · {scan.method}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: statusColor }}>
+                              {scan.score}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                letterSpacing: "0.06em",
+                                color: statusColor,
+                              }}
+                            >
+                              {status.label.toUpperCase()}
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+        </Center>
+>>>>>>> Stashed changes
       </div>
     </div>
   )
 }
+<<<<<<< Updated upstream
 // ── Barcode Scanner Screen ────────────────────────────────────────────────────
+=======
+// ── Barcode Scanner Screen — Soft Slate ─────────────────────────────────────
+// Reskinned to match DashboardScreen's neumorphic "Soft Slate" direction:
+// same SOFT_SLATE token set, same DashboardIconRail nav shell, raised/inset
+// shadows instead of flat borders, and the same green/gold/caution/unsafe
+// status vocabulary the Dashboard's scan history already uses. All scanning
+// logic (camera, ZXing, backend lookup, validation) is untouched — only the
+// render layer changed.
+//
+// Assumes this file lives alongside dashboard.tsx and can import: SOFT_SLATE,
+// DashboardIconRail, DASHBOARD_RAIL_ITEMS, Screen, Tooltip, Center, SAFE_TOP,
+// useIsDesktop, BrowserMultiFormatReader. Adjust the import paths below to
+// match your project structure.
+
+>>>>>>> Stashed changes
 type ScannerStatus =
   | "ready"
   | "camera-loading"
@@ -4262,7 +5925,10 @@ type ScannerStatus =
 
 type ProductResult = {
   barcode?: string
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
   productInformation?: {
     name?: string
     brand?: string
@@ -4270,7 +5936,10 @@ type ProductResult = {
     image?: string
     imageUrl?: string
   }
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
   product?: {
     name?: string
     brand?: string
@@ -4281,6 +5950,7 @@ type ProductResult = {
     ingredients_text?: string
     nutrition?: Record<string, any>
   }
+<<<<<<< Updated upstream
 
   ingredients?: string | string[]
 
@@ -4468,12 +6138,88 @@ function BarcodeScannerScreen({
   // STOP CAMERA
   // ───────────────────────────────────────────────────────────────────────────
 
+=======
+  ingredients?: string | string[]
+  nutrition?: Record<string, any>
+  healthAnalysis?: { score?: number; rating?: string; summary?: string }
+  allergyCheck?: { hasAllergy?: boolean; matchedAllergies?: string[] }
+  allergyStatus?: string
+  [key: string]: any
+}
+
+// Barcode icon path reused from Dashboard's "Scan Barcode" card icon, so the
+// rail entry for this screen matches the same glyph the dashboard uses to
+// link here.
+const BARCODE_ICON_PATH: ReactNode = (
+  <>
+    <path d="M3 5V3h2" />
+    <path d="M19 3h2v2" />
+    <path d="M21 19v2h-2" />
+    <path d="M5 21H3v-2" />
+    <path d="M7 8v8" />
+    <path d="M11 8v8" />
+    <path d="M15 8v8" />
+  </>
+)
+
+// Barcode Scanner's own rail set: Dashboard, this screen, then the usual
+// Settings/Help/About — same pattern SCAN_HISTORY_RAIL_ITEMS uses on the
+// Scan History screen.
+const BARCODE_RAIL_ITEMS: { screen: Screen; label: string; path: ReactNode }[] = [
+  DASHBOARD_RAIL_ITEMS[0],
+  { screen: "barcode", label: "Barcode Scanner", path: BARCODE_ICON_PATH },
+  DASHBOARD_RAIL_ITEMS[1],
+  DASHBOARD_RAIL_ITEMS[2],
+  DASHBOARD_RAIL_ITEMS[3],
+]
+
+// Soft-tinted status backgrounds — the exact pairs scanStatusInfo() uses on
+// the Dashboard, so a "Safe/Caution/Avoid" reads the same everywhere.
+const STATUS_TINTS = {
+  green: { fg: SOFT_SLATE.green, bg: "#E1EBE5" },
+  caution: { fg: SOFT_SLATE.caution, bg: "#F1E3D8" },
+  unsafe: { fg: SOFT_SLATE.unsafe, bg: "#F1DEDA" },
+}
+
+function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
+  // ── UI STATE ──────────────────────────────────────────────────────────────
+  const [showHelp, setShowHelp] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showLogoutLoading, setShowLogoutLoading] = useState(false)
+  const [scanStatus, setScanStatus] = useState<ScannerStatus>("ready")
+  const [barcodeValue, setBarcodeValue] = useState("")
+  const [manualBarcode, setManualBarcode] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment")
+  const [flashOn, setFlashOn] = useState(false)
+  const [galleryImage, setGalleryImage] = useState<string | null>(null)
+  const [productResult, setProductResult] = useState<ProductResult | null>(null)
+
+  // ── REFS ──────────────────────────────────────────────────────────────────
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null)
+  const processingRef = useRef(false)
+  const lastScannedBarcodeRef = useRef<string>("")
+  const lastScanTimeRef = useRef<number>(0)
+  const isMountedRef = useRef(true)
+  const galleryObjectUrlRef = useRef<string | null>(null)
+
+  const isDesktop = useIsDesktop()
+
+  // ── BACKEND API ───────────────────────────────────────────────────────────
+  const BACKEND_API_URL =
+    import.meta.env.VITE_BARCODE_LOOKUP_URL || "/api/barcode/lookup"
+
+  // ── STOP CAMERA ───────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
   const stopCamera = () => {
     try {
       if (readerRef.current) {
         try {
           readerRef.current.reset()
         } catch (error) {
+<<<<<<< Updated upstream
           console.warn(
             "ZXing reader reset failed:",
             error
@@ -4493,11 +6239,22 @@ function BarcodeScannerScreen({
         streamRef.current = null
       }
 
+=======
+          console.warn("ZXing reader reset failed:", error)
+        }
+        readerRef.current = null
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop())
+        streamRef.current = null
+      }
+>>>>>>> Stashed changes
       if (videoRef.current) {
         videoRef.current.pause()
         videoRef.current.srcObject = null
       }
     } catch (error) {
+<<<<<<< Updated upstream
       console.warn(
         "Unable to completely stop camera:",
         error
@@ -4618,12 +6375,47 @@ function BarcodeScannerScreen({
         result?.productInformation ||
         {},
 
+=======
+      console.warn("Unable to completely stop camera:", error)
+    }
+    setFlashOn(false)
+  }
+
+  // ── VALIDATE BARCODE ──────────────────────────────────────────────────────
+  const validateBarcode = (barcode: string) => {
+    const value = barcode.trim()
+    if (!value) return { valid: false, message: "Please enter a barcode number." }
+    if (!/^\d+$/.test(value)) return { valid: false, message: "Barcode must contain numbers only." }
+    if (![8, 12, 13, 14].includes(value.length)) {
+      return { valid: false, message: "Please enter a valid 8, 12, 13, or 14-digit product barcode." }
+    }
+    return { valid: true, message: "" }
+  }
+
+  // ── DUPLICATE SCAN PROTECTION ─────────────────────────────────────────────
+  const isDuplicateScan = (barcode: string) => {
+    const now = Date.now()
+    const sameBarcode = lastScannedBarcodeRef.current === barcode
+    const scannedRecently = now - lastScanTimeRef.current < 5000
+    return sameBarcode && scannedRecently
+  }
+
+  // ── NORMALIZE BACKEND RESULT ──────────────────────────────────────────────
+  const normalizeProductResult = (result: any, barcode: string): ProductResult => {
+    return {
+      ...result,
+      barcode: result?.barcode || barcode,
+      productInformation:
+        result?.productInformation || result?.product_information || result?.product || {},
+      product: result?.product || result?.productInformation || {},
+>>>>>>> Stashed changes
       ingredients:
         result?.ingredients ||
         result?.product?.ingredients ||
         result?.product?.ingredients_text ||
         result?.productInformation?.ingredients ||
         "",
+<<<<<<< Updated upstream
 
       nutrition:
         result?.nutrition ||
@@ -4670,19 +6462,42 @@ function BarcodeScannerScreen({
       try {
         data =
           await response.json()
+=======
+      nutrition: result?.nutrition || result?.nutriments || result?.product?.nutrition || {},
+    }
+  }
+
+  // ── LOOKUP BARCODE THROUGH BACKEND ────────────────────────────────────────
+  const lookupBarcode = async (barcode: string) => {
+    const cleanBarcode = barcode.trim()
+    try {
+      const response = await fetch(BACKEND_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ barcode: cleanBarcode }),
+      })
+
+      let data: any = null
+      try {
+        data = await response.json()
+>>>>>>> Stashed changes
       } catch {
         data = null
       }
 
+<<<<<<< Updated upstream
       // ───────────────────────────────────────────────────────────────────────
       // PRODUCT NOT FOUND
       // ───────────────────────────────────────────────────────────────────────
 
+=======
+>>>>>>> Stashed changes
       if (
         response.status === 404 ||
         data?.found === false ||
         data?.productFound === false ||
         data?.product_found === false ||
+<<<<<<< Updated upstream
         data?.status ===
           "not_found"
       ) {
@@ -4741,10 +6556,30 @@ function BarcodeScannerScreen({
         throw new Error(
           "__PRODUCT_NOT_FOUND__"
         )
+=======
+        data?.status === "not_found"
+      ) {
+        throw new Error("__PRODUCT_NOT_FOUND__")
+      }
+
+      if (response.status === 400 || response.status === 422) {
+        throw new Error(data?.message || data?.error || "The barcode sent to the server is invalid.")
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.message || data?.error || "The server could not retrieve the product information.")
+      }
+
+      if (!data) throw new Error("The server returned an empty response.")
+
+      if (data?.product === null || data?.productInformation === null || data?.data === null) {
+        throw new Error("__PRODUCT_NOT_FOUND__")
+>>>>>>> Stashed changes
       }
 
       return data
     } catch (error) {
+<<<<<<< Updated upstream
       if (
         error instanceof Error &&
         error.message ===
@@ -4765,10 +6600,15 @@ function BarcodeScannerScreen({
         )
       }
 
+=======
+      if (error instanceof Error && error.message === "__PRODUCT_NOT_FOUND__") throw error
+      if (error instanceof TypeError) throw new Error("__NETWORK_ERROR__")
+>>>>>>> Stashed changes
       throw error
     }
   }
 
+<<<<<<< Updated upstream
   // ───────────────────────────────────────────────────────────────────────────
   // PROCESS BARCODE
   //
@@ -5013,11 +6853,86 @@ function BarcodeScannerScreen({
       return
     }
 
+=======
+  // ── PROCESS BARCODE (camera + manual share this) ─────────────────────────
+  const processBarcode = async (barcode: string) => {
+    const cleanBarcode = barcode.trim()
+    const validation = validateBarcode(cleanBarcode)
+    if (!validation.valid) {
+      setErrorMessage(validation.message)
+      setScanStatus("invalid")
+      return
+    }
+    if (isDuplicateScan(cleanBarcode)) return
+    if (processingRef.current) return
+
+    processingRef.current = true
+    lastScannedBarcodeRef.current = cleanBarcode
+    lastScanTimeRef.current = Date.now()
+
+    try {
+      setErrorMessage("")
+      setBarcodeValue(cleanBarcode)
+      setManualBarcode(cleanBarcode)
+
+      setScanStatus("captured")
+      stopCamera()
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      if (!isMountedRef.current) return
+
+      setScanStatus("processing")
+      const result = await lookupBarcode(cleanBarcode)
+      if (!isMountedRef.current) return
+
+      const normalized = normalizeProductResult(result, cleanBarcode)
+      setProductResult(normalized)
+
+      try {
+        localStorage.setItem("scanityProductResult", JSON.stringify(normalized))
+        localStorage.setItem("scanityLastBarcode", cleanBarcode)
+      } catch (storageError) {
+        console.warn("Unable to save scan result:", storageError)
+      }
+
+      setScanStatus("success")
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      if (isMountedRef.current) go("productResult")
+    } catch (error) {
+      console.error("Barcode processing error:", error)
+      if (!isMountedRef.current) return
+      stopCamera()
+
+      if (error instanceof Error && error.message === "__PRODUCT_NOT_FOUND__") {
+        setErrorMessage("We couldn't find a product for this barcode.")
+        setScanStatus("not-found")
+        return
+      }
+
+      if (error instanceof Error && error.message === "__NETWORK_ERROR__") {
+        setErrorMessage("Unable to connect to the server. Please check your internet connection and try again.")
+        setScanStatus("network-error")
+        return
+      }
+
+      setErrorMessage(
+        error instanceof Error ? error.message : "Something went wrong while looking up the product."
+      )
+      setScanStatus("error")
+    } finally {
+      processingRef.current = false
+    }
+  }
+
+  // ── START CAMERA ──────────────────────────────────────────────────────────
+  const startCamera = async (requestedFacing?: "environment" | "user") => {
+    if (processingRef.current) return
+>>>>>>> Stashed changes
     try {
       setErrorMessage("")
       setBarcodeValue("")
       setGalleryImage(null)
       setFlashOn(false)
+<<<<<<< Updated upstream
 
       // Reset duplicate protection
       lastScannedBarcodeRef.current =
@@ -5129,11 +7044,40 @@ function BarcodeScannerScreen({
             }
 
             // Stop continuous detection immediately
+=======
+      lastScannedBarcodeRef.current = ""
+      lastScanTimeRef.current = 0
+
+      setScanStatus("camera-loading")
+      stopCamera()
+
+      if (!window.isSecureContext) throw new Error("__UNSUPPORTED_CAMERA__")
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("__UNSUPPORTED_CAMERA__")
+      }
+      if (!videoRef.current) throw new Error("Camera preview could not be initialized.")
+
+      const facing = requestedFacing || cameraFacing
+      const reader = new BrowserMultiFormatReader()
+      readerRef.current = reader
+
+      await reader.decodeFromConstraints(
+        {
+          video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        },
+        videoRef.current,
+        async (result, error, controls) => {
+          if (result) {
+            const value = result.getText().trim()
+            if (!value) return
+>>>>>>> Stashed changes
             try {
               controls.stop()
             } catch {
               // ignore
             }
+<<<<<<< Updated upstream
 
             // Same processing flow as manual input
             await processBarcode(
@@ -5301,10 +7245,66 @@ function BarcodeScannerScreen({
           : "Camera access could not be started."
       )
 
+=======
+            await processBarcode(value)
+            return
+          }
+          if (error) return
+        }
+      )
+
+      if (!isMountedRef.current) return
+
+      const video = videoRef.current
+      if (video && video.srcObject instanceof MediaStream) {
+        streamRef.current = video.srcObject
+      }
+      if (!streamRef.current && video?.srcObject) {
+        streamRef.current = video.srcObject as MediaStream
+      }
+
+      if (!processingRef.current) setScanStatus("scanning")
+    } catch (error) {
+      console.error("Camera start error:", error)
+      stopCamera()
+      if (!isMountedRef.current) return
+
+      if (
+        error instanceof DOMException &&
+        (error.name === "NotAllowedError" || error.name === "PermissionDeniedError")
+      ) {
+        setErrorMessage("Camera permission was denied. Please allow camera access in your browser settings and try again.")
+        setScanStatus("permission-denied")
+        return
+      }
+
+      if (error instanceof DOMException && error.name === "NotReadableError") {
+        setErrorMessage("The camera is already being used by another application or browser tab.")
+        setScanStatus("error")
+        return
+      }
+
+      if (error instanceof DOMException && error.name === "NotFoundError") {
+        setErrorMessage("No camera was found on this device.")
+        setScanStatus("error")
+        return
+      }
+
+      if (error instanceof Error && error.message === "__UNSUPPORTED_CAMERA__") {
+        setErrorMessage(
+          "Camera access is not supported here. Open Scanity using localhost or HTTPS and use a modern browser such as Chrome, Edge, or Safari."
+        )
+        setScanStatus("unsupported")
+        return
+      }
+
+      setErrorMessage(error instanceof Error ? error.message : "Camera access could not be started.")
+>>>>>>> Stashed changes
       setScanStatus("error")
     }
   }
 
+<<<<<<< Updated upstream
   // ───────────────────────────────────────────────────────────────────────────
   // ROTATE CAMERA
   // ───────────────────────────────────────────────────────────────────────────
@@ -5510,11 +7510,88 @@ function BarcodeScannerScreen({
     lastScanTimeRef.current =
       0
 
+=======
+  // ── ROTATE CAMERA ─────────────────────────────────────────────────────────
+  const rotateCamera = async () => {
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment"
+    setCameraFacing(nextFacing)
+    if (scanStatus === "scanning" || scanStatus === "camera-loading") {
+      await startCamera(nextFacing)
+    }
+  }
+
+  // ── FLASH ─────────────────────────────────────────────────────────────────
+  const toggleFlash = async () => {
+    const stream = streamRef.current
+    if (!stream) {
+      setErrorMessage("Start the camera first before using the flash.")
+      setScanStatus("error")
+      return
+    }
+    const track = stream.getVideoTracks()[0]
+    if (!track) {
+      setErrorMessage("No active camera track was found.")
+      return
+    }
+    try {
+      const capabilities = typeof track.getCapabilities === "function" ? track.getCapabilities() : null
+      if (!(capabilities as any)?.torch) {
+        setErrorMessage("Flash is not supported by this camera.")
+        return
+      }
+      const nextFlash = !flashOn
+      await track.applyConstraints({ advanced: [{ torch: nextFlash } as any] })
+      setFlashOn(nextFlash)
+      setErrorMessage("")
+    } catch (error) {
+      console.error("Flash error:", error)
+      setErrorMessage("The flash could not be controlled on this device.")
+    }
+  }
+
+  // ── MANUAL BARCODE ────────────────────────────────────────────────────────
+  const handleManualScan = () => {
+    const value = manualBarcode.trim()
+    const validation = validateBarcode(value)
+    if (!validation.valid) {
+      setErrorMessage(validation.message)
+      setScanStatus("invalid")
+      return
+    }
+    processBarcode(value)
+  }
+
+  // ── GALLERY ───────────────────────────────────────────────────────────────
+  const handleGallery = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("Please select a valid image.")
+      setScanStatus("invalid")
+      return
+    }
+    if (galleryObjectUrlRef.current) URL.revokeObjectURL(galleryObjectUrlRef.current)
+    const imageUrl = URL.createObjectURL(file)
+    galleryObjectUrlRef.current = imageUrl
+    setGalleryImage(imageUrl)
+    setErrorMessage("")
+    setScanStatus("ready")
+    event.target.value = ""
+  }
+
+  // ── RETRY / RESCAN ────────────────────────────────────────────────────────
+  const handleRetry = () => {
+    stopCamera()
+    processingRef.current = false
+    lastScannedBarcodeRef.current = ""
+    lastScanTimeRef.current = 0
+>>>>>>> Stashed changes
     setErrorMessage("")
     setBarcodeValue("")
     setManualBarcode("")
     setGalleryImage(null)
     setProductResult(null)
+<<<<<<< Updated upstream
 
     setScanStatus("ready")
   }
@@ -5535,10 +7612,21 @@ function BarcodeScannerScreen({
     lastScanTimeRef.current =
       0
 
+=======
+    setScanStatus("ready")
+  }
+
+  const handleRescan = () => {
+    stopCamera()
+    processingRef.current = false
+    lastScannedBarcodeRef.current = ""
+    lastScanTimeRef.current = 0
+>>>>>>> Stashed changes
     setErrorMessage("")
     setBarcodeValue("")
     setGalleryImage(null)
     setProductResult(null)
+<<<<<<< Updated upstream
 
     setScanStatus("ready")
   }
@@ -5565,10 +7653,23 @@ function BarcodeScannerScreen({
 
       setSidebarOpen(false)
 
+=======
+    setScanStatus("ready")
+  }
+
+  // ── LOGOUT ────────────────────────────────────────────────────────────────
+  const handleLogout = () => {
+    setShowLogoutConfirm(false)
+    setShowLogoutLoading(true)
+    stopCamera()
+    setTimeout(() => {
+      setShowLogoutLoading(false)
+>>>>>>> Stashed changes
       go("splash")
     }, 1800)
   }
 
+<<<<<<< Updated upstream
   // ───────────────────────────────────────────────────────────────────────────
   // CLEANUP
   // ───────────────────────────────────────────────────────────────────────────
@@ -5592,10 +7693,22 @@ function BarcodeScannerScreen({
 
         galleryObjectUrlRef.current =
           null
+=======
+  // ── CLEANUP ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+      stopCamera()
+      if (galleryObjectUrlRef.current) {
+        URL.revokeObjectURL(galleryObjectUrlRef.current)
+        galleryObjectUrlRef.current = null
+>>>>>>> Stashed changes
       }
     }
   }, [])
 
+<<<<<<< Updated upstream
   // ───────────────────────────────────────────────────────────────────────────
   // STATUS TITLE
   // ───────────────────────────────────────────────────────────────────────────
@@ -5718,12 +7831,54 @@ function BarcodeScannerScreen({
   // ───────────────────────────────────────────────────────────────────────────
   // STATUS ICON
   // ───────────────────────────────────────────────────────────────────────────
+=======
+  // ── STATUS COPY ───────────────────────────────────────────────────────────
+  const getStatusTitle = () => {
+    switch (scanStatus) {
+      case "ready": return "Ready to scan"
+      case "camera-loading": return "Starting camera..."
+      case "scanning": return "Scanning barcode..."
+      case "captured": return "Barcode captured"
+      case "processing": return "Analyzing product..."
+      case "success": return "Product found!"
+      case "invalid": return "Invalid barcode"
+      case "not-found": return "Product not found"
+      case "permission-denied": return "Camera permission denied"
+      case "unsupported": return "Camera unavailable"
+      case "network-error": return "Connection problem"
+      case "error": return "Unable to scan"
+      default: return "Ready to scan"
+    }
+  }
+
+  const getStatusDescription = () => {
+    switch (scanStatus) {
+      case "ready": return "Scan a food product barcode to get nutrition and allergy information."
+      case "camera-loading": return "Please wait while Scanity starts your camera."
+      case "scanning": return "Position the barcode inside the frame and keep it steady."
+      case "captured": return barcodeValue ? `Barcode: ${barcodeValue}` : "Barcode successfully detected."
+      case "processing": return "Getting product information from the Scanity backend."
+      case "success":
+        return productResult?.productInformation?.name
+          ? `${productResult.productInformation.name} was found.`
+          : "Product information was successfully retrieved."
+      case "invalid": return errorMessage || "Please enter a valid product barcode."
+      case "not-found": return errorMessage || "No product information was found for this barcode."
+      case "permission-denied": return errorMessage || "Allow camera access in your browser settings and try again."
+      case "unsupported": return errorMessage || "Your current browser or connection does not support camera access."
+      case "network-error": return errorMessage || "Check your internet connection and try again."
+      case "error": return errorMessage || "Something went wrong while scanning."
+      default: return ""
+    }
+  }
+>>>>>>> Stashed changes
 
   const getStatusIcon = () => {
     switch (scanStatus) {
       case "success":
       case "captured":
         return "fa-check"
+<<<<<<< Updated upstream
 
       case "invalid":
         return "fa-exclamation"
@@ -6025,11 +8180,33 @@ function BarcodeScannerScreen({
   // MAIN
   // ───────────────────────────────────────────────────────────────────────────
 
+=======
+      case "invalid": return "fa-exclamation"
+      case "not-found": return "fa-search"
+      case "permission-denied": return "fa-lock"
+      case "unsupported": return "fa-video-camera"
+      case "network-error": return "fa-wifi"
+      case "error": return "fa-exclamation-triangle"
+      default: return "fa-camera"
+    }
+  }
+
+  // "not-found" reads as informational (gold), everything else that's a
+  // problem reads as unsafe (red) — same two-tier vocabulary the Dashboard
+  // uses for Caution vs Avoid.
+  const errorTint = scanStatus === "not-found" ? STATUS_TINTS.caution : STATUS_TINTS.unsafe
+
+  const isBusy =
+    scanStatus === "processing" || scanStatus === "captured" || scanStatus === "success"
+
+  // ── MAIN ──────────────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
   return (
     <div
       style={{
         flex: 1,
         minHeight: 0,
+<<<<<<< Updated upstream
 
         display: "flex",
         flexDirection:
@@ -6157,10 +8334,49 @@ function BarcodeScannerScreen({
             box-shadow:
               0 0 0 3px
               rgba(23,107,58,0.12);
+=======
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        overflow: "hidden",
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+      }}
+    >
+      <style>
+        {`
+          @keyframes scanityScanLine {
+            0% { top: 10%; opacity: 0.4; }
+            50% { top: 85%; opacity: 1; }
+            100% { top: 10%; opacity: 0.4; }
+          }
+          @keyframes scanitySpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes scanitySuccessPop {
+            0% { transform: scale(0.7); opacity: 0; }
+            70% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          .scanity-scanner-button {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+          }
+          .scanity-scanner-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+          }
+          .scanity-scanner-button:active:not(:disabled) {
+            transform: scale(0.97);
+          }
+          .scanity-manual-input:focus {
+            outline: none;
+            box-shadow: ${SOFT_SLATE.insetMd};
+>>>>>>> Stashed changes
           }
         `}
       </style>
 
+<<<<<<< Updated upstream
       {/* ══════════════════════════════════════════════════════════════════════
           SIDEBAR
       ══════════════════════════════════════════════════════════════════════ */}
@@ -6747,12 +8963,153 @@ function BarcodeScannerScreen({
 
                       color:
                         "#FFFFFF",
+=======
+      {/* ── Icon rail — same shell as Dashboard/Scan History ───────────────── */}
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+           <DashboardIconRail go={go} isDesktop />
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          minHeight: 0,
+          paddingTop: SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+        }}
+      >
+        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              padding: isDesktop ? "26px 40px 40px 0" : "16px 14px 30px",
+              boxSizing: "border-box",
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
+            }}
+          >
+            {!isDesktop && (
+              <DashboardIconRail go={go} isDesktop={false} active="barcode" navItems={BARCODE_RAIL_ITEMS} />
+            )}
+
+            {/* ── Header ───────────────────────────────────────────────── */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
+              <div>
+                <div
+                  style={{
+                    fontSize: isDesktop ? 30 : 24,
+                    fontWeight: 800,
+                    letterSpacing: "-0.02em",
+                    color: SOFT_SLATE.textPrimary,
+                  }}
+                >
+                  Barcode Scanner
+                </div>
+                <div style={{ fontSize: 14, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
+                  Scan a food product barcode
+                </div>
+              </div>
+
+              <Tooltip label="How to scan">
+                <button
+                  type="button"
+                  className="scanity-scanner-button"
+                  onClick={() => setShowHelp(true)}
+                  aria-label="How to scan"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background: SOFT_SLATE.bg,
+                    border: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: SOFT_SLATE.raisedSm,
+                    cursor: "pointer",
+                    color: SOFT_SLATE.green,
+                    fontSize: 15,
+                  }}
+                >
+                  <i className="fa fa-question" />
+                </button>
+              </Tooltip>
+            </div>
+
+            {/* ── Scanner card ─────────────────────────────────────────── */}
+            <div
+              style={{
+                background: SOFT_SLATE.bg,
+                borderRadius: 26,
+                padding: isDesktop ? 28 : 18,
+                boxShadow: SOFT_SLATE.raisedLg,
+                boxSizing: "border-box",
+              }}
+            >
+              {/* Camera well */}
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  maxWidth: isDesktop ? 900 : 640,
+                  height: isDesktop ? 480 : 280,
+                  margin: "0 auto",
+                  background: "#111111",
+                  borderRadius: 20,
+                  overflow: "hidden",
+                  boxShadow: SOFT_SLATE.insetLg,
+                }}
+              >
+                <video
+                  ref={videoRef}
+                  muted
+                  playsInline
+                  autoPlay
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transform: cameraFacing === "user" ? "scaleX(-1)" : "none",
+                    display: isBusy ? "none" : "block",
+                  }}
+                />
+
+                {galleryImage && (
+                  <img
+                    src={galleryImage}
+                    alt="Selected barcode"
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", background: "#111111" }}
+                  />
+                )}
+
+                {/* READY */}
+                {scanStatus === "ready" && !galleryImage && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      padding: 20,
+                      color: "#FFFFFF",
+>>>>>>> Stashed changes
                     }}
                   >
                     <div
                       style={{
                         width: 66,
                         height: 66,
+<<<<<<< Updated upstream
 
                         borderRadius:
                           "50%",
@@ -6802,11 +9159,26 @@ function BarcodeScannerScreen({
                           "rgba(255,255,255,0.7)",
                       }}
                     >
+=======
+                        borderRadius: "50%",
+                        background: "rgba(255,255,255,0.12)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 14,
+                      }}
+                    >
+                      <i className="fa fa-camera" style={{ fontSize: 27 }} />
+                    </div>
+                    <strong style={{ fontSize: 16 }}>Camera ready</strong>
+                    <span style={{ marginTop: 7, fontSize: 10, color: "rgba(255,255,255,0.7)" }}>
+>>>>>>> Stashed changes
                       Tap Camera to begin
                     </span>
                   </div>
                 )}
 
+<<<<<<< Updated upstream
               {/* ═════════════════════════════════════════════════════════════
                   CAMERA LOADING
               ═════════════════════════════════════════════════════════════ */}
@@ -7951,10 +10323,339 @@ function BarcodeScannerScreen({
                     }}
                   />
 
+=======
+                {/* CAMERA LOADING */}
+                {scanStatus === "camera-loading" && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(0,0,0,0.88)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 45,
+                        height: 45,
+                        borderRadius: "50%",
+                        border: "4px solid rgba(255,255,255,0.25)",
+                        borderTopColor: SOFT_SLATE.green,
+                        animation: "scanitySpin 0.8s linear infinite",
+                        marginBottom: 15,
+                      }}
+                    />
+                    <strong style={{ fontSize: 16 }}>Starting camera...</strong>
+                    <span style={{ marginTop: 7, fontSize: 10, color: "rgba(255,255,255,0.7)" }}>
+                      Please allow camera access if requested.
+                    </span>
+                  </div>
+                )}
+
+                {/* SCANNING FRAME */}
+                {scanStatus === "scanning" && (
+                  <>
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: "50%",
+                        width: isDesktop ? "68%" : "76%",
+                        height: isDesktop ? "45%" : "42%",
+                        transform: "translate(-50%, -50%)",
+                        border: "2px solid rgba(255,255,255,0.9)",
+                        borderRadius: 18,
+                        boxShadow: "0 0 0 9999px rgba(0,0,0,0.32)",
+                      }}
+                    >
+                      <span style={{ position: "absolute", left: -2, top: -2, width: 32, height: 32, borderTop: `4px solid ${SOFT_SLATE.gold}`, borderLeft: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "10px 0 0 0" }} />
+                      <span style={{ position: "absolute", right: -2, top: -2, width: 32, height: 32, borderTop: `4px solid ${SOFT_SLATE.gold}`, borderRight: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "0 10px 0 0" }} />
+                      <span style={{ position: "absolute", left: -2, bottom: -2, width: 32, height: 32, borderBottom: `4px solid ${SOFT_SLATE.gold}`, borderLeft: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "0 0 0 10px" }} />
+                      <span style={{ position: "absolute", right: -2, bottom: -2, width: 32, height: 32, borderBottom: `4px solid ${SOFT_SLATE.gold}`, borderRight: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "0 0 10px 0" }} />
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: "4%",
+                          right: "4%",
+                          height: 2,
+                          background: SOFT_SLATE.gold,
+                          boxShadow: "0 0 10px rgba(216,160,42,0.9)",
+                          animation: "scanityScanLine 2s ease-in-out infinite",
+                        }}
+                      />
+                    </div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: 18,
+                        left: 0,
+                        right: 0,
+                        textAlign: "center",
+                        color: "#FFFFFF",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textShadow: "0 1px 5px rgba(0,0,0,0.8)",
+                      }}
+                    >
+                      Position the barcode inside the frame
+                    </div>
+                  </>
+                )}
+
+                {/* CAPTURED */}
+                {scanStatus === "captured" && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: `${SOFT_SLATE.green}f5`,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#FFFFFF",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 70,
+                        height: 70,
+                        borderRadius: "50%",
+                        background: "#FFFFFF",
+                        color: SOFT_SLATE.green,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 14,
+                        animation: "scanitySuccessPop 0.35s ease both",
+                      }}
+                    >
+                      <i className="fa fa-check" style={{ fontSize: 34 }} />
+                    </div>
+                    <strong style={{ fontSize: 18 }}>Barcode Captured</strong>
+                    <span style={{ marginTop: 7, fontSize: 12, opacity: 0.9 }}>{barcodeValue}</span>
+                  </div>
+                )}
+
+                {/* PROCESSING */}
+                {scanStatus === "processing" && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(233,237,242,0.97)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 45,
+                        height: 45,
+                        borderRadius: "50%",
+                        border: "4px solid #c6ccd4",
+                        borderTopColor: SOFT_SLATE.green,
+                        animation: "scanitySpin 0.8s linear infinite",
+                        marginBottom: 15,
+                      }}
+                    />
+                    <strong style={{ fontSize: 16, color: SOFT_SLATE.textPrimary }}>Analyzing product...</strong>
+                    <span style={{ maxWidth: 390, marginTop: 7, padding: "0 20px", fontSize: 10, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+                      Getting real product information from the Scanity backend.
+                    </span>
+                  </div>
+                )}
+
+                {/* SUCCESS */}
+                {scanStatus === "success" && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: `${SOFT_SLATE.green}f5`,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#FFFFFF",
+                      textAlign: "center",
+                      padding: 20,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: "50%",
+                        background: "#FFFFFF",
+                        color: SOFT_SLATE.green,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 14,
+                        animation: "scanitySuccessPop 0.35s ease both",
+                      }}
+                    >
+                      <i className="fa fa-check" style={{ fontSize: 36 }} />
+                    </div>
+                    <strong style={{ fontSize: 18 }}>Product Found!</strong>
+                    <span style={{ marginTop: 8, fontSize: 11, opacity: 0.9 }}>Opening product information...</span>
+                  </div>
+                )}
+
+                {/* ERROR STATES */}
+                {["invalid", "not-found", "permission-denied", "unsupported", "network-error", "error"].includes(scanStatus) && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(233,237,242,0.97)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      padding: 25,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: "50%",
+                        background: errorTint.bg,
+                        color: errorTint.fg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 13,
+                      }}
+                    >
+                      <i className={`fa ${getStatusIcon()}`} style={{ fontSize: 24 }} />
+                    </div>
+                    <strong style={{ fontSize: 16, color: SOFT_SLATE.textPrimary }}>{getStatusTitle()}</strong>
+                    <span style={{ maxWidth: 440, marginTop: 8, fontSize: 10, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+                      {getStatusDescription()}
+                    </span>
+                    <button
+                      type="button"
+                      className="scanity-scanner-button"
+                      onClick={handleRetry}
+                      style={{
+                        marginTop: 17,
+                        padding: "11px 22px",
+                        border: "none",
+                        borderRadius: 14,
+                        background: SOFT_SLATE.green,
+                        color: "#ffffff",
+                        fontWeight: 700,
+                        fontSize: 11,
+                        cursor: "pointer",
+                        boxShadow: SOFT_SLATE.raisedBtn,
+                      }}
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Status copy ───────────────────────────────────────── */}
+              <div style={{ textAlign: "center", marginTop: 20 }}>
+                <h2 style={{ margin: 0, fontWeight: 800, fontSize: isDesktop ? 19 : 17, color: SOFT_SLATE.textPrimary }}>
+                  {getStatusTitle()}
+                </h2>
+                <p style={{ maxWidth: 530, margin: "7px auto 0", fontSize: 10, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+                  {getStatusDescription()}
+                </p>
+              </div>
+
+              {/* ── Controls ──────────────────────────────────────────── */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "22px auto 0" }}>
+                {[
+                  { key: "camera", label: "Camera", icon: "fa-camera", onClick: () => startCamera(), disabled: isBusy, active: false },
+                  { key: "rotate", label: "Rotate Camera", icon: "fa-refresh", onClick: rotateCamera, disabled: false, active: false },
+                  { key: "flash", label: "Flash", icon: "fa-bolt", onClick: toggleFlash, disabled: false, active: flashOn },
+                ].map((control) => (
+                  <button
+                    key={control.key}
+                    type="button"
+                    className="scanity-scanner-button"
+                    onClick={control.onClick}
+                    disabled={control.disabled}
+                    style={{
+                      border: "none",
+                      background: SOFT_SLATE.bg,
+                      borderRadius: 16,
+                      padding: isDesktop ? "16px 8px" : "13px 5px",
+                      color: control.active ? SOFT_SLATE.gold : SOFT_SLATE.green,
+                      cursor: control.disabled ? "default" : "pointer",
+                      opacity: control.disabled ? 0.5 : 1,
+                      boxShadow: control.active ? SOFT_SLATE.insetMd : SOFT_SLATE.raisedSm,
+                    }}
+                  >
+                    <i className={`fa ${control.icon}`} style={{ fontSize: 17 }} />
+                    <div style={{ marginTop: 6, fontWeight: 600, fontSize: 9 }}>{control.label}</div>
+                  </button>
+                ))}
+
+                <label
+                  className="scanity-scanner-button"
+                  style={{
+                    border: "none",
+                    background: SOFT_SLATE.bg,
+                    borderRadius: 16,
+                    padding: isDesktop ? "16px 8px" : "13px 5px",
+                    color: SOFT_SLATE.green,
+                    cursor: "pointer",
+                    textAlign: "center",
+                    boxShadow: SOFT_SLATE.raisedSm,
+                  }}
+                >
+                  <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
+                  <div style={{ marginTop: 6, fontWeight: 600, fontSize: 9 }}>Gallery</div>
+                  <input type="file" accept="image/*" onChange={handleGallery} style={{ display: "none" }} />
+                </label>
+              </div>
+
+              {/* ── Start camera ──────────────────────────────────────── */}
+              {!["scanning", "captured", "processing", "camera-loading", "success"].includes(scanStatus) && (
+                <button
+                  type="button"
+                  className="scanity-scanner-button"
+                  onClick={() => startCamera()}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    maxWidth: 560,
+                    margin: "20px auto 0",
+                    padding: 16,
+                    border: "none",
+                    borderRadius: 16,
+                    background: SOFT_SLATE.green,
+                    color: "#ffffff",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    boxShadow: SOFT_SLATE.raisedBtn,
+                  }}
+                >
+                  <i className="fa fa-camera" style={{ marginRight: 8 }} />
+>>>>>>> Stashed changes
                   Start Camera
                 </button>
               )}
 
+<<<<<<< Updated upstream
             {/* ═══════════════════════════════════════════════════════════════
                 RESCAN
             ═══════════════════════════════════════════════════════════════ */}
@@ -8303,11 +11004,134 @@ function BarcodeScannerScreen({
             justifyContent:
               "center",
 
+=======
+              {/* ── Rescan ────────────────────────────────────────────── */}
+              {(scanStatus === "success" || scanStatus === "not-found") && (
+                <button
+                  type="button"
+                  className="scanity-scanner-button"
+                  onClick={handleRescan}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    maxWidth: 560,
+                    margin: "20px auto 0",
+                    padding: 15,
+                    border: "none",
+                    borderRadius: 16,
+                    background: SOFT_SLATE.bg,
+                    color: SOFT_SLATE.green,
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: "pointer",
+                    boxShadow: SOFT_SLATE.raisedBtnAlt,
+                  }}
+                >
+                  <i className="fa fa-refresh" style={{ marginRight: 7 }} />
+                  Scan Another Product
+                </button>
+              )}
+
+              {/* ── Manual barcode entry ──────────────────────────────── */}
+              <div style={{ maxWidth: 560, margin: "26px auto 0" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <i className="fa fa-keyboard-o" style={{ color: SOFT_SLATE.green, fontSize: 14 }} />
+                  <span style={{ fontWeight: 700, fontSize: 11, color: SOFT_SLATE.textPrimary }}>
+                    Enter barcode manually
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <input
+                    className="scanity-manual-input"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={14}
+                    value={manualBarcode}
+                    onChange={(event) => {
+                      const numeric = event.target.value.replace(/\D/g, "")
+                      setManualBarcode(numeric)
+                      if (["invalid", "error", "network-error"].includes(scanStatus)) {
+                        setErrorMessage("")
+                        setScanStatus("ready")
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") handleManualScan()
+                    }}
+                    placeholder="e.g. 4800012345678"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      height: 48,
+                      boxSizing: "border-box",
+                      border: "none",
+                      borderRadius: 14,
+                      background: SOFT_SLATE.bg,
+                      boxShadow: SOFT_SLATE.insetSm,
+                      padding: "0 14px",
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 11,
+                      color: SOFT_SLATE.textPrimary,
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    className="scanity-scanner-button"
+                    onClick={handleManualScan}
+                    disabled={scanStatus === "processing" || scanStatus === "captured" || scanStatus === "camera-loading"}
+                    style={{
+                      height: 48,
+                      padding: "0 20px",
+                      border: "none",
+                      borderRadius: 14,
+                      background: SOFT_SLATE.green,
+                      color: "#ffffff",
+                      fontWeight: 700,
+                      fontSize: 11,
+                      cursor: "pointer",
+                      boxShadow: SOFT_SLATE.raisedBtn,
+                      opacity:
+                        scanStatus === "processing" || scanStatus === "captured" || scanStatus === "camera-loading"
+                          ? 0.5
+                          : 1,
+                    }}
+                  >
+                    Scan
+                  </button>
+                </div>
+
+                {scanStatus === "invalid" && (
+                  <p style={{ margin: "9px 0 0", fontSize: 9, color: SOFT_SLATE.unsafe, lineHeight: 1.5 }}>
+                    <i className="fa fa-exclamation-circle" style={{ marginRight: 5 }} />
+                    {errorMessage}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </Center>
+      </div>
+
+      {/* ── Help modal ───────────────────────────────────────────────────── */}
+      {showHelp && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(36,41,47,0.45)",
+            zIndex: 200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+>>>>>>> Stashed changes
             padding: 20,
           }}
         >
           <div
             style={{
+<<<<<<< Updated upstream
               width:
                 "100%",
 
@@ -8384,6 +11208,31 @@ function BarcodeScannerScreen({
 
                   cursor:
                     "pointer",
+=======
+              width: "100%",
+              maxWidth: 430,
+              background: SOFT_SLATE.bg,
+              borderRadius: 26,
+              padding: 26,
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: 18, color: SOFT_SLATE.textPrimary }}>How to scan</h3>
+              <button
+                type="button"
+                onClick={() => setShowHelp(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  cursor: "pointer",
+                  color: SOFT_SLATE.textMuted,
+>>>>>>> Stashed changes
                 }}
               >
                 <i className="fa fa-times" />
@@ -8399,6 +11248,7 @@ function BarcodeScannerScreen({
               "The barcode will be sent to the backend.",
               "The backend retrieves product information from OpenFoodFacts.",
               "The Product Result page will display the returned information.",
+<<<<<<< Updated upstream
             ].map(
               (
                 instruction,
@@ -8516,6 +11366,48 @@ function BarcodeScannerScreen({
 
                 cursor:
                   "pointer",
+=======
+            ].map((instruction, index) => (
+              <div key={instruction} style={{ display: "flex", gap: 12, marginBottom: 13 }}>
+                <div
+                  style={{
+                    width: 26,
+                    height: 26,
+                    flexShrink: 0,
+                    borderRadius: "50%",
+                    background: SOFT_SLATE.bg,
+                    boxShadow: SOFT_SLATE.insetSm,
+                    color: SOFT_SLATE.green,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10,
+                    fontWeight: 800,
+                  }}
+                >
+                  {index + 1}
+                </div>
+                <span style={{ fontSize: 10, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>{instruction}</span>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              className="scanity-scanner-button"
+              onClick={() => setShowHelp(false)}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                padding: 14,
+                border: "none",
+                borderRadius: 15,
+                background: SOFT_SLATE.green,
+                color: "#ffffff",
+                fontWeight: 700,
+                fontSize: 11,
+                cursor: "pointer",
+                boxShadow: SOFT_SLATE.raisedBtn,
+>>>>>>> Stashed changes
               }}
             >
               Got it
@@ -8524,6 +11416,7 @@ function BarcodeScannerScreen({
         </div>
       )}
 
+<<<<<<< Updated upstream
       {/* ══════════════════════════════════════════════════════════════════════
           LOGOUT CONFIRMATION
       ══════════════════════════════════════════════════════════════════════ */}
@@ -8550,11 +11443,25 @@ function BarcodeScannerScreen({
             justifyContent:
               "center",
 
+=======
+      {/* ── Logout confirmation ──────────────────────────────────────────── */}
+      {showLogoutConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(36,41,47,0.45)",
+            zIndex: 210,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+>>>>>>> Stashed changes
             padding: 20,
           }}
         >
           <div
             style={{
+<<<<<<< Updated upstream
               width:
                 "100%",
 
@@ -8572,10 +11479,21 @@ function BarcodeScannerScreen({
 
               textAlign:
                 "center",
+=======
+              width: "100%",
+              maxWidth: 390,
+              background: SOFT_SLATE.bg,
+              borderRadius: 26,
+              padding: 26,
+              textAlign: "center",
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+>>>>>>> Stashed changes
             }}
           >
             <div
               style={{
+<<<<<<< Updated upstream
                 width: 56,
                 height: 56,
 
@@ -8695,10 +11613,50 @@ function BarcodeScannerScreen({
 
                   cursor:
                     "pointer",
+=======
+                width: 58,
+                height: 58,
+                borderRadius: "50%",
+                background: STATUS_TINTS.unsafe.bg,
+                color: STATUS_TINTS.unsafe.fg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 14px",
+              }}
+            >
+              <i className="fa fa-sign-out" style={{ fontSize: 22 }} />
+            </div>
+
+            <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17, color: SOFT_SLATE.textPrimary }}>
+              Are you sure you want to logout?
+            </h3>
+            <p style={{ margin: "8px 0 20px", fontSize: 10, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+              You will be returned to the login screen.
+            </p>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                className="scanity-scanner-button"
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: 14,
+                  border: "none",
+                  borderRadius: 15,
+                  background: SOFT_SLATE.bg,
+                  color: SOFT_SLATE.textPrimary,
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  boxShadow: SOFT_SLATE.raisedBtnAlt,
+>>>>>>> Stashed changes
                 }}
               >
                 Cancel
               </button>
+<<<<<<< Updated upstream
 
               <button
                 type="button"
@@ -8734,6 +11692,23 @@ function BarcodeScannerScreen({
 
                   cursor:
                     "pointer",
+=======
+              <button
+                type="button"
+                className="scanity-scanner-button"
+                onClick={handleLogout}
+                style={{
+                  flex: 1,
+                  padding: 14,
+                  border: "none",
+                  borderRadius: 15,
+                  background: SOFT_SLATE.unsafe,
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  boxShadow: SOFT_SLATE.raisedBtn,
+>>>>>>> Stashed changes
                 }}
               >
                 Logout
@@ -8743,6 +11718,7 @@ function BarcodeScannerScreen({
         </div>
       )}
 
+<<<<<<< Updated upstream
       {/* ══════════════════════════════════════════════════════════════════════
           LOGOUT LOADING
       ══════════════════════════════════════════════════════════════════════ */}
@@ -8768,10 +11744,24 @@ function BarcodeScannerScreen({
 
             justifyContent:
               "center",
+=======
+      {/* ── Logout loading ───────────────────────────────────────────────── */}
+      {showLogoutLoading && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(36,41,47,0.55)",
+            zIndex: 220,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+>>>>>>> Stashed changes
           }}
         >
           <div
             style={{
+<<<<<<< Updated upstream
               width:
                 260,
 
@@ -8786,12 +11776,22 @@ function BarcodeScannerScreen({
 
               textAlign:
                 "center",
+=======
+              width: 260,
+              background: SOFT_SLATE.bg,
+              borderRadius: 22,
+              padding: 26,
+              textAlign: "center",
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+>>>>>>> Stashed changes
             }}
           >
             <div
               style={{
                 width: 40,
                 height: 40,
+<<<<<<< Updated upstream
 
                 borderRadius:
                   "50%",
@@ -8824,6 +11824,16 @@ function BarcodeScannerScreen({
             >
               Logging out...
             </strong>
+=======
+                borderRadius: "50%",
+                border: "4px solid #c6ccd4",
+                borderTopColor: SOFT_SLATE.green,
+                animation: "scanitySpin 0.8s linear infinite",
+                margin: "0 auto 14px",
+              }}
+            />
+            <strong style={{ fontSize: 14, color: SOFT_SLATE.textPrimary }}>Logging out...</strong>
+>>>>>>> Stashed changes
           </div>
         </div>
       )}
@@ -8831,6 +11841,7 @@ function BarcodeScannerScreen({
   )
 }
 
+<<<<<<< Updated upstream
 
 // ── OCR Scanner Screen ───────────────────────────────────────────────────────
 
@@ -8840,11 +11851,25 @@ function OCRScannerScreen({
   go: (s: Screen) => void
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+=======
+// ── OCR Scanner Screen — Soft Slate (neumorphic) ────────────────────────────
+// Restyled to match DashboardScreen's neumorphism: same SOFT_SLATE tokens,
+// same DashboardIconRail nav (instead of AppSidebar), raised panels/buttons,
+// inset wells for camera + inputs. All state, handlers, camera/OCR/product
+// logic are unchanged from the original — only the render layer changed.
+//
+// Depends on things already defined in the Dashboard section of this file:
+// SOFT_SLATE, DashboardIconRail, DASHBOARD_RAIL_ITEMS. Drop this in wherever
+// OCRScannerScreen currently lives; no new tokens needed.
+
+function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
+>>>>>>> Stashed changes
   const [showHelp, setShowHelp] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showLogoutLoading, setShowLogoutLoading] = useState(false)
 
   const [scanStatus, setScanStatus] = useState<
+<<<<<<< Updated upstream
     | "ready"
     | "scanning"
     | "captured"
@@ -8852,16 +11877,23 @@ function OCRScannerScreen({
     | "textPreview"
     | "productProcessing"
     | "error"
+=======
+    "ready" | "scanning" | "captured" | "ocrProcessing" | "textPreview" | "productProcessing" | "error"
+>>>>>>> Stashed changes
   >("ready")
 
   const [extractedText, setExtractedText] = useState("")
   const [ingredients, setIngredients] = useState<string[]>([])
   const [errorMessage, setErrorMessage] = useState("")
 
+<<<<<<< Updated upstream
   const [cameraFacing, setCameraFacing] = useState<
     "environment" | "user"
   >("environment")
 
+=======
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment")
+>>>>>>> Stashed changes
   const [flashOn, setFlashOn] = useState(false)
   const [galleryImage, setGalleryImage] = useState<string | null>(null)
 
@@ -8874,6 +11906,7 @@ function OCRScannerScreen({
 
   const isDesktop = useIsDesktop()
 
+<<<<<<< Updated upstream
   // ──────────────────────────────────────────────────────────────────────────
   // CAMERA
   // ──────────────────────────────────────────────────────────────────────────
@@ -8887,11 +11920,22 @@ function OCRScannerScreen({
       streamRef.current = null
     }
 
+=======
+  // ── CAMERA ──────────────────────────────────────────────────────────────
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+>>>>>>> Stashed changes
     if (videoRef.current) {
       videoRef.current.pause()
       videoRef.current.srcObject = null
     }
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
     setFlashOn(false)
   }
 
@@ -8901,6 +11945,7 @@ function OCRScannerScreen({
     }
   }, [])
 
+<<<<<<< Updated upstream
   // ──────────────────────────────────────────────────────────────────────────
   // START CAMERA
   // ──────────────────────────────────────────────────────────────────────────
@@ -8927,11 +11972,25 @@ function OCRScannerScreen({
         throw new Error(
           "Camera access is not supported by this browser. Please use Google Chrome, Microsoft Edge, or Safari."
         )
+=======
+  const startCamera = async (requestedFacing?: "environment" | "user") => {
+    try {
+      setErrorMessage("")
+      setGalleryImage(null)
+      stopCamera()
+
+      if (!window.isSecureContext) {
+        throw new Error("Camera requires HTTPS or localhost. Open Scanity using localhost or HTTPS.")
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera access is not supported by this browser. Please use Google Chrome, Microsoft Edge, or Safari.")
+>>>>>>> Stashed changes
       }
 
       setScanStatus("scanning")
 
       const facing = requestedFacing ?? cameraFacing
+<<<<<<< Updated upstream
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
@@ -8956,10 +12015,20 @@ function OCRScannerScreen({
           "Camera preview could not be initialized."
         )
       }
+=======
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      })
+
+      streamRef.current = stream
+      if (!videoRef.current) throw new Error("Camera preview could not be initialized.")
+>>>>>>> Stashed changes
 
       videoRef.current.srcObject = stream
       videoRef.current.muted = true
       videoRef.current.playsInline = true
+<<<<<<< Updated upstream
 
       await videoRef.current.play()
     } catch (error) {
@@ -8986,10 +12055,26 @@ function OCRScannerScreen({
       setErrorMessage(message)
       setScanStatus("error")
 
+=======
+      await videoRef.current.play()
+    } catch (error) {
+      console.error("Camera error:", error)
+      let message = "Camera access was denied or the camera is unavailable."
+      if (error instanceof DOMException) {
+        if (error.name === "NotAllowedError") message = "Camera permission was denied. Allow camera access in your browser settings and try again."
+        else if (error.name === "NotFoundError") message = "No camera was found on this device."
+        else if (error.name === "NotReadableError") message = "The camera is already being used by another application."
+      } else if (error instanceof Error) {
+        message = error.message
+      }
+      setErrorMessage(message)
+      setScanStatus("error")
+>>>>>>> Stashed changes
       stopCamera()
     }
   }
 
+<<<<<<< Updated upstream
   // ──────────────────────────────────────────────────────────────────────────
   // ROTATE CAMERA
   // ──────────────────────────────────────────────────────────────────────────
@@ -9050,10 +12135,36 @@ function OCRScannerScreen({
         ],
       })
 
+=======
+  const rotateCamera = async () => {
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment"
+    setCameraFacing(nextFacing)
+    if (scanStatus === "scanning") await startCamera(nextFacing)
+  }
+
+  const toggleFlash = async () => {
+    const stream = streamRef.current
+    if (!stream) {
+      setErrorMessage("Start the camera first before using the flash.")
+      return
+    }
+    const track = stream.getVideoTracks()[0]
+    if (!track) return
+
+    try {
+      const capabilities = typeof track.getCapabilities === "function" ? track.getCapabilities() : null
+      if (!(capabilities as any)?.torch) {
+        setErrorMessage("Flash is not supported by this camera.")
+        return
+      }
+      const nextFlash = !flashOn
+      await track.applyConstraints({ advanced: [{ torch: nextFlash } as any] })
+>>>>>>> Stashed changes
       setFlashOn(nextFlash)
       setErrorMessage("")
     } catch (error) {
       console.error("Flash error:", error)
+<<<<<<< Updated upstream
 
       setErrorMessage(
         "The flash could not be controlled on this device."
@@ -9104,11 +12215,32 @@ function OCRScannerScreen({
         "Unable to process the camera image."
       )
     }
+=======
+      setErrorMessage("The flash could not be controlled on this device.")
+    }
+  }
+
+  const captureCameraFrame = async () => {
+    const video = videoRef.current
+    if (!video) throw new Error("Camera preview could not be initialized.")
+    if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) throw new Error("The camera is not ready yet. Please try again.")
+
+    const width = video.videoWidth
+    const height = video.videoHeight
+    if (!width || !height) throw new Error("Unable to capture the camera image.")
+
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext("2d")
+    if (!context) throw new Error("Unable to process the camera image.")
+>>>>>>> Stashed changes
 
     if (cameraFacing === "user") {
       context.translate(width, 0)
       context.scale(-1, 1)
     }
+<<<<<<< Updated upstream
 
     context.drawImage(
       video,
@@ -9163,10 +12295,30 @@ function OCRScannerScreen({
         ingredientText =
           ingredientText.substring(0, index)
       }
+=======
+    context.drawImage(video, 0, 0, width, height)
+    return canvas
+  }
+
+  // ── PARSE INGREDIENTS ──────────────────────────────────────────────────
+  const parseIngredients = (text: string) => {
+    const lower = text.toLowerCase()
+    const ingredientIndex = lower.indexOf("ingredients")
+    if (ingredientIndex === -1) return []
+
+    let ingredientText = text.substring(ingredientIndex)
+    ingredientText = ingredientText.replace(/^ingredients?\s*:?\s*/i, "")
+
+    const stopWords = ["nutrition facts", "nutrition information", "allergen", "contains", "serving size", "calories"]
+    for (const stopWord of stopWords) {
+      const index = ingredientText.toLowerCase().indexOf(stopWord)
+      if (index > 0) ingredientText = ingredientText.substring(0, index)
+>>>>>>> Stashed changes
     }
 
     return ingredientText
       .split(/[,;\n]/)
+<<<<<<< Updated upstream
       .map((item) =>
         item
           .replace(/[•*]/g, "")
@@ -9194,11 +12346,22 @@ function OCRScannerScreen({
       return
     }
 
+=======
+      .map((item) => item.replace(/[•*]/g, "").trim())
+      .filter((item) => item.length > 1 && item.length < 100)
+      .slice(0, 30)
+  }
+
+  // ── OCR PROCESS ─────────────────────────────────────────────────────────
+  const processOCR = async (source: string | HTMLCanvasElement | File) => {
+    if (processingRef.current) return
+>>>>>>> Stashed changes
     processingRef.current = true
 
     try {
       setErrorMessage("")
       stopCamera()
+<<<<<<< Updated upstream
 
       setScanStatus("captured")
 
@@ -9226,12 +12389,27 @@ function OCRScannerScreen({
       const parsedIngredients =
         parseIngredients(text)
 
+=======
+      setScanStatus("captured")
+      await new Promise((resolve) => setTimeout(resolve, 700))
+
+      setScanStatus("ocrProcessing")
+      const worker = await createWorker("eng")
+      const result = await worker.recognize(source)
+      const text = result?.data?.text?.trim() || ""
+      await worker.terminate()
+
+      if (!text) throw new Error("No text was detected. Please make sure the nutrition label is clear and readable.")
+
+      const parsedIngredients = parseIngredients(text)
+>>>>>>> Stashed changes
       setExtractedText(text)
       setIngredients(parsedIngredients)
 
       try {
         localStorage.setItem(
           "scanityOCRResult",
+<<<<<<< Updated upstream
           JSON.stringify({
             text,
             ingredients: parsedIngredients,
@@ -9264,6 +12442,19 @@ function OCRScannerScreen({
           : "Something went wrong while reading the nutrition label."
       )
 
+=======
+          JSON.stringify({ text, ingredients: parsedIngredients, source: "ocr", scannedAt: new Date().toISOString() })
+        )
+      } catch (error) {
+        console.warn("Unable to save OCR result:", error)
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      setScanStatus("textPreview")
+    } catch (error) {
+      console.error("OCR processing error:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Something went wrong while reading the nutrition label.")
+>>>>>>> Stashed changes
       setScanStatus("error")
       stopCamera()
     } finally {
@@ -9271,6 +12462,7 @@ function OCRScannerScreen({
     }
   }
 
+<<<<<<< Updated upstream
   // ──────────────────────────────────────────────────────────────────────────
   // CAPTURE
   // ──────────────────────────────────────────────────────────────────────────
@@ -9306,10 +12498,26 @@ function OCRScannerScreen({
           : "Unable to capture the nutrition label."
       )
 
+=======
+  const handleCapture = async () => {
+    if (processingRef.current) return
+    if (!streamRef.current) {
+      setErrorMessage("Start the camera first before scanning.")
+      return
+    }
+    try {
+      setErrorMessage("")
+      const canvas = await captureCameraFrame()
+      await processOCR(canvas)
+    } catch (error) {
+      console.error("OCR capture error:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Unable to capture the nutrition label.")
+>>>>>>> Stashed changes
       setScanStatus("error")
     }
   }
 
+<<<<<<< Updated upstream
   // ──────────────────────────────────────────────────────────────────────────
   // GALLERY
   // ──────────────────────────────────────────────────────────────────────────
@@ -9623,12 +12831,126 @@ function OCRScannerScreen({
   const handleRetry = () => {
     stopCamera()
 
+=======
+  const handleGallery = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("Please select a valid image.")
+      event.target.value = ""
+      return
+    }
+    if (processingRef.current) return
+
+    try {
+      setErrorMessage("")
+      stopCamera()
+      const imageUrl = URL.createObjectURL(file)
+      setGalleryImage(imageUrl)
+      await processOCR(file)
+    } catch (error) {
+      console.error("Gallery OCR error:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Unable to read the selected image.")
+      setScanStatus("error")
+    }
+    event.target.value = ""
+  }
+
+  const addIngredient = () => setIngredients([...ingredients, ""])
+  const updateIngredient = (index: number, value: string) => {
+    const updated = [...ingredients]
+    updated[index] = value
+    setIngredients(updated)
+  }
+  const removeIngredient = (index: number) => setIngredients(ingredients.filter((_, i) => i !== index))
+
+  // ── PRODUCT LOOKUP ─────────────────────────────────────────────────────
+  const lookupProductFromOCR = async () => {
+    if (processingRef.current) return
+    processingRef.current = true
+
+    try {
+      setErrorMessage("")
+      setScanStatus("productProcessing")
+
+      const combinedText = `${extractedText} ${ingredients.join(" ")}`.toLowerCase()
+      await new Promise((resolve) => setTimeout(resolve, 1600))
+
+      let product = {
+        name: "Sample Nutrition Product",
+        brand: "Scanity Demo",
+        category: "Food Product",
+        score: 85,
+        status: "Safe",
+        calories: "120 kcal",
+        sugar: "8 g",
+        sodium: "90 mg",
+        protein: "4 g",
+        ingredients: ingredients.length > 0 ? ingredients : ["Water", "Sugar", "Milk"],
+      }
+
+      if (combinedText.includes("milk") || combinedText.includes("fresh milk")) {
+        product = {
+          name: "Fresh Milk", brand: "Sample Brand", category: "Dairy", score: 87, status: "Safe",
+          calories: "120 kcal", sugar: "8 g", sodium: "90 mg", protein: "4 g",
+          ingredients: ingredients.length > 0 ? ingredients : ["Milk", "Water", "Vitamin A", "Vitamin D"],
+        }
+      } else if (combinedText.includes("juice") || combinedText.includes("orange")) {
+        product = {
+          name: "Orange Juice", brand: "Sample Brand", category: "Beverage", score: 72, status: "Fair",
+          calories: "110 kcal", sugar: "22 g", sodium: "10 mg", protein: "1 g",
+          ingredients: ingredients.length > 0 ? ingredients : ["Orange Juice", "Water", "Sugar", "Citric Acid"],
+        }
+      } else if (combinedText.includes("chocolate") || combinedText.includes("cocoa")) {
+        product = {
+          name: "Chocolate Snack", brand: "Sample Brand", category: "Snack", score: 62, status: "Caution",
+          calories: "210 kcal", sugar: "18 g", sodium: "80 mg", protein: "3 g",
+          ingredients: ingredients.length > 0 ? ingredients : ["Sugar", "Cocoa", "Milk", "Wheat"],
+        }
+      }
+
+      const productResult = {
+        ...product,
+        source: "ocr",
+        extractedText,
+        ingredients: product.ingredients,
+        scannedAt: new Date().toISOString(),
+        allergyStatus: "Checking allergies...",
+        healthAnalysis:
+          product.score >= 80
+            ? "This product has a generally good nutrition profile."
+            : product.score >= 60
+              ? "This product is acceptable but should be consumed in moderation."
+              : "This product should be consumed carefully.",
+      }
+
+      localStorage.setItem("scanityProductResult", JSON.stringify(productResult))
+      localStorage.setItem("scanityLastScan", JSON.stringify(productResult))
+
+      setProductName(product.name)
+      setProductFound(true)
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      go("productResult")
+    } catch (error) {
+      console.error("Product lookup error:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Unable to analyze this product.")
+      setScanStatus("error")
+    } finally {
+      processingRef.current = false
+    }
+  }
+
+  const handleRetry = () => {
+    stopCamera()
+>>>>>>> Stashed changes
     setErrorMessage("")
     setExtractedText("")
     setIngredients([])
     setGalleryImage(null)
     setProductName("")
     setProductFound(false)
+<<<<<<< Updated upstream
 
     setScanStatus("ready")
   }
@@ -9655,10 +12977,22 @@ function OCRScannerScreen({
     setTimeout(() => {
       setShowLogoutLoading(false)
       setSidebarOpen(false)
+=======
+    setScanStatus("ready")
+  }
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(false)
+    setShowLogoutLoading(true)
+    stopCamera()
+    setTimeout(() => {
+      setShowLogoutLoading(false)
+>>>>>>> Stashed changes
       go("splash")
     }, 1800)
   }
 
+<<<<<<< Updated upstream
   // ──────────────────────────────────────────────────────────────────────────
   // STATUS TITLE
   // ──────────────────────────────────────────────────────────────────────────
@@ -9733,6 +13067,35 @@ function OCRScannerScreen({
   // RENDER
   // ──────────────────────────────────────────────────────────────────────────
 
+=======
+  const getStatusTitle = () => {
+    switch (scanStatus) {
+      case "scanning": return "Ready to capture"
+      case "captured": return "Image captured"
+      case "ocrProcessing": return "Reading Nutrition Label..."
+      case "textPreview": return "Review Extracted Information"
+      case "productProcessing": return "Analyzing Product..."
+      case "error": return "Unable to scan"
+      default: return "Ready to scan"
+    }
+  }
+
+  const getStatusDescription = () => {
+    switch (scanStatus) {
+      case "scanning": return "Position the nutrition label clearly inside the frame, then tap Capture."
+      case "captured": return "Your nutrition label image has been captured."
+      case "ocrProcessing": return "Scanity is reading the text from your nutrition label."
+      case "textPreview": return "Review the extracted ingredients before continuing with product analysis."
+      case "productProcessing": return "Scanity is analyzing the product, nutrition information, and allergies."
+      case "error": return errorMessage || "Please try scanning again."
+      default: return "Scan a nutrition label to extract ingredients and nutritional information."
+    }
+  }
+
+  const scannerBusy = scanStatus === "captured" || scanStatus === "ocrProcessing" || scanStatus === "productProcessing"
+
+  // ── RENDER ──────────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
   return (
     <div
       style={{
@@ -9742,6 +13105,7 @@ function OCRScannerScreen({
         flexDirection: "column",
         position: "relative",
         overflow: "hidden",
+<<<<<<< Updated upstream
         background: C.offWhite,
         fontFamily: FONT_BODY,
       }}
@@ -10130,11 +13494,136 @@ function OCRScannerScreen({
                     className="fa fa-check"
                     style={{
                       fontSize: 20,
+=======
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+      }}
+    >
+      <style>
+        {`
+          @keyframes scanityScanLine { 0% { top: 10%; opacity: 0.4; } 50% { top: 85%; opacity: 1; } 100% { top: 10%; opacity: 0.4; } }
+          @keyframes scanitySpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          @keyframes scanityPulse { 0% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 0.7; } }
+          .scanity-slate-btn { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+          .scanity-slate-btn:hover:not(:disabled) { transform: translateY(-1px); }
+          .scanity-slate-btn:active:not(:disabled) { transform: scale(0.97); }
+          .scanity-slate-input { outline: none; transition: box-shadow 0.15s ease; }
+          .scanity-slate-input:focus { box-shadow: inset 5px 5px 11px #c6ccd4, inset -5px -5px 11px #ffffff, 0 0 0 3px rgba(30,107,63,0.18) !important; }
+        `}
+      </style>
+
+      {/* ── Icon rail (desktop, fixed) ───────────────────────────────────── */}
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop />
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          minHeight: 0,
+          paddingTop: SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+        }}
+      >
+        <Center maxWidth={isDesktop ? 1100 : undefined}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              padding: isDesktop ? "26px 40px 26px 0" : "16px 14px",
+              boxSizing: "border-box",
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
+            }}
+          >
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} />}
+
+            {/* ── Header ──────────────────────────────────────────────── */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
+              <div>
+                <div style={{ fontSize: isDesktop ? 26 : 21, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
+                  Nutrition Label Scanner
+                </div>
+                <div style={{ fontSize: 13, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
+                  Scan a nutrition label to extract ingredients
+                </div>
+              </div>
+
+              <Tooltip label="How to scan">
+                <button
+                  type="button"
+                  className="scanity-slate-btn"
+                  onClick={() => setShowHelp(true)}
+                  aria-label="Help"
+                  style={{
+                    width: 42, height: 42, borderRadius: 14, border: "none",
+                    background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.raisedSm,
+                    color: SOFT_SLATE.green, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}
+                >
+                  <i className="fa fa-question" style={{ fontSize: 15 }} />
+                </button>
+              </Tooltip>
+            </div>
+
+            {/* ── Text preview / ingredient editor ───────────────────────── */}
+            {scanStatus === "textPreview" ? (
+              <section
+                style={{
+                  background: SOFT_SLATE.bg,
+                  borderRadius: 26,
+                  padding: isDesktop ? 28 : 20,
+                  boxShadow: SOFT_SLATE.raisedLg,
+                  boxSizing: "border-box",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                  <div
+                    style={{
+                      width: 48, height: 48, borderRadius: 15,
+                      background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetMd,
+                      color: SOFT_SLATE.green,
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}
+                  >
+                    <i className="fa fa-check" style={{ fontSize: 19 }} />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                      Text Extracted Successfully
+                    </h2>
+                    <p style={{ margin: "4px 0 0", fontSize: 11, color: SOFT_SLATE.textMuted }}>
+                      Review the information before product analysis.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 11.5, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>
+                    Extracted Text
+                  </label>
+                  <textarea
+                    className="scanity-slate-input"
+                    value={extractedText}
+                    onChange={(event) => setExtractedText(event.target.value)}
+                    style={{
+                      width: "100%", minHeight: 150, resize: "vertical", boxSizing: "border-box",
+                      padding: 14, border: "none", borderRadius: 16,
+                      background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetMd,
+                      fontFamily: SOFT_SLATE.fontFamily, fontSize: 12, lineHeight: 1.6, color: SOFT_SLATE.textPrimary,
+>>>>>>> Stashed changes
                     }}
                   />
                 </div>
 
                 <div>
+<<<<<<< Updated upstream
                   <h2
                     style={{
                       margin: 0,
@@ -10413,11 +13902,71 @@ function OCRScannerScreen({
                                 C.statusDanger,
                               cursor:
                                 "pointer",
+=======
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>
+                        Ingredients
+                      </label>
+                      <span style={{ fontSize: 10, color: SOFT_SLATE.textMuted }}>
+                        You can edit the extracted ingredients.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="scanity-slate-btn"
+                      onClick={addIngredient}
+                      style={{
+                        border: "none", borderRadius: 12, background: SOFT_SLATE.bg,
+                        boxShadow: SOFT_SLATE.raisedSm, color: SOFT_SLATE.green,
+                        padding: "9px 13px", fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+                      }}
+                    >
+                      <i className="fa fa-plus" style={{ marginRight: 5 }} />
+                      Add
+                    </button>
+                  </div>
+
+                  {ingredients.length === 0 ? (
+                    <div
+                      style={{
+                        padding: 18, borderRadius: 16, textAlign: "center",
+                        background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetSm,
+                        fontSize: 11, color: SOFT_SLATE.textMuted,
+                      }}
+                    >
+                      No ingredients were automatically detected. You can add them manually.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {ingredients.map((ingredient, index) => (
+                        <div key={`${index}-${ingredient}`} style={{ display: "flex", gap: 8 }}>
+                          <input
+                            className="scanity-slate-input"
+                            value={ingredient}
+                            onChange={(event) => updateIngredient(index, event.target.value)}
+                            placeholder={`Ingredient ${index + 1}`}
+                            style={{
+                              flex: 1, minWidth: 0, padding: "11px 13px", border: "none", borderRadius: 12,
+                              background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetSm,
+                              fontFamily: SOFT_SLATE.fontFamily, fontSize: 11, color: SOFT_SLATE.textPrimary,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="scanity-slate-btn"
+                            onClick={() => removeIngredient(index)}
+                            style={{
+                              width: 40, flexShrink: 0, border: "none", borderRadius: 12,
+                              background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.raisedSm,
+                              color: SOFT_SLATE.unsafe, cursor: "pointer",
+>>>>>>> Stashed changes
                             }}
                           >
                             <i className="fa fa-trash" />
                           </button>
                         </div>
+<<<<<<< Updated upstream
                       )
                     )}
                   </div>
@@ -10558,12 +14107,72 @@ function OCRScannerScreen({
                 >
                   {/* VIDEO */}
 
+=======
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: 14, marginTop: 25 }}>
+                  <button
+                    type="button"
+                    className="scanity-slate-btn"
+                    onClick={handleRetry}
+                    style={{
+                      flex: 1, padding: 15, border: "none", borderRadius: 16,
+                      background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.raisedBtnAlt,
+                      color: "#4a5158", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                    }}
+                  >
+                    Scan Again
+                  </button>
+                  <button
+                    type="button"
+                    className="scanity-slate-btn"
+                    onClick={lookupProductFromOCR}
+                    style={{
+                      flex: 2, padding: 15, border: "none", borderRadius: 16,
+                      background: SOFT_SLATE.green, boxShadow: SOFT_SLATE.raisedBtn,
+                      color: "#ffffff", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                    }}
+                  >
+                    <i className="fa fa-search" style={{ marginRight: 7 }} />
+                    Analyze Product
+                  </button>
+                </div>
+              </section>
+            ) : (
+              <section
+                style={{
+                  background: SOFT_SLATE.bg,
+                  borderRadius: 26,
+                  padding: isDesktop ? 20 : 16,
+                  boxShadow: SOFT_SLATE.raisedLg,
+                  boxSizing: "border-box",
+                }}
+              >
+                {/* Camera well — inset like the barcode reader on Dashboard */}
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    maxWidth: isDesktop ? 900 : 640,
+                    height: isDesktop ? 500 : 280,
+                    margin: "0 auto",
+                    background: "#111111",
+                    borderRadius: 20,
+                    overflow: "hidden",
+                    boxShadow: SOFT_SLATE.insetLg,
+                  }}
+                >
+>>>>>>> Stashed changes
                   <video
                     ref={videoRef}
                     muted
                     playsInline
                     autoPlay
                     style={{
+<<<<<<< Updated upstream
                       position:
                         "absolute",
                       inset: 0,
@@ -10861,6 +14470,71 @@ function OCRScannerScreen({
                             600,
                           textShadow:
                             "0 1px 5px rgba(0,0,0,0.8)",
+=======
+                      position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+                      transform: cameraFacing === "user" ? "scaleX(-1)" : "none",
+                      display: scannerBusy ? "none" : "block",
+                    }}
+                  />
+
+                  {galleryImage && scanStatus !== "ready" && (
+                    <img
+                      src={galleryImage}
+                      alt="Selected nutrition label"
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", background: "#111111" }}
+                    />
+                  )}
+
+                  {scanStatus === "ready" && !galleryImage && (
+                    <div
+                      style={{
+                        position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+                        alignItems: "center", justifyContent: "center", textAlign: "center", padding: 20, color: "#ffffff",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 64, height: 64, borderRadius: "50%", background: "rgba(255,255,255,0.12)",
+                          display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14,
+                        }}
+                      >
+                        <i className="fa fa-camera" style={{ fontSize: 26 }} />
+                      </div>
+                      <strong style={{ fontSize: 16, fontWeight: 800 }}>Camera ready</strong>
+                      <span style={{ marginTop: 7, fontSize: 11, color: "rgba(255,255,255,0.70)" }}>
+                        Tap Camera to begin
+                      </span>
+                    </div>
+                  )}
+
+                  {scanStatus === "scanning" && (
+                    <>
+                      <div
+                        style={{
+                          position: "absolute", left: "50%", top: "50%",
+                          width: isDesktop ? "68%" : "76%", height: isDesktop ? "55%" : "52%",
+                          transform: "translate(-50%, -50%)",
+                          border: "2px solid rgba(255,255,255,0.90)", borderRadius: 18,
+                          boxShadow: "0 0 0 9999px rgba(0,0,0,0.32)",
+                        }}
+                      >
+                        <span style={{ position: "absolute", left: -2, top: -2, width: 32, height: 32, borderTop: `4px solid ${SOFT_SLATE.gold}`, borderLeft: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "10px 0 0 0" }} />
+                        <span style={{ position: "absolute", right: -2, top: -2, width: 32, height: 32, borderTop: `4px solid ${SOFT_SLATE.gold}`, borderRight: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "0 10px 0 0" }} />
+                        <span style={{ position: "absolute", left: -2, bottom: -2, width: 32, height: 32, borderBottom: `4px solid ${SOFT_SLATE.gold}`, borderLeft: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "0 0 0 10px" }} />
+                        <span style={{ position: "absolute", right: -2, bottom: -2, width: 32, height: 32, borderBottom: `4px solid ${SOFT_SLATE.gold}`, borderRight: `4px solid ${SOFT_SLATE.gold}`, borderRadius: "0 0 10px 0" }} />
+                        <span
+                          style={{
+                            position: "absolute", left: "4%", right: "4%", height: 2,
+                            background: SOFT_SLATE.gold, boxShadow: "0 0 10px rgba(216,160,42,0.90)",
+                            animation: "scanityScanLine 2s ease-in-out infinite",
+                          }}
+                        />
+                      </div>
+                      <div
+                        style={{
+                          position: "absolute", bottom: 18, left: 0, right: 0, textAlign: "center",
+                          color: "#ffffff", fontSize: 11, fontWeight: 600, textShadow: "0 1px 5px rgba(0,0,0,0.8)",
+>>>>>>> Stashed changes
                         }}
                       >
                         Position the nutrition label inside the frame
@@ -10868,6 +14542,7 @@ function OCRScannerScreen({
                     </>
                   )}
 
+<<<<<<< Updated upstream
                   {/* CAPTURED */}
 
                   {scanStatus ===
@@ -10891,10 +14566,19 @@ function OCRScannerScreen({
                           C.white,
                         textAlign:
                           "center",
+=======
+                  {scanStatus === "captured" && (
+                    <div
+                      style={{
+                        position: "absolute", inset: 0, background: "rgba(30,107,63,0.95)",
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                        color: "#ffffff", textAlign: "center",
+>>>>>>> Stashed changes
                       }}
                     >
                       <div
                         style={{
+<<<<<<< Updated upstream
                           width: 70,
                           height: 70,
                           borderRadius:
@@ -10969,10 +14653,29 @@ function OCRScannerScreen({
                           "center",
                         textAlign:
                           "center",
+=======
+                          width: 68, height: 68, borderRadius: "50%", background: "#ffffff", color: SOFT_SLATE.green,
+                          display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14,
+                        }}
+                      >
+                        <i className="fa fa-check" style={{ fontSize: 32 }} />
+                      </div>
+                      <strong style={{ fontSize: 18, fontWeight: 800 }}>Image Captured</strong>
+                      <span style={{ marginTop: 7, fontSize: 12 }}>Preparing OCR analysis...</span>
+                    </div>
+                  )}
+
+                  {scanStatus === "ocrProcessing" && (
+                    <div
+                      style={{
+                        position: "absolute", inset: 0, background: "rgba(233,237,242,0.97)",
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center",
+>>>>>>> Stashed changes
                       }}
                     >
                       <div
                         style={{
+<<<<<<< Updated upstream
                           width: 58,
                           height: 58,
                           borderRadius:
@@ -11054,11 +14757,31 @@ function OCRScannerScreen({
                             C.gray,
                         }}
                       >
+=======
+                          width: 56, height: 56, borderRadius: "50%", border: "5px solid #c6ccd4",
+                          borderTopColor: SOFT_SLATE.green, animation: "scanitySpin 0.8s linear infinite", marginBottom: 18,
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: 44, height: 44, borderRadius: "50%", background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetSm,
+                          color: SOFT_SLATE.green, display: "flex", alignItems: "center", justifyContent: "center",
+                          marginBottom: 12, animation: "scanityPulse 1.4s ease-in-out infinite",
+                        }}
+                      >
+                        <i className="fa fa-file-text-o" style={{ fontSize: 18 }} />
+                      </div>
+                      <strong style={{ fontSize: isDesktop ? 19 : 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                        Reading Nutrition Label...
+                      </strong>
+                      <span style={{ maxWidth: 390, marginTop: 8, padding: "0 20px", fontSize: 11, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+>>>>>>> Stashed changes
                         Scanity is extracting text and ingredients from the nutrition label.
                       </span>
                     </div>
                   )}
 
+<<<<<<< Updated upstream
                   {/* PRODUCT PROCESSING */}
 
                   {scanStatus ===
@@ -11080,10 +14803,18 @@ function OCRScannerScreen({
                           "center",
                         textAlign:
                           "center",
+=======
+                  {scanStatus === "productProcessing" && (
+                    <div
+                      style={{
+                        position: "absolute", inset: 0, background: "rgba(233,237,242,0.97)",
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center",
+>>>>>>> Stashed changes
                       }}
                     >
                       <div
                         style={{
+<<<<<<< Updated upstream
                           width: 58,
                           height: 58,
                           borderRadius:
@@ -11168,10 +14899,33 @@ function OCRScannerScreen({
                             />
                           )
                         )}
+=======
+                          width: 56, height: 56, borderRadius: "50%", border: "5px solid #c6ccd4",
+                          borderTopColor: SOFT_SLATE.green, animation: "scanitySpin 0.8s linear infinite", marginBottom: 18,
+                        }}
+                      />
+                      <strong style={{ fontSize: isDesktop ? 19 : 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                        Analyzing Product...
+                      </strong>
+                      <span style={{ maxWidth: 390, marginTop: 8, padding: "0 20px", fontSize: 11, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+                        Checking product information, nutrition, health score, and allergies.
+                      </span>
+                      <div style={{ display: "flex", gap: 6, marginTop: 18 }}>
+                        {[0, 1, 2].map((item) => (
+                          <span
+                            key={item}
+                            style={{
+                              width: 6, height: 6, borderRadius: "50%", background: SOFT_SLATE.green,
+                              animation: `scanityPulse 1s ease-in-out ${item * 0.2}s infinite`,
+                            }}
+                          />
+                        ))}
+>>>>>>> Stashed changes
                       </div>
                     </div>
                   )}
 
+<<<<<<< Updated upstream
                   {/* ERROR */}
 
                   {scanStatus ===
@@ -11195,10 +14949,19 @@ function OCRScannerScreen({
                           "center",
                         padding:
                           25,
+=======
+                  {scanStatus === "error" && (
+                    <div
+                      style={{
+                        position: "absolute", inset: 0, background: "rgba(233,237,242,0.97)",
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                        textAlign: "center", padding: 25,
+>>>>>>> Stashed changes
                       }}
                     >
                       <div
                         style={{
+<<<<<<< Updated upstream
                           width: 60,
                           height: 60,
                           borderRadius:
@@ -11284,6 +15047,26 @@ function OCRScannerScreen({
                             11,
                           cursor:
                             "pointer",
+=======
+                          width: 60, height: 60, borderRadius: "50%", background: "#F1DEDA", color: SOFT_SLATE.unsafe,
+                          display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 13,
+                        }}
+                      >
+                        <i className="fa fa-exclamation" style={{ fontSize: 23 }} />
+                      </div>
+                      <strong style={{ fontSize: 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Unable to scan</strong>
+                      <span style={{ maxWidth: 440, marginTop: 8, fontSize: 11, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+                        {errorMessage}
+                      </span>
+                      <button
+                        type="button"
+                        className="scanity-slate-btn"
+                        onClick={handleRetry}
+                        style={{
+                          marginTop: 17, padding: "11px 20px", border: "none", borderRadius: 14,
+                          background: SOFT_SLATE.green, boxShadow: SOFT_SLATE.raisedBtn,
+                          color: "#ffffff", fontWeight: 700, fontSize: 12, cursor: "pointer",
+>>>>>>> Stashed changes
                         }}
                       >
                         Try Again
@@ -11292,6 +15075,7 @@ function OCRScannerScreen({
                   )}
                 </div>
 
+<<<<<<< Updated upstream
                 {/* STATUS */}
 
                 <div
@@ -11336,10 +15120,19 @@ function OCRScannerScreen({
                         C.gray,
                     }}
                   >
+=======
+                {/* Status */}
+                <div style={{ textAlign: "center", marginTop: 19 }}>
+                  <h2 style={{ margin: 0, fontWeight: 800, fontSize: isDesktop ? 19 : 17, color: SOFT_SLATE.textPrimary }}>
+                    {getStatusTitle()}
+                  </h2>
+                  <p style={{ maxWidth: 530, margin: "7px auto 0", fontSize: 11, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
+>>>>>>> Stashed changes
                     {getStatusDescription()}
                   </p>
                 </div>
 
+<<<<<<< Updated upstream
                 {/* CONTROLS */}
 
                 <div
@@ -11647,10 +15440,96 @@ function OCRScannerScreen({
                       }}
                     />
 
+=======
+                {/* Controls — raised neumorphic squares, like the rail icons */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
+                  <button
+                    type="button"
+                    className="scanity-slate-btn"
+                    onClick={() => startCamera()}
+                    disabled={scannerBusy}
+                    style={{
+                      border: "none", background: SOFT_SLATE.bg, borderRadius: 16,
+                      padding: isDesktop ? "15px 8px" : "13px 5px",
+                      boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                      color: SOFT_SLATE.green, cursor: scannerBusy ? "not-allowed" : "pointer",
+                      opacity: scannerBusy ? 0.55 : 1,
+                    }}
+                  >
+                    <i className="fa fa-camera" style={{ fontSize: 17 }} />
+                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Camera</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="scanity-slate-btn"
+                    onClick={rotateCamera}
+                    disabled={scannerBusy}
+                    style={{
+                      border: "none", background: SOFT_SLATE.bg, borderRadius: 16,
+                      padding: isDesktop ? "15px 8px" : "13px 5px",
+                      boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                      color: SOFT_SLATE.green, cursor: scannerBusy ? "not-allowed" : "pointer",
+                      opacity: scannerBusy ? 0.55 : 1,
+                    }}
+                  >
+                    <i className="fa fa-refresh" style={{ fontSize: 17 }} />
+                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Rotate</div>
+                  </button>
+
+                  <label
+                    className="scanity-slate-btn"
+                    style={{
+                      border: "none", background: SOFT_SLATE.bg, borderRadius: 16,
+                      padding: isDesktop ? "15px 8px" : "13px 5px",
+                      boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                      color: SOFT_SLATE.green, cursor: scannerBusy ? "not-allowed" : "pointer",
+                      textAlign: "center", opacity: scannerBusy ? 0.55 : 1,
+                    }}
+                  >
+                    <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
+                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Gallery</div>
+                    <input type="file" accept="image/*" onChange={handleGallery} disabled={scannerBusy} style={{ display: "none" }} />
+                  </label>
+
+                  <button
+                    type="button"
+                    className="scanity-slate-btn"
+                    onClick={toggleFlash}
+                    disabled={scanStatus !== "scanning"}
+                    style={{
+                      border: "none", borderRadius: 16,
+                      background: SOFT_SLATE.bg,
+                      padding: isDesktop ? "15px 8px" : "13px 5px",
+                      boxShadow: scanStatus !== "scanning" ? SOFT_SLATE.insetSm : flashOn ? SOFT_SLATE.insetMd : SOFT_SLATE.raisedSm,
+                      color: flashOn ? SOFT_SLATE.gold : SOFT_SLATE.green,
+                      cursor: scanStatus !== "scanning" ? "not-allowed" : "pointer",
+                      opacity: scanStatus !== "scanning" ? 0.55 : 1,
+                    }}
+                  >
+                    <i className="fa fa-bolt" style={{ fontSize: 17 }} />
+                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Flash</div>
+                  </button>
+                </div>
+
+                {scanStatus === "scanning" && (
+                  <button
+                    type="button"
+                    className="scanity-slate-btn"
+                    onClick={handleCapture}
+                    style={{
+                      display: "block", width: "100%", maxWidth: 560, margin: "18px auto 0", padding: 16,
+                      border: "none", borderRadius: 16, background: SOFT_SLATE.green,
+                      boxShadow: SOFT_SLATE.raisedBtn, color: "#ffffff", fontWeight: 700, fontSize: 13.5, cursor: "pointer",
+                    }}
+                  >
+                    <i className="fa fa-camera" style={{ marginRight: 8 }} />
+>>>>>>> Stashed changes
                     Capture Nutrition Label
                   </button>
                 )}
               </section>
+<<<<<<< Updated upstream
             </>
           )}
         </div>
@@ -11676,10 +15555,24 @@ function OCRScannerScreen({
             justifyContent:
               "center",
             padding: 20,
+=======
+            )}
+          </div>
+        </Center>
+      </div>
+
+      {/* ── Help modal ──────────────────────────────────────────────────── */}
+      {showHelp && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(36,41,47,0.45)", zIndex: 200,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+>>>>>>> Stashed changes
           }}
         >
           <div
             style={{
+<<<<<<< Updated upstream
               width:
                 "100%",
               maxWidth:
@@ -11708,6 +15601,13 @@ function OCRScannerScreen({
                   C.black,
               }}
             >
+=======
+              width: "100%", maxWidth: 430, background: SOFT_SLATE.bg, borderRadius: 26, padding: 26,
+              boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+            }}
+          >
+            <h3 style={{ margin: "0 0 18px", fontWeight: 800, fontSize: 18, color: SOFT_SLATE.textPrimary }}>
+>>>>>>> Stashed changes
               How to scan
             </h3>
 
@@ -11719,6 +15619,7 @@ function OCRScannerScreen({
               "Review the extracted text and ingredients.",
               "Tap Analyze Product.",
               "Scanity will show the product result and allergy status.",
+<<<<<<< Updated upstream
             ].map(
               (
                 instruction,
@@ -11810,6 +15711,31 @@ function OCRScannerScreen({
                   11,
                 cursor:
                   "pointer",
+=======
+            ].map((instruction, index) => (
+              <div key={instruction} style={{ display: "flex", gap: 11, marginBottom: 12 }}>
+                <div
+                  style={{
+                    width: 25, height: 25, flexShrink: 0, borderRadius: "50%",
+                    background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetSm, color: SOFT_SLATE.green,
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800,
+                  }}
+                >
+                  {index + 1}
+                </div>
+                <span style={{ fontSize: 11, lineHeight: 1.6, color: SOFT_SLATE.textSecondary }}>{instruction}</span>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              className="scanity-slate-btn"
+              onClick={() => setShowHelp(false)}
+              style={{
+                width: "100%", marginTop: 8, padding: 14, border: "none", borderRadius: 16,
+                background: SOFT_SLATE.green, boxShadow: SOFT_SLATE.raisedBtn,
+                color: "#ffffff", fontWeight: 700, fontSize: 12, cursor: "pointer",
+>>>>>>> Stashed changes
               }}
             >
               Got it
@@ -11818,6 +15744,7 @@ function OCRScannerScreen({
         </div>
       )}
 
+<<<<<<< Updated upstream
       {/* ══════════════════════════════════════════════════════════════════════
           LOGOUT CONFIRMATION
       ══════════════════════════════════════════════════════════════════════ */}
@@ -11838,10 +15765,19 @@ function OCRScannerScreen({
             justifyContent:
               "center",
             padding: 20,
+=======
+      {/* ── Logout confirmation ─────────────────────────────────────────── */}
+      {showLogoutConfirm && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(36,41,47,0.45)", zIndex: 210,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+>>>>>>> Stashed changes
           }}
         >
           <div
             style={{
+<<<<<<< Updated upstream
               width:
                 "100%",
               maxWidth:
@@ -11856,10 +15792,15 @@ function OCRScannerScreen({
                 "center",
               boxShadow:
                 "var(--scanity-shadow-lg)",
+=======
+              width: "100%", maxWidth: 390, background: SOFT_SLATE.bg, borderRadius: 26, padding: 26,
+              textAlign: "center", boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+>>>>>>> Stashed changes
             }}
           >
             <div
               style={{
+<<<<<<< Updated upstream
                 width: 56,
                 height: 56,
                 borderRadius:
@@ -11950,10 +15891,36 @@ function OCRScannerScreen({
                     700,
                   cursor:
                     "pointer",
+=======
+                width: 56, height: 56, borderRadius: "50%", background: "#F1DEDA", color: SOFT_SLATE.unsafe,
+                display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px",
+              }}
+            >
+              <i className="fa fa-sign-out" style={{ fontSize: 22 }} />
+            </div>
+
+            <h3 style={{ margin: 0, fontWeight: 800, fontSize: 17, color: SOFT_SLATE.textPrimary }}>
+              Are you sure you want to logout?
+            </h3>
+            <p style={{ margin: "8px 0 20px", fontSize: 11, color: SOFT_SLATE.textMuted }}>
+              You will be returned to the login screen.
+            </p>
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                type="button"
+                className="scanity-slate-btn"
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1, padding: 14, border: "none", borderRadius: 14,
+                  background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.raisedBtnAlt,
+                  color: SOFT_SLATE.textPrimary, fontWeight: 700, cursor: "pointer",
+>>>>>>> Stashed changes
                 }}
               >
                 Cancel
               </button>
+<<<<<<< Updated upstream
 
               <button
                 type="button"
@@ -11978,6 +15945,16 @@ function OCRScannerScreen({
                     700,
                   cursor:
                     "pointer",
+=======
+              <button
+                type="button"
+                className="scanity-slate-btn"
+                onClick={handleLogout}
+                style={{
+                  flex: 1, padding: 14, border: "none", borderRadius: 14,
+                  background: SOFT_SLATE.unsafe, boxShadow: SOFT_SLATE.raisedBtn,
+                  color: "#ffffff", fontWeight: 700, cursor: "pointer",
+>>>>>>> Stashed changes
                 }}
               >
                 Logout
@@ -11987,6 +15964,7 @@ function OCRScannerScreen({
         </div>
       )}
 
+<<<<<<< Updated upstream
       {/* ══════════════════════════════════════════════════════════════════════
           LOGOUT LOADING
       ══════════════════════════════════════════════════════════════════════ */}
@@ -12006,10 +15984,19 @@ function OCRScannerScreen({
               "center",
             justifyContent:
               "center",
+=======
+      {/* ── Logout loading ──────────────────────────────────────────────── */}
+      {showLogoutLoading && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(36,41,47,0.55)", zIndex: 220,
+            display: "flex", alignItems: "center", justifyContent: "center",
+>>>>>>> Stashed changes
           }}
         >
           <div
             style={{
+<<<<<<< Updated upstream
               width:
                 260,
               background:
@@ -12022,10 +16009,15 @@ function OCRScannerScreen({
                 "center",
               boxShadow:
                 "var(--scanity-shadow-lg)",
+=======
+              width: 260, background: SOFT_SLATE.bg, borderRadius: 22, padding: 26, textAlign: "center",
+              boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+>>>>>>> Stashed changes
             }}
           >
             <div
               style={{
+<<<<<<< Updated upstream
                 width: 40,
                 height: 40,
                 borderRadius:
@@ -12053,6 +16045,13 @@ function OCRScannerScreen({
             >
               Logging out...
             </strong>
+=======
+                width: 40, height: 40, borderRadius: "50%", border: "4px solid #c6ccd4",
+                borderTopColor: SOFT_SLATE.green, animation: "scanitySpin 0.8s linear infinite", margin: "0 auto 14px",
+              }}
+            />
+            <strong style={{ fontSize: 14, color: SOFT_SLATE.textPrimary }}>Logging out...</strong>
+>>>>>>> Stashed changes
           </div>
         </div>
       )}
@@ -12087,7 +16086,11 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
       }}
     >
       {/* ── Header ───────────────────────────────────────────────────────── */}
+<<<<<<< Updated upstream
       <div style={{ paddingTop: 12 }}>
+=======
+      <div>
+>>>>>>> Stashed changes
         <InfoHeader
           title="Product Result"
           subtitle="Scan analysis complete"
@@ -12099,7 +16102,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         style={{
           flex: 1,
           overflowY: "auto",
+<<<<<<< Updated upstream
           marginTop: 15,
+=======
+>>>>>>> Stashed changes
         }}
       >
         <Center
@@ -12117,6 +16123,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               aspectRatio: "16/9",
               borderRadius: C.radiusLg ?? 16,
               background: C.white,
+<<<<<<< Updated upstream
               border: `1.5px dashed rgba(224,167,46,0.3)`,
               display: "flex",
               alignItems: "center",
@@ -12146,6 +16153,22 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               />
               <polyline points="21 15 16 10 5 21" />
             </svg>
+=======
+              border: `1.5px solid ${C.border}`,
+              overflow: "hidden",
+              marginBottom: 16,
+            }}
+          >
+            <img
+              src={beefNoodlesImg}
+              alt="Noodles Beef"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+>>>>>>> Stashed changes
           </div>
 
           {/* ── Product Name + Grade ──────────────────────────────────────── */}
@@ -13998,8 +18021,12 @@ function ComparePanel({
     </div>
   )
 }
+<<<<<<< Updated upstream
 
 // ── Product Compare Screen ──────────────────────────────────────────────────
+=======
+// ── Product Compare Screen — Soft Slate Neumorphic ────────────────────────────
+>>>>>>> Stashed changes
 
 type CompareScenario =
   | "initial"
@@ -14013,6 +18040,7 @@ type CompareScenario =
 
 function ProductCompareScreen({
   go,
+<<<<<<< Updated upstream
 }: {
   go: (s: Screen) => void
 }) {
@@ -14020,6 +18048,45 @@ function ProductCompareScreen({
 
   const [scenario, setScenario] =
     useState<CompareScenario>("initial")
+=======
+  goBack,
+}: {
+  go: (s: Screen) => void
+  goBack: () => void
+}) {
+  const isDesktop = useIsDesktop()
+  const [scenario, setScenario] =
+    useState<CompareScenario>("success-a")
+
+  const [navOpen, setNavOpen] = useState(false)
+
+  const H_PAD = isDesktop ? 40 : 20
+
+  // ── Neumorphic styles ─────────────────────────────────────────────────────
+
+  const raisedCard: CSSProperties = {
+    background: SOFT_SLATE.bg,
+    border: "none",
+    borderRadius: 24,
+    boxShadow: SOFT_SLATE.raisedMd,
+  }
+
+  const smallRaised: CSSProperties = {
+    background: SOFT_SLATE.bg,
+    border: "none",
+    borderRadius: 18,
+    boxShadow: SOFT_SLATE.raisedSm,
+  }
+
+  const insetCard: CSSProperties = {
+    background: SOFT_SLATE.bg,
+    border: "none",
+    borderRadius: 18,
+    boxShadow: SOFT_SLATE.insetMd,
+  }
+
+  // ── Comparison runner ─────────────────────────────────────────────────────
+>>>>>>> Stashed changes
 
   const runComparison = (
     outcome: "success" | "error"
@@ -14035,6 +18102,7 @@ function ProductCompareScreen({
     }, 900)
   }
 
+<<<<<<< Updated upstream
   const [navOpen, setNavOpen] =
     useState(false)
 
@@ -14064,6 +18132,235 @@ function ProductCompareScreen({
               fill="none"
               stroke={C.green}
               strokeWidth="1.6"
+=======
+  // ── Product data ──────────────────────────────────────────────────────────
+
+  let a: CompareProduct = COMPARE_PRODUCT_A
+  let b: CompareProduct = COMPARE_PRODUCT_B
+
+  if (scenario === "success-none") {
+    a = {
+      ...a,
+      grade: "c",
+      verdict: "caution",
+    }
+
+    b = {
+      ...b,
+      grade: "c",
+      verdict: "caution",
+    }
+  }
+
+  if (scenario === "incomplete") {
+    b = {
+      ...b,
+      ingredientsText: undefined,
+      allergens: undefined,
+      breakdown: null,
+      grade: null,
+      verdict: null,
+      verdictReason: undefined,
+    }
+  }
+
+  // ── Recommendation ────────────────────────────────────────────────────────
+
+  const recommendation:
+    | "a"
+    | "b"
+    | "none" = (() => {
+    if (
+      a.grade === null ||
+      b.grade === null
+    ) {
+      return "none"
+    }
+
+    if (
+      a.verdict === "avoid" &&
+      b.verdict !== "avoid"
+    ) {
+      return "b"
+    }
+
+    if (
+      b.verdict === "avoid" &&
+      a.verdict !== "avoid"
+    ) {
+      return "a"
+    }
+
+    const aRank = GRADE_ORDER.indexOf(a.grade)
+    const bRank = GRADE_ORDER.indexOf(b.grade)
+
+    if (aRank === bRank) {
+      return "none"
+    }
+
+    return aRank < bRank ? "a" : "b"
+  })()
+
+  // ── Product card ──────────────────────────────────────────────────────────
+
+  const ProductCard = ({
+    label,
+    product,
+    winner,
+  }: {
+    label: "A" | "B"
+    product: CompareProduct
+    winner: boolean
+  }) => {
+    return (
+      <div
+        style={{
+          ...raisedCard,
+          position: "relative",
+          padding: isDesktop ? 22 : 15,
+          display: "flex",
+          flexDirection: "column",
+          gap: isDesktop ? 15 : 11,
+          boxSizing: "border-box",
+          minWidth: 0,
+
+          boxShadow: winner
+            ? `
+              0 0 0 2px ${SOFT_SLATE.green},
+              ${SOFT_SLATE.raisedMd}
+            `
+            : SOFT_SLATE.raisedMd,
+        }}
+      >
+        {/* Best choice badge */}
+        {winner && (
+          <div
+            style={{
+              position: "absolute",
+              top: isDesktop ? -12 : -9,
+              left: isDesktop ? 20 : 13,
+
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+
+              padding: isDesktop
+                ? "5px 12px"
+                : "4px 9px",
+
+              borderRadius: 999,
+
+              background: SOFT_SLATE.bg,
+              boxShadow: SOFT_SLATE.raisedSm,
+
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontWeight: 800,
+              fontSize: isDesktop ? 9.5 : 8,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              color: SOFT_SLATE.green,
+
+              zIndex: 2,
+            }}
+          >
+            <span
+              style={{
+                fontSize: isDesktop ? 12 : 10,
+              }}
+            >
+              ★
+            </span>
+
+            Best choice
+          </div>
+        )}
+
+        {/* Product label */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              width: isDesktop ? 30 : 25,
+              height: isDesktop ? 30 : 25,
+              borderRadius: "50%",
+
+              background: SOFT_SLATE.bg,
+
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+
+              boxShadow: SOFT_SLATE.insetSm,
+
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontWeight: 800,
+              fontSize: isDesktop ? 11 : 9,
+              color: SOFT_SLATE.green,
+
+              flexShrink: 0,
+            }}
+          >
+            {label}
+          </span>
+
+          <span
+            style={{
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontSize: isDesktop ? 10 : 9,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: SOFT_SLATE.textMuted,
+            }}
+          >
+            Product {label}
+          </span>
+        </div>
+
+        {/* Image well */}
+        <div
+          style={{
+            width: "100%",
+            aspectRatio: "16/10",
+            borderRadius: 20,
+
+            background: SOFT_SLATE.thumbBg,
+
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+
+            boxShadow: SOFT_SLATE.insetMd,
+
+            overflow: "hidden",
+          }}
+        >
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                padding: isDesktop ? 15 : 10,
+                boxSizing: "border-box",
+              }}
+            />
+          ) : (
+            <svg
+              width="34"
+              height="34"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={SOFT_SLATE.textMuted}
+              strokeWidth="1.5"
+>>>>>>> Stashed changes
             >
               <rect
                 x="3"
@@ -14079,6 +18376,7 @@ function ProductCompareScreen({
               />
               <polyline points="21 15 16 10 5 21" />
             </svg>
+<<<<<<< Updated upstream
           </div>
 
           <h3
@@ -14204,11 +18502,513 @@ function ProductCompareScreen({
                   boxShadow: cardShadow,
                   display: "flex",
                   flexDirection: "column",
+=======
+          )}
+        </div>
+
+        {/* Product information */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontWeight: 800,
+                fontSize: isDesktop ? 17 : 13,
+                lineHeight: 1.25,
+
+                color: SOFT_SLATE.textPrimary,
+
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {product.name}
+            </p>
+
+            <p
+              style={{
+                margin: "5px 0 0",
+
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: isDesktop ? 11.5 : 9.5,
+
+                color: SOFT_SLATE.textSecondary,
+              }}
+            >
+              {[
+                product.brand,
+                product.quantity,
+              ]
+                .filter(Boolean)
+                .join(" · ") ||
+                "Brand/size unavailable"}
+            </p>
+          </div>
+
+          {/* Grade */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 3,
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                borderRadius: "50%",
+                padding: 3,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.raisedSm,
+              }}
+            >
+              <GradeBadge
+                grade={product.grade}
+                size={isDesktop ? 54 : 42}
+              />
+            </div>
+
+            <span
+              style={{
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: isDesktop ? 8.5 : 7,
+                fontWeight: 800,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                color: SOFT_SLATE.textMuted,
+              }}
+            >
+              Grade
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Neumorphic comparison card ───────────────────────────────────────────
+
+  const CompareCard = ({
+    children,
+    accent = false,
+  }: {
+    children: ReactNode
+    accent?: boolean
+  }) => (
+    <div
+      style={{
+        ...raisedCard,
+
+        padding: isDesktop ? 20 : 14,
+
+        display: "flex",
+        flexDirection: "column",
+        gap: isDesktop ? 16 : 11,
+
+        boxShadow: accent
+          ? `
+            0 0 0 2px ${SOFT_SLATE.green},
+            ${SOFT_SLATE.raisedMd}
+          `
+          : SOFT_SLATE.raisedMd,
+
+        boxSizing: "border-box",
+        minWidth: 0,
+      }}
+    >
+      {children}
+    </div>
+  )
+
+  // ── Section ───────────────────────────────────────────────────────────────
+
+  const Section = ({
+    title,
+    description,
+    children,
+  }: {
+    title: string
+    description?: string
+    children: ReactNode
+  }) => (
+    <section
+      style={{
+        marginTop: 30,
+      }}
+    >
+      <div
+        style={{
+          marginBottom: 16,
+          paddingLeft: 4,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontWeight: 800,
+            fontSize: isDesktop ? 18 : 16,
+
+            color: SOFT_SLATE.textPrimary,
+
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {title}
+        </h2>
+
+        {description && (
+          <p
+            style={{
+              margin: "5px 0 0",
+
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontSize: 12,
+              lineHeight: 1.55,
+
+              color: SOFT_SLATE.textSecondary,
+            }}
+          >
+            {description}
+          </p>
+        )}
+      </div>
+
+      {children}
+    </section>
+  )
+
+  // ── Loading ───────────────────────────────────────────────────────────────
+
+  if (scenario === "loading") {
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+
+          background: SOFT_SLATE.bg,
+
+          overflow: "hidden",
+          position: "relative",
+
+          fontFamily: SOFT_SLATE.fontFamily,
+        }}
+      >
+        <DashboardIconRail
+          go={go}
+          isDesktop={isDesktop}
+          active="productCompare"
+          navItems={[
+            {
+              screen: "dashboard",
+              label: "Dashboard",
+              path: null,
+            },
+            {
+              screen: "productCompare",
+              label: "Compare Products",
+              path: null,
+            },
+            {
+              screen: "settings",
+              label: "Settings",
+              path: null,
+            },
+            {
+              screen: "help",
+              label: "Help & FAQ",
+              path: null,
+            },
+            {
+              screen: "about",
+              label: "About",
+              path: null,
+            },
+          ]}
+        />
+
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+
+            marginLeft: isDesktop ? 80 : 0,
+          }}
+        >
+          {!isDesktop && (
+            <button
+              type="button"
+              onClick={() => setNavOpen(true)}
+              style={{
+                position: "fixed",
+                top: `calc(${SAFE_TOP} + 14px)`,
+                left: 14,
+                zIndex: 50,
+
+                width: 42,
+                height: 42,
+
+                border: "none",
+                borderRadius: 14,
+
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.green,
+
+                boxShadow: SOFT_SLATE.raisedSm,
+
+                cursor: "pointer",
+              }}
+            >
+              ☰
+            </button>
+          )}
+
+          <div
+            style={{
+              padding: `${
+                isDesktop
+                  ? "40px"
+                  : `calc(${SAFE_TOP} + 66px)`
+              } ${H_PAD}px 10px`,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <BackBtn onPress={goBack} />
+
+              <h1
+                style={{
+                  margin: 0,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontWeight: 800,
+                  fontSize: 23,
+                  color: SOFT_SLATE.textPrimary,
+                }}
+              >
+                Compare Products
+              </h1>
+            </div>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: `10px ${H_PAD}px 50px`,
+            }}
+          >
+            <Center maxWidth={1080}>
+              <div
+                style={{
+                  ...raisedCard,
+                  padding: 40,
+
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+
+                  textAlign: "center",
+                  gap: 15,
+                }}
+              >
+                <div
+                  style={{
+                    width: 62,
+                    height: 62,
+                    borderRadius: "50%",
+
+                    background: SOFT_SLATE.bg,
+
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+
+                    boxShadow: SOFT_SLATE.insetMd,
+
+                    color: SOFT_SLATE.green,
+
+                    fontSize: 25,
+                  }}
+                >
+                  ⟳
+                </div>
+
+                <h3
+                  style={{
+                    margin: 0,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: SOFT_SLATE.textPrimary,
+                  }}
+                >
+                  Comparing products
+                </h3>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 12.5,
+                    color: SOFT_SLATE.textSecondary,
+                  }}
+                >
+                  Checking nutrition, ingredients, and allergy safety...
+                </p>
+              </div>
+            </Center>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Error / Not Found ────────────────────────────────────────────────────
+
+  if (
+    scenario === "error" ||
+    scenario === "not-found"
+  ) {
+    const isError = scenario === "error"
+
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+
+          background: SOFT_SLATE.bg,
+
+          overflow: "hidden",
+          position: "relative",
+
+          fontFamily: SOFT_SLATE.fontFamily,
+        }}
+      >
+        <DashboardIconRail
+          go={go}
+          isDesktop={isDesktop}
+          active="productCompare"
+          navItems={[
+            {
+              screen: "dashboard",
+              label: "Dashboard",
+              path: null,
+            },
+            {
+              screen: "productCompare",
+              label: "Compare Products",
+              path: null,
+            },
+            {
+              screen: "settings",
+              label: "Settings",
+              path: null,
+            },
+            {
+              screen: "help",
+              label: "Help & FAQ",
+              path: null,
+            },
+            {
+              screen: "about",
+              label: "About",
+              path: null,
+            },
+          ]}
+        />
+
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            marginLeft: isDesktop ? 80 : 0,
+          }}
+        >
+          <div
+            style={{
+              padding: `${
+                isDesktop
+                  ? "40px"
+                  : `calc(${SAFE_TOP} + 66px)`
+              } ${H_PAD}px 10px`,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <BackBtn onPress={goBack} />
+
+              <h1
+                style={{
+                  margin: 0,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontWeight: 800,
+                  fontSize: 23,
+                  color: SOFT_SLATE.textPrimary,
+                }}
+              >
+                Compare Products
+              </h1>
+            </div>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: `20px ${H_PAD}px 50px`,
+            }}
+          >
+            <Center maxWidth={700}>
+              <div
+                style={{
+                  ...raisedCard,
+
+                  padding: isDesktop ? 48 : 30,
+
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+>>>>>>> Stashed changes
                   gap: 14,
                 }}
               >
                 <div
                   style={{
+<<<<<<< Updated upstream
                     width: "100%",
                     aspectRatio: "16/10",
                     borderRadius: 14,
@@ -14629,12 +19429,113 @@ function ProductCompareScreen({
       </>
     )
   })()
+=======
+                    width: 68,
+                    height: 68,
+                    borderRadius: "50%",
+
+                    background: SOFT_SLATE.bg,
+
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+
+                    boxShadow: SOFT_SLATE.insetMd,
+
+                    color: isError
+                      ? SOFT_SLATE.unsafe
+                      : SOFT_SLATE.caution,
+
+                    fontSize: 27,
+                    fontWeight: 800,
+                  }}
+                >
+                  {isError ? "!" : "?"}
+                </div>
+
+                <h3
+                  style={{
+                    margin: 0,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 17,
+                    fontWeight: 800,
+                    color: SOFT_SLATE.textPrimary,
+                  }}
+                >
+                  {isError
+                    ? "Something went wrong"
+                    : "Product not found"}
+                </h3>
+
+                <p
+                  style={{
+                    margin: 0,
+                    maxWidth: 420,
+
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 12.5,
+                    lineHeight: 1.6,
+
+                    color: SOFT_SLATE.textSecondary,
+                  }}
+                >
+                  {isError
+                    ? "We couldn't load this comparison. Check your connection and try again."
+                    : "We couldn't find a match for the second barcode. It may not be in the database yet — try scanning again or search by name."}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    isError
+                      ? setScenario("initial")
+                      : go("barcode")
+                  }
+                  style={{
+                    marginTop: 8,
+
+                    padding: "12px 24px",
+
+                    border: "none",
+                    borderRadius: 15,
+
+                    background: SOFT_SLATE.bg,
+                    color: SOFT_SLATE.green,
+
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontWeight: 800,
+                    fontSize: 12.5,
+
+                    boxShadow: SOFT_SLATE.raisedBtn,
+
+                    cursor: "pointer",
+                  }}
+                >
+                  {isError ? "Retry" : "Try again"}
+                </button>
+              </div>
+            </Center>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Main content ─────────────────────────────────────────────────────────
+
+  const insights = buildInsights(
+    a,
+    b,
+    recommendation
+  )
+>>>>>>> Stashed changes
 
   return (
     <div
       style={{
         flex: 1,
         display: "flex",
+<<<<<<< Updated upstream
         background: C.offWhite,
         overflow: "hidden",
         position: "relative",
@@ -14764,26 +19665,865 @@ function ProductCompareScreen({
         >
           <Center maxWidth={1080}>
             {content}
+=======
+
+        background: SOFT_SLATE.bg,
+
+        overflow: "hidden",
+        position: "relative",
+
+        fontFamily: SOFT_SLATE.fontFamily,
+      }}
+    >
+      {/* ── Dashboard-style icon rail ───────────────────────────────────── */}
+
+      <DashboardIconRail
+        go={go}
+        isDesktop={isDesktop}
+        active="productCompare"
+        navItems={[
+          {
+            screen: "dashboard",
+            label: "Dashboard",
+            path: null,
+          },
+          {
+            screen: "productCompare",
+            label: "Compare Products",
+            path: null,
+          },
+          {
+            screen: "history",
+            label: "Scan History",
+            path: null,
+          },
+          {
+            screen: "settings",
+            label: "Settings",
+            path: null,
+          },
+          {
+            screen: "help",
+            label: "Help & FAQ",
+            path: null,
+          },
+          {
+            screen: "about",
+            label: "About",
+            path: null,
+          },
+        ]}
+      />
+
+      {/* ── Mobile menu button ────────────────────────────────────────────── */}
+
+      {!isDesktop && !navOpen && (
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          aria-label="Open menu"
+          style={{
+            position: "fixed",
+            top: `calc(${SAFE_TOP} + 14px)`,
+            left: 14,
+
+            zIndex: 55,
+
+            width: 42,
+            height: 42,
+
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+
+            border: "none",
+            borderRadius: 14,
+
+            background: SOFT_SLATE.bg,
+            color: SOFT_SLATE.green,
+
+            boxShadow: SOFT_SLATE.raisedSm,
+
+            cursor: "pointer",
+
+            fontSize: 18,
+          }}
+        >
+          ☰
+        </button>
+      )}
+
+      {/* ── Main area ─────────────────────────────────────────────────────── */}
+
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+
+          display: "flex",
+          flexDirection: "column",
+
+          marginLeft: isDesktop ? 80 : 0,
+        }}
+      >
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+
+        <div
+          style={{
+            padding: `${
+              isDesktop
+                ? "40px"
+                : `calc(${SAFE_TOP} + 66px)`
+            } ${H_PAD}px 10px`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <BackBtn onPress={goBack} />
+
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontWeight: 800,
+                  fontSize: 23,
+
+                  color: SOFT_SLATE.textPrimary,
+
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Compare Products
+              </h1>
+
+              <p
+                style={{
+                  margin: "5px 0 0",
+
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 12.5,
+
+                  color: SOFT_SLATE.textSecondary,
+                }}
+              >
+                Side-by-side ingredient, nutrition, and allergy comparison.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Scroll content ─────────────────────────────────────────────── */}
+
+        <div
+          style={{
+            flex: 1,
+
+            overflowY: "auto",
+
+            padding: `10px ${H_PAD}px ${
+              isDesktop ? 60 : 45
+            }px`,
+          }}
+        >
+          <Center maxWidth={1080}>
+
+            {/* ── Incomplete data notice ─────────────────────────────────── */}
+
+            {scenario === "incomplete" && (
+              <div
+                style={{
+                  ...raisedCard,
+
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+
+                  padding: "15px 18px",
+
+                  marginBottom: 24,
+
+                  borderRadius: 18,
+
+                  boxShadow: SOFT_SLATE.raisedSm,
+                }}
+              >
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+
+                    flexShrink: 0,
+
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+
+                    background: SOFT_SLATE.bg,
+
+                    boxShadow: SOFT_SLATE.insetSm,
+
+                    color: SOFT_SLATE.caution,
+
+                    fontWeight: 900,
+                    fontSize: 15,
+                  }}
+                >
+                  !
+                </div>
+
+                <div>
+                  <strong
+                    style={{
+                      display: "block",
+
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 12.5,
+                      fontWeight: 800,
+
+                      color: SOFT_SLATE.textPrimary,
+                    }}
+                  >
+                    Product B is missing data
+                  </strong>
+
+                  <span
+                    style={{
+                      display: "block",
+                      marginTop: 3,
+
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 11.5,
+                      lineHeight: 1.5,
+
+                      color: SOFT_SLATE.textSecondary,
+                    }}
+                  >
+                    Ingredients, allergens, and nutrition grade weren't
+                    returned by the backend. Nothing has been guessed to
+                    fill the gaps.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Product ─────────────────────────────────────────────────── */}
+
+            <Section title="Product">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isDesktop
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "1fr 1fr",
+                  gap: isDesktop ? 22 : 11,
+                }}
+              >
+                <ProductCard
+                  label="A"
+                  product={a}
+                  winner={recommendation === "a"}
+                />
+
+                <ProductCard
+                  label="B"
+                  product={b}
+                  winner={recommendation === "b"}
+                />
+              </div>
+            </Section>
+
+            {/* ── Allergy & Safety ───────────────────────────────────────── */}
+
+            <Section
+              title="Allergy & Safety Verdict"
+              description="Whether each product is safe to eat against your saved allergy and health profile."
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isDesktop
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "1fr 1fr",
+                  gap: isDesktop ? 22 : 11,
+                }}
+              >
+                <CompareCard
+                  accent={recommendation === "a"}
+                >
+                  <StatusBadge
+                    verdict={a.verdict}
+                    reason={a.verdictReason}
+                    size="lg"
+                  />
+
+                  <div>
+                    <p
+                      style={{
+                        margin: "0 0 10px",
+
+                        fontFamily: SOFT_SLATE.fontFamily,
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        letterSpacing: "0.07em",
+                        textTransform: "uppercase",
+
+                        color: SOFT_SLATE.textMuted,
+                      }}
+                    >
+                      Allergens detected
+                    </p>
+
+                    <AllergenList
+                      allergens={a.allergens}
+                    />
+                  </div>
+                </CompareCard>
+
+                <CompareCard
+                  accent={recommendation === "b"}
+                >
+                  <StatusBadge
+                    verdict={b.verdict}
+                    reason={b.verdictReason}
+                    size="lg"
+                  />
+
+                  <div>
+                    <p
+                      style={{
+                        margin: "0 0 10px",
+
+                        fontFamily: SOFT_SLATE.fontFamily,
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        letterSpacing: "0.07em",
+                        textTransform: "uppercase",
+
+                        color: SOFT_SLATE.textMuted,
+                      }}
+                    >
+                      Allergens detected
+                    </p>
+
+                    <AllergenList
+                      allergens={b.allergens}
+                    />
+                  </div>
+                </CompareCard>
+              </div>
+            </Section>
+
+            {/* ── Ingredients ────────────────────────────────────────────── */}
+
+            <Section
+              title="Ingredient Breakdown"
+              description="Ingredients tied to a flagged allergen are highlighted; the rest are listed for reference."
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isDesktop
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "1fr 1fr",
+                  gap: isDesktop ? 22 : 11,
+                }}
+              >
+                <CompareCard>
+                  <p
+                    style={{
+                      margin: 0,
+
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 11,
+                      fontWeight: 800,
+
+                      color: SOFT_SLATE.textPrimary,
+                    }}
+                  >
+                    {a.name}
+                  </p>
+
+                  <div
+                    style={{
+                      ...insetCard,
+                      padding: 10,
+                    }}
+                  >
+                    <IngredientBreakdown
+                      product={a}
+                    />
+                  </div>
+                </CompareCard>
+
+                <CompareCard>
+                  <p
+                    style={{
+                      margin: 0,
+
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 11,
+                      fontWeight: 800,
+
+                      color: SOFT_SLATE.textPrimary,
+                    }}
+                  >
+                    {b.name}
+                  </p>
+
+                  <div
+                    style={{
+                      ...insetCard,
+                      padding: 10,
+                    }}
+                  >
+                    <IngredientBreakdown
+                      product={b}
+                    />
+                  </div>
+                </CompareCard>
+              </div>
+            </Section>
+
+            {/* ── Nutrition ──────────────────────────────────────────────── */}
+
+            <Section title="Nutrition Comparison">
+              <div
+                style={{
+                  ...raisedCard,
+
+                  padding: isDesktop ? 22 : 14,
+
+                  overflow: "hidden",
+                }}
+              >
+                <p
+                  style={{
+                    margin: "0 0 15px",
+
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: "0.07em",
+                    textTransform: "uppercase",
+
+                    color: SOFT_SLATE.textMuted,
+                  }}
+                >
+                  Nutrition Comparison — per 100g
+                </p>
+
+                <div
+                  style={{
+                    ...insetCard,
+
+                    padding: isDesktop ? 12 : 8,
+
+                    overflowX: "auto",
+                  }}
+                >
+                  <table
+                    style={{
+                      width: "100%",
+                      minWidth: 500,
+
+                      borderCollapse: "separate",
+                      borderSpacing: "0 5px",
+
+                      fontFamily: SOFT_SLATE.fontFamily,
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th
+                          style={{
+                            textAlign: "left",
+                            padding: "7px 10px",
+
+                            fontSize: 10,
+                            fontWeight: 800,
+
+                            color: SOFT_SLATE.textMuted,
+                          }}
+                        >
+                          Nutrition
+                        </th>
+
+                        <th
+                          style={{
+                            textAlign: "right",
+                            padding: "7px 10px",
+
+                            fontSize: 10.5,
+                            fontWeight: 800,
+
+                            color: SOFT_SLATE.textPrimary,
+                          }}
+                        >
+                          {a.name}
+                        </th>
+
+                        <th
+                          style={{
+                            textAlign: "right",
+                            padding: "7px 10px",
+
+                            fontSize: 10.5,
+                            fontWeight: 800,
+
+                            color: SOFT_SLATE.textPrimary,
+                          }}
+                        >
+                          {b.name}
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {NUTRITION_ROWS.map((row) => {
+                        const av =
+                          a.nutrition?.[row.key]
+
+                        const bv =
+                          b.nutrition?.[row.key]
+
+                        return (
+                          <tr key={row.key}>
+                            <td
+                              style={{
+                                padding: "10px",
+
+                                background: SOFT_SLATE.bg,
+
+                                borderRadius: 10,
+
+                                fontSize: 12,
+                                color: SOFT_SLATE.textSecondary,
+
+                                boxShadow:
+                                  SOFT_SLATE.raisedSm,
+                              }}
+                            >
+                              {row.label}
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "10px",
+
+                                textAlign: "right",
+
+                                background: SOFT_SLATE.bg,
+
+                                fontSize: 12.5,
+                                fontWeight:
+                                  av === undefined
+                                    ? 400
+                                    : 800,
+
+                                color:
+                                  av === undefined
+                                    ? SOFT_SLATE.textMuted
+                                    : SOFT_SLATE.textPrimary,
+
+                                fontStyle:
+                                  av === undefined
+                                    ? "italic"
+                                    : "normal",
+
+                                boxShadow:
+                                  SOFT_SLATE.raisedSm,
+                              }}
+                            >
+                              {av === undefined
+                                ? "—"
+                                : `${av}${row.unit}`}
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "10px",
+
+                                textAlign: "right",
+
+                                background: SOFT_SLATE.bg,
+
+                                fontSize: 12.5,
+                                fontWeight:
+                                  bv === undefined
+                                    ? 400
+                                    : 800,
+
+                                color:
+                                  bv === undefined
+                                    ? SOFT_SLATE.textMuted
+                                    : SOFT_SLATE.textPrimary,
+
+                                fontStyle:
+                                  bv === undefined
+                                    ? "italic"
+                                    : "normal",
+
+                                boxShadow:
+                                  SOFT_SLATE.raisedSm,
+                              }}
+                            >
+                              {bv === undefined
+                                ? "—"
+                                : `${bv}${row.unit}`}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Section>
+
+            {/* ── Key Insights ───────────────────────────────────────────── */}
+
+            <Section
+              title="Key Insights"
+              description="What stands out between these two products, at a glance."
+            >
+              <div
+                style={{
+                  ...raisedCard,
+
+                  padding: isDesktop ? 24 : 16,
+
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 17,
+
+                  boxShadow:
+                    recommendation === "none"
+                      ? SOFT_SLATE.raisedMd
+                      : `
+                        0 0 0 2px ${SOFT_SLATE.green},
+                        ${SOFT_SLATE.raisedMd}
+                      `,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 13,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+
+                      flexShrink: 0,
+
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+
+                      background: SOFT_SLATE.bg,
+
+                      boxShadow:
+                        recommendation === "none"
+                          ? SOFT_SLATE.insetMd
+                          : SOFT_SLATE.raisedSm,
+
+                      color:
+                        recommendation === "none"
+                          ? SOFT_SLATE.textMuted
+                          : SOFT_SLATE.green,
+
+                      fontSize: 18,
+                      fontWeight: 900,
+                    }}
+                  >
+                    {recommendation === "none"
+                      ? "—"
+                      : "✓"}
+                  </div>
+
+                  <div>
+                    <p
+                      style={{
+                        margin: 0,
+
+                        fontFamily: SOFT_SLATE.fontFamily,
+                        fontWeight: 800,
+                        fontSize: 16,
+
+                        color: SOFT_SLATE.textPrimary,
+                      }}
+                    >
+                      {recommendation === "none"
+                        ? "No clear recommendation"
+                        : (
+                          <>
+                            <span
+                              style={{
+                                color: SOFT_SLATE.green,
+                              }}
+                            >
+                              {recommendation === "a"
+                                ? a.name
+                                : b.name}
+                            </span>{" "}
+                            is the better choice
+                          </>
+                        )}
+                    </p>
+
+                    <p
+                      style={{
+                        margin: "4px 0 0",
+
+                        fontFamily: SOFT_SLATE.fontFamily,
+                        fontSize: 12,
+                        lineHeight: 1.55,
+
+                        color: SOFT_SLATE.textSecondary,
+                      }}
+                    >
+                      {recommendation === "none"
+                        ? "Both products score too closely, or key data is missing, for Scanity to call a clear winner."
+                        : "Based on nutrition grade, ingredient quality, and your saved health profile."}
+                    </p>
+                  </div>
+                </div>
+
+                {insights.length > 0 && (
+                  <div
+                    style={{
+                      ...insetCard,
+
+                      padding: 14,
+
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    {insights.map(
+                      (insight, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: "flex",
+                            gap: 9,
+
+                            fontFamily:
+                              SOFT_SLATE.fontFamily,
+
+                            fontSize: 12,
+                            lineHeight: 1.55,
+
+                            color:
+                              SOFT_SLATE.textSecondary,
+                          }}
+                        >
+                          <span
+                            style={{
+                              color:
+                                SOFT_SLATE.green,
+                              fontWeight: 900,
+                            }}
+                          >
+                            •
+                          </span>
+
+                          <span>{insight}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            </Section>
+
+            {/* ── Add another product ────────────────────────────────────── */}
+
+            <button
+              type="button"
+              onClick={() =>
+                setScenario("initial")
+              }
+              style={{
+                width: "100%",
+
+                marginTop: 30,
+
+                padding: 15,
+
+                border: "none",
+                borderRadius: 17,
+
+                background: SOFT_SLATE.bg,
+
+                color: SOFT_SLATE.green,
+
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontWeight: 800,
+                fontSize: 13,
+
+                boxShadow: SOFT_SLATE.raisedBtn,
+
+                cursor: "pointer",
+              }}
+            >
+              + Add another product
+            </button>
+
+>>>>>>> Stashed changes
           </Center>
         </div>
       </div>
     </div>
   )
 }
+<<<<<<< Updated upstream
 // Same data the Dashboard panel reads from — no separate placeholder set.
 function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const [filter, setFilter] = useState<"recent" | "favourite">("recent")
   const [searchOpen, setSearchOpen] = useState(false)
+=======
+
+// Same data the Dashboard panel reads from — no separate placeholder set.
+function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
+>>>>>>> Stashed changes
   const [query, setQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
 
+<<<<<<< Updated upstream
   const scans = RECENT_SCANS.filter(
     (scan) =>
       (filter === "recent" || scan.favorite) &&
       scan.name.toLowerCase().includes(query.toLowerCase()),
   )
 
+=======
+  const scans = RECENT_SCANS.filter((scan) =>
+    scan.name.toLowerCase().includes(query.toLowerCase()),
+  )
+
+  // Rail geometry mirrors DashboardScreen's own fixed positioning exactly
+  // (top/left/bottom 22/26/22, width 80) so the two screens line up pixel
+  // for pixel, not just in color.
+  const RAIL_TOP = 22
+  const RAIL_SIDE = 26
+  const RAIL_W = 80
+
+>>>>>>> Stashed changes
   return (
     <div
       style={{
@@ -14792,6 +20532,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
         display: "flex",
         position: "relative",
         overflow: "hidden",
+<<<<<<< Updated upstream
         background: PALETTE.page,
         fontFamily: FONT_BODY,
       }}
@@ -14804,6 +20545,42 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
         isDesktop={isDesktop}
         active="history"
       />
+=======
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+      }}
+    >
+      {/* SIDEBAR — mobile drawer only; desktop uses the Soft Slate rail below,
+          same component and shading as the Dashboard. */}
+      {!isDesktop && (
+        <AppSidebar
+          go={go}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          isDesktop={false}
+          active="history"
+        />
+      )}
+
+      {/* ICON RAIL — Dashboard's own rail component, reused as-is: same
+          Soft Slate raised/inset shading, just its own "Scan History" nav
+          set with History highlighted instead of Dashboard. */}
+      {isDesktop && (
+        <div
+          style={{
+            position: "fixed",
+            top: RAIL_TOP,
+            left: RAIL_SIDE,
+            bottom: RAIL_TOP,
+            width: RAIL_W,
+            zIndex: 5,
+          }}
+        >
+        <DashboardIconRail go={go} isDesktop />
+
+        </div>
+      )}
+>>>>>>> Stashed changes
 
       <div
         style={{
@@ -14811,6 +20588,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
           minHeight: 0,
           display: "flex",
           flexDirection: "column",
+<<<<<<< Updated upstream
           background: PALETTE.page,
           overflow: "hidden",
           marginLeft: isDesktop ? SIDEBAR_WIDTH : 0,
@@ -14837,10 +20615,20 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
           }}
         >
           {/* LEFT SIDE */}
+=======
+          background: SOFT_SLATE.bg,
+          overflow: "hidden",
+          marginLeft: isDesktop ? RAIL_W + RAIL_SIDE + RAIL_SIDE : 0,
+        }}
+      >
+        {/* MOBILE MENU BUTTON — the rail stands in for this on desktop */}
+        {!isDesktop && (
+>>>>>>> Stashed changes
           <div
             style={{
               display: "flex",
               alignItems: "center",
+<<<<<<< Updated upstream
               gap: 10,
             }}
           >
@@ -14922,6 +20710,48 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
             </button>
           </Tooltip>
         </div>
+=======
+              flexShrink: 0,
+              padding: "14px 20px 0",
+            }}
+          >
+            <Tooltip label="Open menu">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+                style={{
+                  width: 34,
+                  height: 34,
+                  border: "none",
+                  borderRadius: 12,
+                  background: SOFT_SLATE.bg,
+                  color: SOFT_SLATE.green,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: SOFT_SLATE.raisedSm,
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            </Tooltip>
+          </div>
+        )}
+>>>>>>> Stashed changes
 
         {/* CONTENT */}
         <div
@@ -14935,6 +20765,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
             style={{
               width: "100%",
               boxSizing: "border-box",
+<<<<<<< Updated upstream
               padding: "20px 24px 32px",
             }}
           >
@@ -15039,6 +20870,161 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                 >
                   No scans found.
                 </p>
+=======
+              padding: isDesktop ? "40px 32px 32px" : "16px 20px 32px",
+            }}
+          >
+            {/* HEADER — "1a Grouped activity list" layout, Dashboard's Soft
+                Slate palette. */}
+            <h1
+              style={{
+                margin: "0 0 4px",
+                color: SOFT_SLATE.textPrimary,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 26,
+                fontWeight: 800,
+                lineHeight: 1.2,
+              }}
+            >
+              Scan History
+            </h1>
+            <p
+              style={{
+                margin: "0 0 18px",
+                color: SOFT_SLATE.textMuted,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 12.5,
+              }}
+            >
+              Everything you've scanned, newest first.
+            </p>
+
+            {/* SEARCH — inset (pressed-in) like a Soft Slate field, rather
+                than the raised look used for buttons/cards. */}
+            <div style={{ position: "relative", marginBottom: 22 }}>
+              <i
+                className="fa fa-search"
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: 18,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: 12,
+                  color: SOFT_SLATE.textMuted,
+                }}
+              />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search products"
+                aria-label="Search scans"
+                style={{
+                  width: "100%",
+                  padding: "12px 16px 12px 40px",
+                  boxSizing: "border-box",
+                  borderRadius: 999,
+                  border: "none",
+                  background: SOFT_SLATE.bg,
+                  color: SOFT_SLATE.textPrimary,
+                  outline: "none",
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 12.5,
+                  boxShadow: SOFT_SLATE.insetMd,
+                }}
+              />
+            </div>
+
+            {/* SCAN HISTORY — a date-section header (label + count) sits on
+                the page background above its own panel, and each panel
+                holds only that day's rows. */}
+            <div style={{ width: "100%", minHeight: 500, boxSizing: "border-box" }}>
+              {scans.length === 0 ? (
+                <div
+                  style={{
+                    borderRadius: 26,
+                    background: SOFT_SLATE.bg,
+                    boxShadow: SOFT_SLATE.raisedLg,
+                    padding: "8px 16px",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {/* EMPTY STATE */}
+                  <p
+                    style={{
+                      margin: 0,
+                      padding: "40px 0",
+                      color: SOFT_SLATE.textMuted,
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    No scans found.
+                  </p>
+                </div>
+              ) : (
+                groupScans(scans).map((group) => (
+                  <div
+                    key={`${group.label}-${group.scans[0].name}-${group.scans[0].time}`}
+                    style={{ marginBottom: 20 }}
+                  >
+                    {/* GROUP HEADER */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 8,
+                        padding: "0 4px 8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: SOFT_SLATE.fontFamily,
+                          fontWeight: 800,
+                          fontSize: 12,
+                          letterSpacing: 0.4,
+                          textTransform: "uppercase",
+                          color: SOFT_SLATE.textPrimary,
+                        }}
+                      >
+                        {group.label}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: SOFT_SLATE.fontFamily,
+                          fontSize: 11,
+                          color: SOFT_SLATE.textMuted,
+                        }}
+                      >
+                        {group.scans.length} scan{group.scans.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+
+                    {/* GROUP PANEL — raised, borderless, same shading as the
+                        Dashboard's own "Scan History" card. */}
+                    <div
+                      style={{
+                        borderRadius: 26,
+                        background: SOFT_SLATE.bg,
+                        boxShadow: SOFT_SLATE.raisedLg,
+                        padding: "8px 16px",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      {group.scans.map((scan, index) => (
+                        <ScanRow
+                          key={`${scan.name}-${scan.time}`}
+                          scan={scan}
+                          onView={() => go("productResult")}
+                          showDate={group.showDate}
+                          isLast={index === group.scans.length - 1}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+>>>>>>> Stashed changes
               )}
             </div>
           </Center>
@@ -16988,6 +22974,7 @@ function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
               })}
             </div>
 
+<<<<<<< Updated upstream
             {/* COMPARE PRODUCTS */}
             <div
               style={{
@@ -17048,6 +23035,8 @@ function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
                 Compare Products
               </button>
             </div>
+=======
+>>>>>>> Stashed changes
 
             {/* CONTACT SUPPORT */}
             <div
@@ -17096,6 +23085,135 @@ function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
    ========================================================= */
 
 function AboutScreen({ go }: { go: (s: Screen) => void }) {
+<<<<<<< Updated upstream
+=======
+  const isDesktop = useIsDesktop()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const features = [
+    { icon: "fa-shield", title: "Personalized Safety", text: "Scanity checks products against your allergies, dietary restrictions, and health conditions." },
+    { icon: "fa-barcode", title: "Smart Scanning", text: "Scan a barcode or capture a nutrition label using OCR to identify useful information." },
+    { icon: "fa-leaf", title: "Nutrition Insights", text: "Get an easy-to-understand nutrition score based on important nutritional factors." },
+    { icon: "fa-lightbulb-o", title: "AI Explanations", text: "Understand why a product may be safe, cautionary, or unsafe for you." },
+  ]
+
+  const steps = [
+    ["01", "fa-barcode", "Scan", "Scan the product barcode or food label."],
+    ["02", "fa-search", "Analyze", "Scanity analyzes ingredients and nutrition information."],
+    ["03", "fa-user", "Personalize", "The system compares the product against your health profile."],
+    ["04", "fa-file-text-o", "Understand", "Scanity explains potential risks and unfamiliar ingredients."],
+    ["05", "fa-shield", "Decide", "Safe, caution, or avoid recommendation."],
+  ]
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", background: C.offWhite, fontFamily: FONT_BODY }}>
+      <AppSidebar
+        go={go}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isDesktop={isDesktop}
+        active="about"
+      />
+
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", marginLeft: isDesktop ? SIDEBAR_WIDTH : 0 }}>
+        <InfoHeader
+          title="About Us"
+          subtitle=""
+          go={go}
+          showBack={false}
+          onMobileMenuClick={() => setSidebarOpen(true)}
+        />
+
+        <main style={{ flex: 1, overflowY: "auto" }}>
+          <section
+            style={{
+              position: "relative",
+              minHeight: isDesktop ? 330 : 430,
+              display: "flex",
+              alignItems: "center",
+              overflow: "hidden",
+              background: C.green,
+            }}
+          >
+            <img
+              src={aboutHeroImg}
+              alt="Person shopping for food in a grocery store"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+            />
+            <div style={{ position: "absolute", inset: 0, background: `color-mix(in srgb, ${PALETTE.green} 68%, transparent)` }} />
+            <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 1180, margin: "0 auto", padding: isDesktop ? "54px 68px" : "54px 22px" }}>
+              <p style={{ margin: "0 0 14px", fontFamily: FONT_HEAD, fontSize: 11, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: C.textOnDark }}>About Scanity</p>
+              <h1 style={{ margin: 0, maxWidth: 540, fontFamily: FONT_HEAD, fontSize: isDesktop ? 36 : 29, lineHeight: 1.1, fontWeight: 800, color: C.white }}>Making every food choice safer, simpler, and smarter.</h1>
+              <p style={{ maxWidth: 480, margin: "18px 0 0", fontSize: 13, lineHeight: 1.6, color: "rgba(255,255,255,0.88)" }}>
+                Scanity is an AI-powered food safety and nutrition decision support tool that helps consumers understand food labels and determine whether packaged food products are suitable for their personal health profile.
+              </p>
+              <button type="button" onClick={() => go("dashboard")} style={{ marginTop: 22, display: "inline-flex", alignItems: "center", gap: 8, border: "none", borderRadius: 999, padding: "11px 17px", background: PALETTE.greenDark, color: C.white, fontFamily: FONT_HEAD, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <i className="fa fa-play-circle" /> How Scanity Works <i className="fa fa-arrow-right" />
+              </button>
+            </div>
+          </section>
+
+          <section style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", alignItems: "center", gap: isDesktop ? 48 : 28, padding: isDesktop ? "42px 68px 36px" : "34px 22px 36px" }}>
+            <div>
+              <h2 style={{ margin: 0, maxWidth: 470, fontFamily: FONT_HEAD, fontSize: isDesktop ? 25 : 22, lineHeight: 1.12, color: PALETTE.greenDark }}>Food labels shouldn't be difficult to understand.</h2>
+              <p style={{ margin: "14px 0 0", maxWidth: 470, fontSize: 12.5, lineHeight: 1.65, color: PALETTE.textMuted }}>Ingredients and nutrition facts can contain technical terms that are difficult for ordinary consumers to interpret. Scanity transforms this information into simple, understandable insights so users can make more informed food choices.</p>
+            </div>
+            <img src={aboutLabelImg} alt="Nutrition facts label" style={{ width: "100%", height: isDesktop ? 170 : 190, objectFit: "cover", objectPosition: "center", borderRadius: 12 }} />
+          </section>
+
+          <section style={{ background: PALETTE.greenLight, padding: isDesktop ? "28px 68px 34px" : "26px 22px 32px" }}>
+            <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+              <h2 style={{ margin: "0 0 16px", fontFamily: FONT_HEAD, fontSize: 17, color: PALETTE.greenDark }}>How Scanity Helps</h2>
+              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(4, 1fr)" : "1fr", gap: isDesktop ? 16 : 12 }}>
+                {features.map((feature) => (
+                  <article key={feature.title} style={{ minHeight: isDesktop ? 150 : 0, padding: "18px 17px", borderRadius: 8, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(23,107,58,0.08)" }}>
+                    <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: PALETTE.green, color: C.white, fontSize: 18 }}><i className={`fa ${feature.icon}`} /></div>
+                    <h3 style={{ margin: "12px 0 5px", fontFamily: FONT_HEAD, fontSize: 12, color: PALETTE.greenDark }}>{feature.title}</h3>
+                    <p style={{ margin: 0, fontSize: 10.5, lineHeight: 1.5, color: PALETTE.textMuted }}>{feature.text}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section style={{ maxWidth: 1180, margin: "0 auto", padding: isDesktop ? "34px 68px 38px" : "34px 22px 40px" }}>
+            <h2 style={{ margin: "0 0 20px", fontFamily: FONT_HEAD, fontSize: 17, color: PALETTE.greenDark }}>How It Works</h2>
+            <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(5, 1fr)" : "1fr", gap: isDesktop ? 18 : 24 }}>
+              {steps.map(([number, icon, title, text], index) => (
+                <div key={title} style={{ position: "relative", textAlign: "center", padding: "0 8px" }}>
+                  <span style={{ position: "absolute", top: 0, left: isDesktop ? 0 : 8, fontSize: 9, fontWeight: 700, color: PALETTE.greenMid }}>{number}</span>
+                  <div style={{ width: 46, height: 46, margin: "0 auto 9px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: PALETTE.greenLight, color: C.green, fontSize: 19 }}><i className={`fa ${icon}`} /></div>
+                  <h3 style={{ margin: 0, fontFamily: FONT_HEAD, fontSize: 12, color: PALETTE.greenDark }}>{title}</h3>
+                  <p style={{ margin: "6px auto 0", maxWidth: 170, fontSize: 10, lineHeight: 1.5, color: PALETTE.textMuted }}>{text}</p>
+                  {isDesktop && index < steps.length - 1 && <i className="fa fa-arrow-right" style={{ position: "absolute", top: 16, right: -10, color: PALETTE.greenMid, fontSize: 11 }} />}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section style={{ background: `linear-gradient(110deg, ${PALETTE.greenDark}, ${PALETTE.greenMid})`, color: C.white, padding: isDesktop ? "24px 68px" : "28px 22px" }}>
+            <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", alignItems: "center", gap: 18 }}>
+              <img src={logoImg} alt="Scanity logo" style={{ width: isDesktop ? 105 : 70, height: 80, objectFit: "contain", mixBlendMode: "screen" }} />
+              <div style={{ borderLeft: "1px solid rgba(255,255,255,0.5)", paddingLeft: 18 }}>
+                <p style={{ margin: 0, fontSize: 9, color: C.textOnDark }}>Our Purpose</p>
+                <h2 style={{ margin: 0, fontFamily: FONT_HEAD, fontSize: isDesktop ? 18 : 16, lineHeight: 1.2 }}>We believe understanding what you eat should be simple.</h2>
+                <p style={{ margin: "8px 0 0", maxWidth: 560, fontSize: 10.5, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" }}>Scanity was created to help consumers better understand food labels, recognize potentially unsafe ingredients, and make food decisions based on their individual health needs.</p>
+              </div>
+            </div>
+          </section>
+
+          <footer style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 22px 18px", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 9, color: PALETTE.textMuted }}>
+            <span>Scanity &nbsp;|&nbsp; See · Know · Eat</span>
+            <span>About &nbsp; | &nbsp; Privacy Policy &nbsp; | &nbsp; Terms &nbsp; | &nbsp; Contact</span>
+          </footer>
+        </main>
+      </div>
+    </div>
+  )
+}
+
+function LegacyAboutScreen({ go }: { go: (s: Screen) => void }) {
+>>>>>>> Stashed changes
   const features = [
     {
       icon: "fa-search",
@@ -20034,19 +26152,98 @@ function LanguageScreen({ go }: { go: (s: Screen) => void }) {
     </div>
   )
 }
+<<<<<<< Updated upstream
 export default function App() {
   const [screen, setScreen] = useState<Screen>("splash")
+=======
+// ── Screen persistence (survive a page refresh) ────────────────────────────────
+// Keeping the current screen (and the back-navigation stack) in sessionStorage
+// means reloading the tab lands back on the same screen instead of bouncing to
+// the splash screen. sessionStorage (not localStorage) is used on purpose: it
+// clears when the tab/browser closes, so opening the app fresh later still
+// starts clean.
+const SCREEN_STORAGE_KEY = "scanity_screen"
+const SCREEN_HISTORY_STORAGE_KEY = "scanity_screen_history"
+const VALID_SCREENS: string[] = [
+  "splash", "login", "register", "success", "allergies", "health", "loading",
+  "allset", "dashboard", "history", "barcode", "ocr", "profile", "help",
+  "about", "privacy", "terms", "settings", "delete", "forgotPassword",
+  "resetPassword", "confirmationPassword", "productResult", "productCompare",
+  "language",
+]
+function readStoredScreen(): Screen {
+  if (typeof window === "undefined") return "splash"
+  try {
+    const saved = window.sessionStorage.getItem(SCREEN_STORAGE_KEY)
+    if (saved && VALID_SCREENS.includes(saved)) {
+      return saved as Screen
+    }
+  } catch {
+    // sessionStorage unavailable (private browsing, etc.) — just start fresh
+  }
+  return "splash"
+}
+function readStoredScreenHistory(): Screen[] {
+  if (typeof window === "undefined") return []
+  try {
+    const saved = window.sessionStorage.getItem(SCREEN_HISTORY_STORAGE_KEY)
+    const parsed = saved ? JSON.parse(saved) : null
+    if (Array.isArray(parsed)) {
+      return parsed.filter(
+        (entry): entry is Screen =>
+          typeof entry === "string" && VALID_SCREENS.includes(entry),
+      )
+    }
+  } catch {
+    // ignore malformed/inaccessible storage
+  }
+  return []
+}
+function persistScreenHistory(history: Screen[]) {
+  if (typeof window === "undefined") return
+  try {
+    window.sessionStorage.setItem(
+      SCREEN_HISTORY_STORAGE_KEY,
+      JSON.stringify(history),
+    )
+  } catch {
+    // ignore
+  }
+}
+export default function App() {
+  const [screen, setScreen] = useState<Screen>(readStoredScreen)
+>>>>>>> Stashed changes
   // Tracks where each `go()` was called from, so a screen that can be
   // reached from more than one place (like Forgot Password, opened from
   // either Login or Settings) can send the back button to wherever the
   // person actually came from instead of a single hardcoded destination.
+<<<<<<< Updated upstream
   const historyRef = useRef<Screen[]>([])
   const go = (next: Screen) => {
     historyRef.current.push(screen)
+=======
+  // Restored from sessionStorage on mount so refreshing the page keeps the
+  // back button working the same way it did before the reload.
+  const historyRef = useRef<Screen[]>(readStoredScreenHistory())
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(SCREEN_STORAGE_KEY, screen)
+    } catch {
+      // ignore
+    }
+  }, [screen])
+  const go = (next: Screen) => {
+    historyRef.current.push(screen)
+    persistScreenHistory(historyRef.current)
+>>>>>>> Stashed changes
     setScreen(next)
   }
   const goBack = () => {
     const previous = historyRef.current.pop()
+<<<<<<< Updated upstream
+=======
+    persistScreenHistory(historyRef.current)
+>>>>>>> Stashed changes
     setScreen(previous ?? "dashboard")
   }
   const screenMap: Record<Screen, ReactNode> = {
@@ -20072,9 +26269,14 @@ export default function App() {
     forgotPassword: <ForgotPasswordScreen go={go} goBack={goBack} />,
     resetPassword: <ResetPasswordScreen go={go} />,
     confirmationPassword: <ConfirmationPasswordScreen go={go} />,
+<<<<<<< Updated upstream
     language: <LanguageScreen go={go} />,
     productResult: <ProductResultScreen go={go} />,
     productCompare: <ProductCompareScreen go={go} />,
+=======
+    productResult: <ProductResultScreen go={go} />,
+    productCompare: <ProductCompareScreen go={go} goBack={goBack} />,
+>>>>>>> Stashed changes
   }
   return <AppFrame>{screenMap[screen]}</AppFrame>
 }
