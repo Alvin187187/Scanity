@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     OLLAMA_HOST: str
     OPENFOODFACTS_API: str
 
+    # Hosted Gemini explains flags only. It does not decide allergy verdicts.
+    GEMINI_API_KEY: str | None = Field(default=None, repr=False)
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
+
     DATABASE_CONNECT_TIMEOUT: int = Field(default=10, ge=1, le=60)
     DATABASE_POOL_SIZE: int = Field(default=5, ge=1, le=20)
     DATABASE_MAX_OVERFLOW: int = Field(default=0, ge=0, le=20)
