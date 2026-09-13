@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import UUID
 
@@ -18,16 +18,16 @@ class ProductOut(BaseModel):
     product_name: str
     brand: Optional[str] = None
     category: Optional[str] = None
-    ingredients: list[IngredientOut] = []
+    ingredients: list[IngredientOut] = Field(default_factory=list)
 
 
 class BarcodeScanResponse(BaseModel):
     product: ProductOut
-    # Placeholders below — filled in once ScanOrchestrator (Issue #57) is wired
-    # into this route. For Issue #59's scope, product lookup + storage is the
-    # focus; full scan result assembly happens when these two issues connect.
-    safety_result: Optional[str] = None
-    flagged_ingredients: list[str] = []
+
+    # Intentionally empty for Issue #149.
+    # Real allergy flags will be added in Issue #153.
+    allergy_flags: list[str] = Field(default_factory=list)
+    verdict: Optional[str] = None
     nutri_score_grade: Optional[str] = None
 
 

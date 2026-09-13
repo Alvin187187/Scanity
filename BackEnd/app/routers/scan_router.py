@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.dependencies.auth import get_current_user
 from app.schemas.scan import BarcodeScanRequest, BarcodeScanResponse, ProductOut
 from app.services.barcode_lookup_service import (
     get_product_by_barcode,
@@ -13,7 +14,11 @@ router = APIRouter()
 
 
 @router.post("/scan/barcode", response_model=BarcodeScanResponse)
-async def scan_barcode(request: BarcodeScanRequest, db: Session = Depends(get_db)):
+async def scan_barcode(
+    request: BarcodeScanRequest,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     try:
         product = await get_product_by_barcode(db, request.barcode)
     except ValueError:
