@@ -1,11 +1,11 @@
-﻿"""
+"""
 seed/allergen_seed_loader.py
 
 Loads the AI/ML-provided allergen seed data for Backend to insert into the
 INGREDIENTS table (and, once the alias-table schema question is resolved
 with Backend, the aliases as well).
 
-Ticket: #168 seed (SVheinr)
+Ticket: #167 seed (SVheinr)
 """
 import csv
 from pathlib import Path
