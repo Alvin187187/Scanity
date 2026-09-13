@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from uuid import UUID
 
 
 class BarcodeScanRequest(BaseModel):
@@ -12,7 +13,7 @@ class IngredientOut(BaseModel):
 
 
 class ProductOut(BaseModel):
-    product_id: int
+    product_id: UUID
     barcode: str
     product_name: str
     brand: Optional[str] = None

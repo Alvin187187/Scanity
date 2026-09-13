@@ -51,8 +51,8 @@ async def get_product_by_barcode(db, barcode: str) -> dict:
 
 
 def _get_local_product(db, barcode: str) -> Optional[dict]:
-    """Cache lookup — direct query against the `product` table by barcode."""
-    from app.models.product import Product
+    """Cache lookup — direct query against the ERD `products` table by barcode."""
+    from app.models.schema import Product
 
     product = db.query(Product).filter(Product.barcode == barcode).first()
     if not product:
@@ -133,7 +133,11 @@ def _store_product(db, mapped: dict) -> dict:
     Inserts the product (and related Ingredient/ProductIngredient rows) if not
     already present. Prevents duplicates via the UNIQUE constraint on barcode.
     """
-    from app.models.product import Product, Ingredient
+    from app.models.schema import Ingredient, Product
+
+    existing = db.query(Product).filter(Product.barcode == mapped["barcode"]).first()
+    if existing:
+        return _get_local_product(db, mapped["barcode"])
 
     product = Product(
         barcode=mapped["barcode"],
@@ -154,7 +158,7 @@ def _store_product(db, mapped: dict) -> dict:
         if not ingredient:
             ingredient = Ingredient(
                 ingredient_name=name,
-                is_allergen=1 if ing_data.get("is_allergen") else 0,
+                is_allergen=bool(ing_data.get("is_allergen")),
             )
             db.add(ingredient)
         product.ingredients.append(ingredient)

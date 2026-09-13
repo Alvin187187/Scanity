@@ -8,6 +8,8 @@ Supabase is used for authentication and may also be used for selected shared/clo
 
 The finalized ERD remains the source of truth for the application table set. No extra application tables should be added without team approval.
 
+SQLAlchemy models for those tables live in `BackEnd/app/models/schema.py`. Primary keys are UUIDs so `USERS.user_id` can match the Supabase Auth UUID. Use table names `products`, `ingredients`, and `scan_histories`. Do not add a second Product/Ingredient model with integer keys or a `product` table. Health Profile and allergy rows follow the same UUID `USERS` pattern.
+
 The current authentication decision changes one local field responsibility: authentication passwords stay in Supabase Auth and are not stored in the local `USERS` table.
 
 ---
