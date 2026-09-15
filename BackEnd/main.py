@@ -14,6 +14,8 @@ from app.routers.example import router as example_router
 from app.routers.scan_router import router as scan_router
 from app.routers.ocr_router import router as ocr_router
 
+from fastapi.middleware.cors import CORSMiddleware
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +46,18 @@ app.include_router(scan_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(ocr_router, prefix="/api/v1")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8443",
+        "http://127.0.0.1:8443",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():

@@ -12,3 +12,4 @@ supabase
 PyJWT
 cryptography
 alembic
+email-validator
