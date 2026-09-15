@@ -9,7 +9,51 @@ export type RegisterData = {
   password: string
 }
 
-const API_BASE_URL = "http://localhost:8000/api/v1"
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/$/, "")
+}
+
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+
+// Local Vite defaults to the FastAPI server. Production must set VITE_API_BASE_URL
+// at build time (Vercel env vars are inlined during `vite build`).
+const API_BASE_URL = trimTrailingSlash(
+  configuredBaseUrl ||
+    (import.meta.env.DEV ? "http://localhost:8000/api/v1" : ""),
+)
+
+function requireApiBaseUrl() {
+  if (!API_BASE_URL) {
+    throw new Error("AUTH_API_NOT_READY")
+  }
+  return API_BASE_URL
+}
+
+function toAuthError(error: unknown) {
+  if (error instanceof Error && error.message === "AUTH_API_NOT_READY") {
+    return error
+  }
+
+  if (
+    error instanceof TypeError ||
+    (error instanceof Error &&
+      /failed to fetch|networkerror|load failed/i.test(error.message))
+  ) {
+    return new Error("AUTH_API_NOT_READY")
+  }
+
+  return error instanceof Error ? error : new Error("Request failed")
+}
+
+function errorMessageFromBody(result: unknown, fallback: string) {
+  if (result && typeof result === "object" && "detail" in result) {
+    const detail = (result as { detail: unknown }).detail
+    if (typeof detail === "string" && detail.trim()) {
+      return detail
+    }
+  }
+  return fallback
+}
 
 // ─────────────────────────────────────────────
 // REGISTER
@@ -17,7 +61,7 @@ const API_BASE_URL = "http://localhost:8000/api/v1"
 // ─────────────────────────────────────────────
 export async function registerUser(data: RegisterData) {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(`${requireApiBaseUrl()}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -36,15 +80,17 @@ export async function registerUser(data: RegisterData) {
 
     if (!response.ok) {
       throw new Error(
-        result?.detail ||
+        errorMessageFromBody(
+          result,
           `Registration failed with status ${response.status}`,
+        ),
       )
     }
 
     return result
   } catch (error) {
     console.error("Registration request failed:", error)
-    throw error
+    throw toAuthError(error)
   }
 }
 
@@ -56,7 +102,7 @@ export async function loginUser(
   credentials: LoginCredentials,
 ) {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${requireApiBaseUrl()}/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -74,14 +120,16 @@ export async function loginUser(
 
     if (!response.ok) {
       throw new Error(
-        result?.detail ||
+        errorMessageFromBody(
+          result,
           `Login failed with status ${response.status}`,
+        ),
       )
     }
 
     return result
   } catch (error) {
     console.error("Login request failed:", error)
-    throw error
+    throw toAuthError(error)
   }
 }

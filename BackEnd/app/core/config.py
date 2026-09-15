@@ -34,6 +34,19 @@ class Settings(BaseSettings):
     DATABASE_MAX_OVERFLOW: int = Field(default=0, ge=0, le=20)
     DATABASE_POOL_TIMEOUT: int = Field(default=10, ge=1, le=60)
 
+    # Browser origins allowed to call this API. Comma-separated.
+    CORS_ORIGINS: str = (
+        "http://localhost:8443,http://127.0.0.1:8443,"
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "https://scanity-eta.vercel.app"
+    )
+    # Preview deploys use unique *.vercel.app hosts.
+    CORS_ORIGIN_REGEX: str = r"https://.*\.vercel\.app"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",
         env_file_encoding="utf-8",

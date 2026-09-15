@@ -136,6 +136,18 @@ def test_setup_creates_env_with_a_new_application_secret(tmp_path):
     assert make_url(values["DATABASE_URL"]).password == "test-password"
 
 
+def test_cors_origins_are_parsed_from_comma_separated_values():
+    settings = Settings(
+        _env_file=None,
+        DATABASE_URL="sqlite:///:memory:",
+        CORS_ORIGINS="https://scanity-eta.vercel.app, http://localhost:8443",
+    )
+    assert settings.cors_origin_list == [
+        "https://scanity-eta.vercel.app",
+        "http://localhost:8443",
+    ]
+
+
 @pytest.mark.parametrize("uri", [
     "https://supabase.com/dashboard/project/example",
     POOLER_URI.replace(":5432/", ":6543/"),
