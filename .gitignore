@@ -1,3 +1,6 @@
+# Dependencies (must not be committed; Vercel installs from the lockfile).
+node_modules/
+
 # Local credentials; keep the shared template.
 .env
 .env.*
