@@ -24,6 +24,7 @@ import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
 import { loginUser, registerUser } from "./api/auth"
+import { lookupBarcodeProduct } from "./api/scan"
 import {
   clearSessionUser,
   firstName,
@@ -5072,10 +5073,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
   const isDesktop = useIsDesktop()
 
-  // ── BACKEND API ───────────────────────────────────────────────────────────
-  const BACKEND_API_URL =
-    import.meta.env.VITE_BARCODE_LOOKUP_URL || "/api/barcode/lookup"
-
   // ── STOP CAMERA ───────────────────────────────────────────────────────────
   const stopCamera = () => {
     try {
@@ -5122,19 +5119,33 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
   // ── NORMALIZE BACKEND RESULT ──────────────────────────────────────────────
   const normalizeProductResult = (result: any, barcode: string): ProductResult => {
+    const product = result?.product || result?.productInformation || result?.product_information || {}
+    const ingredientList = Array.isArray(product?.ingredients)
+      ? product.ingredients
+          .map((item: { name?: string; ingredient_name?: string } | string) =>
+            typeof item === "string" ? item : item?.name || item?.ingredient_name || "",
+          )
+          .filter(Boolean)
+          .join(", ")
+      : ""
+
     return {
       ...result,
-      barcode: result?.barcode || barcode,
-      productInformation:
-        result?.productInformation || result?.product_information || result?.product || {},
-      product: result?.product || result?.productInformation || {},
+      barcode: result?.barcode || product?.barcode || barcode,
+      productInformation: result?.productInformation || result?.product_information || product,
+      product: {
+        ...product,
+        name: product?.name || product?.product_name,
+        product_name: product?.product_name || product?.name,
+        brand: product?.brand,
+      },
       ingredients:
         result?.ingredients ||
-        result?.product?.ingredients ||
-        result?.product?.ingredients_text ||
-        result?.productInformation?.ingredients ||
+        product?.ingredients_text ||
+        ingredientList ||
+        product?.ingredients ||
         "",
-      nutrition: result?.nutrition || result?.nutriments || result?.product?.nutrition || {},
+      nutrition: result?.nutrition || result?.nutriments || product?.nutrition || {},
     }
   }
 
@@ -5142,40 +5153,14 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const lookupBarcode = async (barcode: string) => {
     const cleanBarcode = barcode.trim()
     try {
-      const response = await fetch(BACKEND_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ barcode: cleanBarcode }),
-      })
-
-      let data: any = null
-      try {
-        data = await response.json()
-      } catch {
-        data = null
-      }
+      const data = await lookupBarcodeProduct(cleanBarcode)
 
       if (
-        response.status === 404 ||
         data?.found === false ||
         data?.productFound === false ||
         data?.product_found === false ||
         data?.status === "not_found"
       ) {
-        throw new Error("__PRODUCT_NOT_FOUND__")
-      }
-
-      if (response.status === 400 || response.status === 422) {
-        throw new Error(data?.message || data?.error || "The barcode sent to the server is invalid.")
-      }
-
-      if (!response.ok) {
-        throw new Error(data?.message || data?.error || "The server could not retrieve the product information.")
-      }
-
-      if (!data) throw new Error("The server returned an empty response.")
-
-      if (data?.product === null || data?.productInformation === null || data?.data === null) {
         throw new Error("__PRODUCT_NOT_FOUND__")
       }
 
