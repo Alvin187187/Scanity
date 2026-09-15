@@ -6593,6 +6593,56 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       .slice(0, 30)
   }
 
+  const preprocessLabelImage = async (
+    source: string | HTMLCanvasElement | File,
+  ): Promise<HTMLCanvasElement | string> => {
+    try {
+      let image: CanvasImageSource | HTMLCanvasElement = source as HTMLCanvasElement
+      if (source instanceof File) {
+        image = await createImageBitmap(source)
+      } else if (typeof source === "string") {
+        image = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => resolve(img)
+          img.onerror = () => reject(new Error("Could not load the captured image."))
+          img.src = source
+        })
+      }
+
+      const sourceWidth =
+        "videoWidth" in image
+          ? (image as HTMLVideoElement).videoWidth
+          : (image as HTMLImageElement).width || (image as HTMLCanvasElement).width
+      const sourceHeight =
+        "videoHeight" in image
+          ? (image as HTMLVideoElement).videoHeight
+          : (image as HTMLImageElement).height || (image as HTMLCanvasElement).height
+      if (!sourceWidth || !sourceHeight) return typeof source === "string" ? source : source
+
+      const scale = sourceWidth < 1400 ? 2 : 1.4
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.round(sourceWidth * scale)
+      canvas.height = Math.round(sourceHeight * scale)
+      const context = canvas.getContext("2d")
+      if (!context) return typeof source === "string" ? source : source
+
+      context.imageSmoothingEnabled = false
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+      const data = pixels.data
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+        const boosted = gray > 150 ? 255 : gray < 110 ? 0 : (gray - 110) * (255 / 40)
+        data[i] = data[i + 1] = data[i + 2] = boosted
+      }
+      context.putImageData(pixels, 0, 0)
+      return canvas
+    } catch (error) {
+      console.warn("OCR preprocess failed, using the original image:", error)
+      return typeof source === "string" || source instanceof HTMLCanvasElement ? source : source
+    }
+  }
+
   // ── OCR PROCESS ─────────────────────────────────────────────────────────
   const processOCR = async (source: string | HTMLCanvasElement | File) => {
     if (processingRef.current) return
@@ -6602,11 +6652,18 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       stopCamera()
       setScanStatus("captured")
-      await new Promise((resolve) => setTimeout(resolve, 700))
+      await new Promise((resolve) => setTimeout(resolve, 300))
 
       setScanStatus("ocrProcessing")
+      const prepared = await preprocessLabelImage(source)
       const worker = await createWorker("eng")
-      const result = await worker.recognize(source)
+      await worker.setParameters({
+        tessedit_pageseg_mode: "6",
+        preserve_interword_spaces: "1",
+        tessedit_char_whitelist:
+          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-()%:/+&' ",
+      })
+      const result = await worker.recognize(prepared)
       const text = result?.data?.text?.trim() || ""
       await worker.terminate()
 
