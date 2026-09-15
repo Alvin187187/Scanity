@@ -15,7 +15,7 @@ class ProductNotFoundError(Exception):
 
 def validate_barcode(barcode: str) -> bool:
     """Basic format check before any lookup — barcodes are numeric, typically 8-13 digits."""
-    return barcode.isdigit() and 8 <= len(barcode) <= 13
+    return barcode.isdigit() and 8 <= len(barcode) <= 14
 
 
 async def get_product_by_barcode(db, barcode: str) -> dict:
