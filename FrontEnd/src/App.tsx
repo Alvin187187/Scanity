@@ -3977,16 +3977,7 @@ type ScanRecord = {
   favorite?: boolean
   imageUrl?: string
 }
-const RECENT_SCANS: ScanRecord[] = [
-  { name: "Milk", date: "Aug 9, 2026", time: "7:04 AM", score: 87, method: "Barcode", favorite: true, imageUrl: milkImg },
-  { name: "Orange Juice", date: "Aug 8, 2026", time: "6:30 PM", score: 72, method: "Barcode", imageUrl: orangeJuiceImg },
-  { name: "Chocolate Bar", date: "Aug 7, 2026", time: "3:12 PM", score: 58, method: "OCR", imageUrl: chocolateBarImg },
-  { name: "Corn Flakes", date: "Aug 6, 2026", time: "8:05 AM", score: 81, method: "Barcode", imageUrl: cornflakesImg },
-  { name: "Potato Chips", date: "Aug 5, 2026", time: "1:20 PM", score: 64, method: "OCR", imageUrl: potatoChipsImg },
-  { name: "Yogurt", date: "Aug 5, 2026", time: "9:10 AM", score: 91, method: "Barcode", favorite: true, imageUrl: yogurtImg },
-  { name: "Instant Noodles", date: "Aug 3, 2026", time: "12:40 PM", score: 55, method: "Barcode", imageUrl: beefNoodlesImg },
-  { name: "Tuna Sandwich", date: "Aug 2, 2026", time: "11:15 AM", score: 84, method: "OCR", favorite: true, imageUrl: tunaSandwichImg },
-]
+const RECENT_SCANS: ScanRecord[] = []
 // Colors are the same Soft Slate status hues DashboardIconRail's logout icon
 // and the Dashboard's own Scan History panel use (SOFT_SLATE.green/caution/
 // unsafe), so a score reads the same way on both screens.
@@ -4868,7 +4859,20 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                   </div>
 
                   <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-                    {RECENT_SCANS.map((scan) => {
+                    {RECENT_SCANS.length === 0 ? (
+                      <div
+                        style={{
+                          padding: "22px 12px",
+                          textAlign: "center",
+                          fontSize: 13,
+                          color: SOFT_SLATE.textMuted,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        No scans yet. Scan a barcode or nutrition label to start your history.
+                      </div>
+                    ) : (
+                    RECENT_SCANS.map((scan) => {
                       const status = scanStatusInfo(scan.score)
                       const statusColor =
                         status.label === "Safe"
@@ -4943,7 +4947,8 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                           </div>
                         </button>
                       )
-                    })}
+                    })
+                    )}
                   </div>
                 </div>
               </div>
@@ -11387,7 +11392,9 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                       textAlign: "center",
                     }}
                   >
-                    No scans found.
+                    {query.trim()
+                      ? "No scans match that search."
+                      : "No scans yet. Scan a barcode or nutrition label to start your history."}
                   </p>
                 </div>
               ) : (
