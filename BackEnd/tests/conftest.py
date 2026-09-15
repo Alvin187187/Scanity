@@ -1,20 +1,16 @@
-"""Default tests always use an isolated SQLite database, never a developer's .env DB."""
+"""
+Database schema fixture for test sessions.
+Creates all tables registered on Base.metadata before any tests execute.
+"""
+import pytest
+from app.database.session import Base, engine
 
-import os
+# Ensure all ORM models are imported so they register on Base.metadata
+from app.models import schema  # noqa: F401
 
 
-os.environ.update({
-    "PROJECT_NAME": "Scanity API",
-    "DATABASE_URL": "sqlite://",
-    "SECRET_KEY": "test-only-secret",
-    "JWT_ALGORITHM": "ES256",
-    "ACCESS_TOKEN_EXPIRE_MINUTES": "30",
-    "SUPABASE_URL": "https://example.supabase.co",
-    "SUPABASE_KEY": "test-only-supabase-key",
-    "OLLAMA_HOST": "http://localhost:11434",
-    "OPENFOODFACTS_API": "https://world.openfoodfacts.org/api/v2",
-    "DATABASE_CONNECT_TIMEOUT": "2",
-    "DATABASE_POOL_SIZE": "2",
-    "DATABASE_MAX_OVERFLOW": "0",
-    "DATABASE_POOL_TIMEOUT": "2",
-})
+@pytest.fixture(scope="session", autouse=True)
+def create_test_schema():
+    Base.metadata.create_all(bind=engine)
+    yield
+
