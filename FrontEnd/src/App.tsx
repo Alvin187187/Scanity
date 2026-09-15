@@ -26,6 +26,7 @@ import aboutLabelImg from "@/imports/bgss.png"
 import { loginUser, registerUser } from "./api/auth"
 import {
   clearSessionUser,
+  firstName,
   formatJoinedLabel,
   loadSessionUser,
   saveSessionUser,
@@ -4442,6 +4443,7 @@ function DashboardIconRail({
 
 function DashboardScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
+  const greetingName = firstName(loadSessionUser()?.name || "")
 
   const actionCards: {
     label: string
@@ -4558,7 +4560,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                       color: SOFT_SLATE.textPrimary,
                     }}
                   >
-                    Hello, User!
+                    Hello, {greetingName}!
                   </div>
                   <div
                     style={{
