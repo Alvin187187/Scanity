@@ -5113,7 +5113,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const isDuplicateScan = (barcode: string) => {
     const now = Date.now()
     const sameBarcode = lastScannedBarcodeRef.current === barcode
-    const scannedRecently = now - lastScanTimeRef.current < 5000
+    const scannedRecently = now - lastScanTimeRef.current < 1500
     return sameBarcode && scannedRecently
   }
 
@@ -5195,7 +5195,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       setScanStatus("captured")
       stopCamera()
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await new Promise((resolve) => setTimeout(resolve, 250))
       if (!isMountedRef.current) return
 
       setScanStatus("processing")
@@ -5213,7 +5213,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       }
 
       setScanStatus("success")
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await new Promise((resolve) => setTimeout(resolve, 400))
       if (isMountedRef.current) go("productResult")
     } catch (error) {
       console.error("Barcode processing error:", error)
@@ -5262,12 +5262,27 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       if (!videoRef.current) throw new Error("Camera preview could not be initialized.")
 
       const facing = requestedFacing || cameraFacing
-      const reader = new BrowserMultiFormatReader()
+      const hints = new Map()
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.ITF,
+      ])
+      hints.set(DecodeHintType.TRY_HARDER, true)
+      const reader = new BrowserMultiFormatReader(hints, 200)
       readerRef.current = reader
 
       await reader.decodeFromConstraints(
         {
-          video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            focusMode: "continuous",
+          } as MediaTrackConstraints,
           audio: false,
         },
         videoRef.current,
