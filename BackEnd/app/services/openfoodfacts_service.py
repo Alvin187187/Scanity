@@ -8,7 +8,10 @@ import httpx
 from typing import Optional
 
 OPENFOODFACTS_BASE_URL = "https://world.openfoodfacts.org/api/v2/product"
-REQUEST_TIMEOUT_SECONDS = 2.5  # Leaves headroom under the 4s hard scan timeout
+REQUEST_TIMEOUT_SECONDS = 8
+OPENFOODFACTS_HEADERS = {
+    "User-Agent": "Scanity/1.0 (https://scanity-eta.vercel.app)",
+}
 
 
 class OpenFoodFactsError(Exception):
@@ -27,7 +30,7 @@ async def fetch_product_by_barcode(barcode: str) -> Optional[dict]:
     
     try:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
-            response = await client.get(url)
+            response = await client.get(url, headers=OPENFOODFACTS_HEADERS)
     except httpx.TimeoutException:
         raise OpenFoodFactsError("OpenFoodFacts request timed out")
     except httpx.RequestError as e:
