@@ -9513,7 +9513,6 @@ function ProductCompareScreen({
   const [scenario, setScenario] =
     useState<CompareScenario>("success-a")
 
-  const [navOpen, setNavOpen] = useState(false)
 
   const H_PAD = isDesktop ? 40 : 20
 
@@ -9989,100 +9988,84 @@ function ProductCompareScreen({
     </section>
   )
 
+  const compareNavItems = [
+    { screen: "dashboard" as Screen, label: "Dashboard", path: null },
+    { screen: "productCompare" as Screen, label: "Compare Products", path: null },
+    { screen: "history" as Screen, label: "Scan History", path: null },
+    { screen: "settings" as Screen, label: "Settings", path: null },
+    { screen: "help" as Screen, label: "Help & FAQ", path: null },
+    { screen: "about" as Screen, label: "About", path: null },
+  ]
+
+  const CompareLayout = ({ children }: { children: ReactNode }) => (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        background: SOFT_SLATE.bg,
+        overflow: "hidden",
+        position: "relative",
+        fontFamily: SOFT_SLATE.fontFamily,
+      }}
+    >
+      {isDesktop && (
+        <div
+          style={{
+            position: "fixed",
+            top: 22,
+            left: 26,
+            bottom: 22,
+            width: 80,
+            zIndex: 5,
+          }}
+        >
+          <DashboardIconRail
+            go={go}
+            isDesktop
+            active="productCompare"
+            navItems={compareNavItems}
+          />
+        </div>
+      )}
+
+      {!isDesktop && (
+        <div style={{ padding: "12px 14px 0", boxSizing: "border-box" }}>
+          <DashboardIconRail
+            go={go}
+            isDesktop={false}
+            active="productCompare"
+            navItems={compareNavItems}
+          />
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          overflowY: "auto",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (scenario === "loading") {
     return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-
-          background: SOFT_SLATE.bg,
-
-          overflow: "hidden",
-          position: "relative",
-
-          fontFamily: SOFT_SLATE.fontFamily,
-        }}
-      >
-        <DashboardIconRail
-          go={go}
-          isDesktop={isDesktop}
-          active="productCompare"
-          navItems={[
-            {
-              screen: "dashboard",
-              label: "Dashboard",
-              path: null,
-            },
-            {
-              screen: "productCompare",
-              label: "Compare Products",
-              path: null,
-            },
-            {
-              screen: "settings",
-              label: "Settings",
-              path: null,
-            },
-            {
-              screen: "help",
-              label: "Help & FAQ",
-              path: null,
-            },
-            {
-              screen: "about",
-              label: "About",
-              path: null,
-            },
-          ]}
-        />
-
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-
-            marginLeft: isDesktop ? 80 : 0,
-          }}
-        >
-          {!isDesktop && (
-            <button
-              type="button"
-              onClick={() => setNavOpen(true)}
-              style={{
-                position: "fixed",
-                top: `calc(${SAFE_TOP} + 14px)`,
-                left: 14,
-                zIndex: 50,
-
-                width: 42,
-                height: 42,
-
-                border: "none",
-                borderRadius: 14,
-
-                background: SOFT_SLATE.bg,
-                color: SOFT_SLATE.green,
-
-                boxShadow: SOFT_SLATE.raisedSm,
-
-                cursor: "pointer",
-              }}
-            >
-              ☰
-            </button>
-          )}
-
+      <CompareLayout>
           <div
             style={{
               padding: `${
-                isDesktop
-                  ? "40px"
-                  : `calc(${SAFE_TOP} + 66px)`
+                isDesktop ? "40px" : "16px"
               } ${H_PAD}px 10px`,
             }}
           >
@@ -10178,8 +10161,7 @@ function ProductCompareScreen({
               </div>
             </Center>
           </div>
-        </div>
-      </div>
+      </CompareLayout>
     )
   }
 
@@ -10192,67 +10174,13 @@ function ProductCompareScreen({
     const isError = scenario === "error"
 
     return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-
-          background: SOFT_SLATE.bg,
-
-          overflow: "hidden",
-          position: "relative",
-
-          fontFamily: SOFT_SLATE.fontFamily,
-        }}
-      >
-        <DashboardIconRail
-          go={go}
-          isDesktop={isDesktop}
-          active="productCompare"
-          navItems={[
-            {
-              screen: "dashboard",
-              label: "Dashboard",
-              path: null,
-            },
-            {
-              screen: "productCompare",
-              label: "Compare Products",
-              path: null,
-            },
-            {
-              screen: "settings",
-              label: "Settings",
-              path: null,
-            },
-            {
-              screen: "help",
-              label: "Help & FAQ",
-              path: null,
-            },
-            {
-              screen: "about",
-              label: "About",
-              path: null,
-            },
-          ]}
-        />
-
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-            marginLeft: isDesktop ? 80 : 0,
-          }}
-        >
+      <CompareLayout>
           <div
             style={{
               padding: `${
                 isDesktop
                   ? "40px"
-                  : `calc(${SAFE_TOP} + 66px)`
+                  : "16px"
               } ${H_PAD}px 10px`,
             }}
           >
@@ -10388,8 +10316,7 @@ function ProductCompareScreen({
               </div>
             </Center>
           </div>
-        </div>
-      </div>
+      </CompareLayout>
     )
   }
 
@@ -10402,110 +10329,7 @@ function ProductCompareScreen({
   )
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-
-        background: SOFT_SLATE.bg,
-
-        overflow: "hidden",
-        position: "relative",
-
-        fontFamily: SOFT_SLATE.fontFamily,
-      }}
-    >
-      {/* ── Dashboard-style icon rail ───────────────────────────────────── */}
-
-      <DashboardIconRail
-        go={go}
-        isDesktop={isDesktop}
-        active="productCompare"
-        navItems={[
-          {
-            screen: "dashboard",
-            label: "Dashboard",
-            path: null,
-          },
-          {
-            screen: "productCompare",
-            label: "Compare Products",
-            path: null,
-          },
-          {
-            screen: "history",
-            label: "Scan History",
-            path: null,
-          },
-          {
-            screen: "settings",
-            label: "Settings",
-            path: null,
-          },
-          {
-            screen: "help",
-            label: "Help & FAQ",
-            path: null,
-          },
-          {
-            screen: "about",
-            label: "About",
-            path: null,
-          },
-        ]}
-      />
-
-      {/* ── Mobile menu button ────────────────────────────────────────────── */}
-
-      {!isDesktop && !navOpen && (
-        <button
-          type="button"
-          onClick={() => setNavOpen(true)}
-          aria-label="Open menu"
-          style={{
-            position: "fixed",
-            top: `calc(${SAFE_TOP} + 14px)`,
-            left: 14,
-
-            zIndex: 55,
-
-            width: 42,
-            height: 42,
-
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-
-            border: "none",
-            borderRadius: 14,
-
-            background: SOFT_SLATE.bg,
-            color: SOFT_SLATE.green,
-
-            boxShadow: SOFT_SLATE.raisedSm,
-
-            cursor: "pointer",
-
-            fontSize: 18,
-          }}
-        >
-          ☰
-        </button>
-      )}
-
-      {/* ── Main area ─────────────────────────────────────────────────────── */}
-
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-
-          display: "flex",
-          flexDirection: "column",
-
-          marginLeft: isDesktop ? 80 : 0,
-        }}
-      >
+    <CompareLayout>
         {/* ── Header ─────────────────────────────────────────────────────── */}
 
         <div
@@ -10513,7 +10337,7 @@ function ProductCompareScreen({
             padding: `${
               isDesktop
                 ? "40px"
-                : `calc(${SAFE_TOP} + 66px)`
+                : "16px"
             } ${H_PAD}px 10px`,
           }}
         >
@@ -11225,8 +11049,7 @@ function ProductCompareScreen({
 
           </Center>
         </div>
-      </div>
-    </div>
+    </CompareLayout>
   )
 }
 
