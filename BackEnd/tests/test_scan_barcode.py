@@ -35,7 +35,7 @@ unauthenticated_app.dependency_overrides[get_db] = fake_db
 unauthenticated_client = TestClient(unauthenticated_app)
 
 
-def test_found_barcode_returns_product_with_empty_flags(monkeypatch):
+def test_found_barcode_returns_product_with_analysis(monkeypatch):
     async def fake_get_product_by_barcode(db, barcode):
         return {
             "product_id": "11111111-1111-1111-1111-111111111111",
@@ -68,13 +68,10 @@ def test_found_barcode_returns_product_with_empty_flags(monkeypatch):
 
     assert data["product"]["barcode"] == "4800016640038"
     assert data["product"]["product_name"] == "Test Product"
-
-    assert data["allergy_flags"] == []
-    assert data["verdict"] is None
-    assert data["nutri_score_grade"] is None
-
-    assert "flagged_ingredients" not in data
-    assert "safety_result" not in data
+    assert data["verdict"] in {"safe", "caution", "avoid"}
+    assert data["explanation"]
+    assert isinstance(data["allergy_flags"], list)
+    assert isinstance(data["allergy_matches"], list)
 
 
 def test_unknown_barcode_returns_not_found(monkeypatch):

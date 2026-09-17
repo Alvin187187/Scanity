@@ -34,7 +34,8 @@ def test_confirmed_ingredients_endpoint():
                 " Sugar ",
                 "Milk",
                 " Salt ",
-            ]
+            ],
+            "user_allergies": ["milk"],
         },
     )
 
@@ -47,9 +48,9 @@ def test_confirmed_ingredients_endpoint():
         "Milk",
         "Salt",
     ]
-
-    assert data["allergy_flags"] == []
-    assert data["score"] is None
+    assert data["verdict"] == "avoid"
+    assert "Milk" in data["allergy_flags"]
+    assert data["explanation"]
 
 
 def test_edited_ingredients_replace_confirmed_list():
@@ -66,6 +67,7 @@ def test_edited_ingredients_replace_confirmed_list():
                 "Milk",
                 "Salt",
             ],
+            "user_allergies": [],
         },
     )
 
@@ -105,4 +107,30 @@ def test_missing_token_fails():
         },
     )
 
+    assert response.status_code == 401
+
+
+def test_image_upload_uses_rapidocr(monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.ocr_router.extract_text_from_image",
+        lambda image_bytes, content_type=None: "Ingredients: sugar, milk, salt",
+    )
+
+    response = client.post(
+        "/api/v1/scan/ocr/image",
+        files={"file": ("label.jpg", b"fake-image-bytes", "image/jpeg")},
+        data={"user_allergies": "milk"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "milk" in data["extracted_text"].lower()
+    assert data["verdict"] == "avoid"
+
+
+def test_image_upload_requires_auth():
+    response = unauthenticated_client.post(
+        "/api/v1/scan/ocr/image",
+        files={"file": ("label.jpg", b"fake-image-bytes", "image/jpeg")},
+    )
     assert response.status_code == 401

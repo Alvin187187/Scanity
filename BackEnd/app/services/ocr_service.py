@@ -1,67 +1,63 @@
 """
 OCR processing service for Scanity.
 
-Issue #150
+Issue #150 / #173
 
-This service handles:
-- cleaning OCR ingredient text
-- confirmed ingredient lists
-- user-edited ingredient lists
-
-RapidOCR, authentication, allergy checking, and scoring
-will be connected when their related backend work is ready.
+Cleans extracted ingredient text. RapidOCR reads the image; this step only
+parses the resulting text. Allergy flags and scoring are added by
+scan_analysis_service after parsing.
 """
+
+from __future__ import annotations
+
+import re
 
 
 class InvalidOCRInputError(Exception):
     """Raised when no usable ingredient input is provided."""
 
-    pass
-
 
 def clean_ingredient_text(text: str) -> list[str]:
-    """
-    Convert OCR ingredient text into a clean ingredient list.
-
-    Example:
-    "Sugar, Milk, Salt"
-
-    becomes:
-
-    ["Sugar", "Milk", "Salt"]
-    """
-
+    """Convert OCR ingredient text into a clean ingredient list."""
     if not text or not text.strip():
         return []
 
-    ingredients = []
+    working = text.strip()
+    match = re.search(r"ingredients?\s*:?\s*", working, flags=re.IGNORECASE)
+    if match:
+        working = working[match.end():]
 
-    for item in text.split(","):
-        cleaned_item = item.strip()
+    for stop in (
+        "nutrition facts",
+        "nutrition information",
+        "allergen information",
+        "contains:",
+        "serving size",
+        "calories",
+    ):
+        index = working.lower().find(stop)
+        if index > 0:
+            working = working[:index]
 
-        if cleaned_item:
-            ingredients.append(cleaned_item)
-
-    return ingredients
+    parts: list[str] = []
+    for chunk in re.split(r"[,;\n]", working):
+        cleaned = re.sub(r"\s+", " ", chunk)
+        cleaned = cleaned.strip(" .•*-")
+        cleaned = re.sub(r"^\d+\s*%\s*", "", cleaned).strip()
+        if 1 < len(cleaned) < 80:
+            parts.append(cleaned)
+    return parts[:40]
 
 
 def normalize_ingredients(ingredients: list[str]) -> list[str]:
-    """
-    Clean ingredients supplied by the user or frontend.
-    """
-
+    """Clean ingredients supplied by the user or frontend."""
     cleaned_ingredients = []
-
     for ingredient in ingredients:
-
         if not isinstance(ingredient, str):
             continue
-
-        cleaned_item = ingredient.strip()
-
+        cleaned_item = re.sub(r"\s+", " ", ingredient).strip(" .•*-")
         if cleaned_item:
             cleaned_ingredients.append(cleaned_item)
-
     return cleaned_ingredients
 
 
@@ -78,35 +74,19 @@ def process_ocr_result(
     2. Confirmed ingredients
     3. Ingredients parsed from OCR text
     """
-
     if edited_ingredients is not None:
-
-        parsed_ingredients = normalize_ingredients(
-            edited_ingredients
-        )
-
+        parsed_ingredients = normalize_ingredients(edited_ingredients)
     elif confirmed_ingredients is not None:
-
-        parsed_ingredients = normalize_ingredients(
-            confirmed_ingredients
-        )
-
+        parsed_ingredients = normalize_ingredients(confirmed_ingredients)
     else:
-
-        parsed_ingredients = clean_ingredient_text(
-            extracted_text
-        )
+        parsed_ingredients = clean_ingredient_text(extracted_text)
 
     if not parsed_ingredients:
-        raise InvalidOCRInputError(
-            "No usable ingredients were found."
-        )
+        raise InvalidOCRInputError("No usable ingredients were found.")
 
     return {
-        "extracted_text": extracted_text.strip(),
+        "extracted_text": (extracted_text or "").strip(),
         "parsed_ingredients": parsed_ingredients,
-
-        # Temporary placeholders required by Issue #150.
         "allergy_flags": [],
         "score": None,
     }

@@ -11,19 +11,29 @@ import { createWorker } from "tesseract.js"
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser"
 import { BarcodeFormat, DecodeHintType } from "@zxing/library"
 import logoImg from "@/imports/image-19.png"
-import beefNoodlesImg from "@/imports/beef_noodles.jpeg"
-import chickenNoodlesImg from "@/imports/chicken_noodles.jpeg"
-import milkImg from "@/imports/milk_scanity.jpeg"
 import orangeJuiceImg from "@/imports/orange_juice_scanity.jpeg"
-import chocolateBarImg from "@/imports/chocolate_scanity.jpeg"
-import potatoChipsImg from "@/imports/potato_chips.jpeg"
-import tunaSandwichImg from "@/imports/tuna_sandwhich.jpeg"
-import yogurtImg from "@/imports/yogurt.jpeg"
-import cornflakesImg from "@/imports/corn_flakes_scanity.jpeg"
 import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
 import { loginUser, registerUser } from "./api/auth"
+import { lookupBarcodeProduct } from "./api/scan"
+import { analyzeOcrText, extractOcrImage } from "./api/ocr"
+import {
+  allergyCategoriesForApi,
+  loadHealthProfile,
+  saveHealthProfile,
+} from "./api/healthProfile"
+import {
+  appendScanHistory,
+  historyDateLabel,
+  historyTimeLabel,
+  loadActiveScan,
+  loadScanHistory,
+  markScanFavorite,
+  saveActiveScan,
+  storedScanFromAnalysis,
+  type StoredScan,
+} from "./api/scanHistory"
 import {
   clearSessionUser,
   firstName,
@@ -2699,8 +2709,9 @@ const ALLERGY_LIST = [
   { id: "other", label: "Other", icon: "https://api.iconify.design/openmoji/plus.svg", iconBg: "#8A6FC4" },
 ]
 function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(["peanuts"]))
-  const [otherText, setOtherText] = useState("")
+  const existing = loadHealthProfile()
+  const [selected, setSelected] = useState<Set<string>>(new Set(existing.allergies))
+  const [otherText, setOtherText] = useState(existing.otherAllergy || "")
   const [buttonActive, setButtonActive] = useState(false)
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -2987,7 +2998,15 @@ function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
             {selected.size} selected
           </span>
           <button
-            onClick={() => go("health")}
+            onClick={() => {
+              const profile = loadHealthProfile()
+              saveHealthProfile({
+                ...profile,
+                allergies: Array.from(selected),
+                otherAllergy: otherText.trim(),
+              })
+              go("health")
+            }}
             onMouseEnter={() => setButtonActive(true)}
             onMouseLeave={() => setButtonActive(false)}
             style={{
@@ -3023,8 +3042,9 @@ const HEALTH_LIST = [
   { id: "none", label: "None of the above", icon: "https://api.iconify.design/openmoji/check-mark.svg", iconBg: "#6B9E4A" },
 ]
 function HealthScreen({ go }: { go: (s: Screen) => void }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [otherText, setOtherText] = useState("")
+  const existing = loadHealthProfile()
+  const [selected, setSelected] = useState<Set<string>>(new Set(existing.conditions))
+  const [otherText, setOtherText] = useState(existing.otherCondition || "")
   const [buttonActive, setButtonActive] = useState(false)
   const toggle = (item: string) => {
     setSelected((prev) => {
@@ -3332,7 +3352,15 @@ function HealthScreen({ go }: { go: (s: Screen) => void }) {
             {selected.size} selected
           </span>
           <button
-            onClick={() => go("loading")}
+            onClick={() => {
+              const profile = loadHealthProfile()
+              saveHealthProfile({
+                ...profile,
+                conditions: Array.from(selected),
+                otherCondition: otherText.trim(),
+              })
+              go("loading")
+            }}
             onMouseEnter={() => setButtonActive(true)}
             onMouseLeave={() => setButtonActive(false)}
             style={{
@@ -3969,6 +3997,7 @@ function AllSetScreen({ go }: { go: (s: Screen) => void }) {
 // nothing invented beyond that.
 type ScanMethod = "Barcode" | "OCR"
 type ScanRecord = {
+  id?: string
   name: string
   date: string
   time: string
@@ -3977,16 +4006,29 @@ type ScanRecord = {
   favorite?: boolean
   imageUrl?: string
 }
-const RECENT_SCANS: ScanRecord[] = [
-  { name: "Milk", date: "Aug 9, 2026", time: "7:04 AM", score: 87, method: "Barcode", favorite: true, imageUrl: milkImg },
-  { name: "Orange Juice", date: "Aug 8, 2026", time: "6:30 PM", score: 72, method: "Barcode", imageUrl: orangeJuiceImg },
-  { name: "Chocolate Bar", date: "Aug 7, 2026", time: "3:12 PM", score: 58, method: "OCR", imageUrl: chocolateBarImg },
-  { name: "Corn Flakes", date: "Aug 6, 2026", time: "8:05 AM", score: 81, method: "Barcode", imageUrl: cornflakesImg },
-  { name: "Potato Chips", date: "Aug 5, 2026", time: "1:20 PM", score: 64, method: "OCR", imageUrl: potatoChipsImg },
-  { name: "Yogurt", date: "Aug 5, 2026", time: "9:10 AM", score: 91, method: "Barcode", favorite: true, imageUrl: yogurtImg },
-  { name: "Instant Noodles", date: "Aug 3, 2026", time: "12:40 PM", score: 55, method: "Barcode", imageUrl: beefNoodlesImg },
-  { name: "Tuna Sandwich", date: "Aug 2, 2026", time: "11:15 AM", score: 84, method: "OCR", favorite: true, imageUrl: tunaSandwichImg },
-]
+
+function toScanRecord(scan: StoredScan): ScanRecord {
+  return {
+    id: scan.id,
+    name: scan.name,
+    date: historyDateLabel(scan.scannedAt) || "Today",
+    time: historyTimeLabel(scan.scannedAt),
+    score: scan.score,
+    method: scan.source === "ocr" ? "OCR" : "Barcode",
+    favorite: scan.favorite,
+    imageUrl: scan.imageUrl,
+  }
+}
+
+function loadScanRecords(): ScanRecord[] {
+  return loadScanHistory().map(toScanRecord)
+}
+
+function openStoredScan(id: string | undefined, go: (s: Screen) => void) {
+  const match = loadScanHistory().find((scan) => scan.id === id) || loadScanHistory()[0]
+  if (match) saveActiveScan(match)
+  go("productResult")
+}
 // Colors are the same Soft Slate status hues DashboardIconRail's logout icon
 // and the Dashboard's own Scan History panel use (SOFT_SLATE.green/caution/
 // unsafe), so a score reads the same way on both screens.
@@ -3996,25 +4038,22 @@ function scanStatusInfo(score: number): { label: string; color: string; bg: stri
   return { label: "Avoid", color: SOFT_SLATE.unsafe, bg: "#F1DEDA" }
 }
 // ── "1a Grouped activity list" ───────────────────────────────────────────────
-// Scan History layout direction: date sections, one panel per group, hairline
-// dividers between rows. RECENT_SCANS is already newest-first, so the first
-// distinct date present reads as "Today", the next as "Yesterday", and every
-// older date collapses into one combined "Earlier" section (grouping is based
-// on the data's own chronology rather than the wall clock, since these are
-// fixed demo dates). Rows inside "Earlier" keep showing their date, since the
-// section header no longer states it for them.
-const SCAN_DATE_ORDER = Array.from(new Set(RECENT_SCANS.map((scan) => scan.date)))
-function scanDateGroupLabel(date: string): string {
-  const index = SCAN_DATE_ORDER.indexOf(date)
+// Scan History layout: date sections, one panel per group, hairline
+// dividers between rows. History is newest-first from the user's real scans,
+// so the first distinct date present reads as "Today", the next as "Yesterday",
+// and older dates collapse into one "Earlier" section.
+function scanDateGroupLabel(date: string, dates: string[]): string {
+  const index = dates.indexOf(date)
   if (index === 0) return "Today"
   if (index === 1) return "Yesterday"
   return "Earlier"
 }
 type ScanGroup = { label: string; showDate: boolean; scans: ScanRecord[] }
 function groupScans(scans: ScanRecord[]): ScanGroup[] {
+  const dates = Array.from(new Set(scans.map((scan) => scan.date)))
   const groups: ScanGroup[] = []
   for (const scan of scans) {
-    const label = scanDateGroupLabel(scan.date)
+    const label = scanDateGroupLabel(scan.date, dates)
     const last = groups[groups.length - 1]
     if (last && last.label === label) {
       last.scans.push(scan)
@@ -4444,6 +4483,10 @@ function DashboardIconRail({
 function DashboardScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   const greetingName = firstName(loadSessionUser()?.name || "")
+  const [recentScans, setRecentScans] = useState<ScanRecord[]>([])
+  useEffect(() => {
+    setRecentScans(loadScanRecords())
+  }, [])
 
   const actionCards: {
     label: string
@@ -4868,7 +4911,20 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                   </div>
 
                   <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-                    {RECENT_SCANS.map((scan) => {
+                    {recentScans.length === 0 ? (
+                      <div
+                        style={{
+                          padding: "22px 12px",
+                          textAlign: "center",
+                          fontSize: 13,
+                          color: SOFT_SLATE.textMuted,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        No scans yet. Scan a barcode or nutrition label to start your history.
+                      </div>
+                    ) : (
+                    recentScans.map((scan) => {
                       const status = scanStatusInfo(scan.score)
                       const statusColor =
                         status.label === "Safe"
@@ -4880,7 +4936,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                         <button
                           type="button"
                           key={`${scan.name}-${scan.time}`}
-                          onClick={() => go("productResult")}
+                          onClick={() => openStoredScan(scan.id, go)}
                           style={{
                             width: "100%",
                             display: "flex",
@@ -4943,7 +4999,8 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                           </div>
                         </button>
                       )
-                    })}
+                    })
+                    )}
                   </div>
                 </div>
               </div>
@@ -5067,10 +5124,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
   const isDesktop = useIsDesktop()
 
-  // ── BACKEND API ───────────────────────────────────────────────────────────
-  const BACKEND_API_URL =
-    import.meta.env.VITE_BARCODE_LOOKUP_URL || "/api/barcode/lookup"
-
   // ── STOP CAMERA ───────────────────────────────────────────────────────────
   const stopCamera = () => {
     try {
@@ -5111,25 +5164,39 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const isDuplicateScan = (barcode: string) => {
     const now = Date.now()
     const sameBarcode = lastScannedBarcodeRef.current === barcode
-    const scannedRecently = now - lastScanTimeRef.current < 5000
+    const scannedRecently = now - lastScanTimeRef.current < 1500
     return sameBarcode && scannedRecently
   }
 
   // ── NORMALIZE BACKEND RESULT ──────────────────────────────────────────────
   const normalizeProductResult = (result: any, barcode: string): ProductResult => {
+    const product = result?.product || result?.productInformation || result?.product_information || {}
+    const ingredientList = Array.isArray(product?.ingredients)
+      ? product.ingredients
+          .map((item: { name?: string; ingredient_name?: string } | string) =>
+            typeof item === "string" ? item : item?.name || item?.ingredient_name || "",
+          )
+          .filter(Boolean)
+          .join(", ")
+      : ""
+
     return {
       ...result,
-      barcode: result?.barcode || barcode,
-      productInformation:
-        result?.productInformation || result?.product_information || result?.product || {},
-      product: result?.product || result?.productInformation || {},
+      barcode: result?.barcode || product?.barcode || barcode,
+      productInformation: result?.productInformation || result?.product_information || product,
+      product: {
+        ...product,
+        name: product?.name || product?.product_name,
+        product_name: product?.product_name || product?.name,
+        brand: product?.brand,
+      },
       ingredients:
         result?.ingredients ||
-        result?.product?.ingredients ||
-        result?.product?.ingredients_text ||
-        result?.productInformation?.ingredients ||
+        product?.ingredients_text ||
+        ingredientList ||
+        product?.ingredients ||
         "",
-      nutrition: result?.nutrition || result?.nutriments || result?.product?.nutrition || {},
+      nutrition: result?.nutrition || result?.nutriments || product?.nutrition || {},
     }
   }
 
@@ -5137,40 +5204,14 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const lookupBarcode = async (barcode: string) => {
     const cleanBarcode = barcode.trim()
     try {
-      const response = await fetch(BACKEND_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ barcode: cleanBarcode }),
-      })
-
-      let data: any = null
-      try {
-        data = await response.json()
-      } catch {
-        data = null
-      }
+      const data = await lookupBarcodeProduct(cleanBarcode, allergyCategoriesForApi())
 
       if (
-        response.status === 404 ||
         data?.found === false ||
         data?.productFound === false ||
         data?.product_found === false ||
         data?.status === "not_found"
       ) {
-        throw new Error("__PRODUCT_NOT_FOUND__")
-      }
-
-      if (response.status === 400 || response.status === 422) {
-        throw new Error(data?.message || data?.error || "The barcode sent to the server is invalid.")
-      }
-
-      if (!response.ok) {
-        throw new Error(data?.message || data?.error || "The server could not retrieve the product information.")
-      }
-
-      if (!data) throw new Error("The server returned an empty response.")
-
-      if (data?.product === null || data?.productInformation === null || data?.data === null) {
         throw new Error("__PRODUCT_NOT_FOUND__")
       }
 
@@ -5205,7 +5246,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       setScanStatus("captured")
       stopCamera()
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await new Promise((resolve) => setTimeout(resolve, 250))
       if (!isMountedRef.current) return
 
       setScanStatus("processing")
@@ -5216,14 +5257,29 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       setProductResult(normalized)
 
       try {
-        localStorage.setItem("scanityProductResult", JSON.stringify(normalized))
+        const product = result?.product || {}
+        const stored = storedScanFromAnalysis({
+          source: "barcode",
+          name: product.product_name || product.name,
+          brand: product.brand,
+          barcode: cleanBarcode,
+          imageUrl: product.image_url,
+          ingredients: product.ingredients,
+          ingredientsText: product.ingredients_raw_text,
+          verdict: result?.verdict,
+          grade: result?.nutri_score_grade,
+          explanation: result?.explanation,
+          allergyFlags: result?.allergy_flags,
+          nutrition: product.nutrition,
+        })
+        appendScanHistory(stored)
         localStorage.setItem("scanityLastBarcode", cleanBarcode)
       } catch (storageError) {
         console.warn("Unable to save scan result:", storageError)
       }
 
       setScanStatus("success")
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await new Promise((resolve) => setTimeout(resolve, 400))
       if (isMountedRef.current) go("productResult")
     } catch (error) {
       console.error("Barcode processing error:", error)
@@ -5272,12 +5328,27 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       if (!videoRef.current) throw new Error("Camera preview could not be initialized.")
 
       const facing = requestedFacing || cameraFacing
-      const reader = new BrowserMultiFormatReader()
+      const hints = new Map()
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.ITF,
+      ])
+      hints.set(DecodeHintType.TRY_HARDER, true)
+      const reader = new BrowserMultiFormatReader(hints, 200)
       readerRef.current = reader
 
       await reader.decodeFromConstraints(
         {
-          video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            focusMode: "continuous",
+          } as MediaTrackConstraints,
           audio: false,
         },
         videoRef.current,
@@ -6588,7 +6659,68 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       .slice(0, 30)
   }
 
+  const preprocessLabelImage = async (
+    source: string | HTMLCanvasElement | File,
+  ): Promise<HTMLCanvasElement | string> => {
+    try {
+      let image: CanvasImageSource | HTMLCanvasElement = source as HTMLCanvasElement
+      if (source instanceof File) {
+        image = await createImageBitmap(source)
+      } else if (typeof source === "string") {
+        image = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => resolve(img)
+          img.onerror = () => reject(new Error("Could not load the captured image."))
+          img.src = source
+        })
+      }
+
+      const sourceWidth =
+        "videoWidth" in image
+          ? (image as HTMLVideoElement).videoWidth
+          : (image as HTMLImageElement).width || (image as HTMLCanvasElement).width
+      const sourceHeight =
+        "videoHeight" in image
+          ? (image as HTMLVideoElement).videoHeight
+          : (image as HTMLImageElement).height || (image as HTMLCanvasElement).height
+      if (!sourceWidth || !sourceHeight) return typeof source === "string" ? source : source
+
+      const scale = sourceWidth < 1400 ? 2 : 1.4
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.round(sourceWidth * scale)
+      canvas.height = Math.round(sourceHeight * scale)
+      const context = canvas.getContext("2d")
+      if (!context) return typeof source === "string" ? source : source
+
+      context.imageSmoothingEnabled = false
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+      const data = pixels.data
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+        const boosted = gray > 150 ? 255 : gray < 110 ? 0 : (gray - 110) * (255 / 40)
+        data[i] = data[i + 1] = data[i + 2] = boosted
+      }
+      context.putImageData(pixels, 0, 0)
+      return canvas
+    } catch (error) {
+      console.warn("OCR preprocess failed, using the original image:", error)
+      return typeof source === "string" || source instanceof HTMLCanvasElement ? source : source
+    }
+  }
+
   // ── OCR PROCESS ─────────────────────────────────────────────────────────
+  const sourceToBlob = async (source: string | HTMLCanvasElement | File): Promise<Blob> => {
+    if (source instanceof File) return source
+    if (source instanceof HTMLCanvasElement) {
+      const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.86))
+      if (blob) return blob
+      throw new Error("Unable to capture the nutrition label image.")
+    }
+    const response = await fetch(source)
+    return response.blob()
+  }
+
   const processOCR = async (source: string | HTMLCanvasElement | File) => {
     if (processingRef.current) return
     processingRef.current = true
@@ -6597,19 +6729,36 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       stopCamera()
       setScanStatus("captured")
-      await new Promise((resolve) => setTimeout(resolve, 700))
+      await new Promise((resolve) => setTimeout(resolve, 300))
 
       setScanStatus("ocrProcessing")
-      const worker = await createWorker("eng")
-      const result = await worker.recognize(source)
-      const text = result?.data?.text?.trim() || ""
-      await worker.terminate()
+      let text = ""
+      let parsedIngredients: string[] = []
+
+      try {
+        const data = await extractOcrImage(await sourceToBlob(source), allergyCategoriesForApi())
+        text = data?.extracted_text || ""
+        parsedIngredients = Array.isArray(data?.parsed_ingredients) ? data.parsed_ingredients : []
+      } catch (apiError) {
+        console.warn("RapidOCR API unavailable, using on-device text fallback:", apiError)
+        const prepared = await preprocessLabelImage(source)
+        const worker = await createWorker("eng")
+        await worker.setParameters({
+          tessedit_pageseg_mode: "6",
+          preserve_interword_spaces: "1",
+          tessedit_char_whitelist:
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-()%:/+&' ",
+        })
+        const result = await worker.recognize(prepared)
+        text = result?.data?.text?.trim() || ""
+        await worker.terminate()
+        parsedIngredients = parseIngredients(text)
+      }
 
       if (!text) throw new Error("No text was detected. Please make sure the nutrition label is clear and readable.")
 
-      const parsedIngredients = parseIngredients(text)
       setExtractedText(text)
-      setIngredients(parsedIngredients)
+      setIngredients(parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(text))
 
       try {
         localStorage.setItem(
@@ -6690,64 +6839,30 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       setScanStatus("productProcessing")
 
-      const combinedText = `${extractedText} ${ingredients.join(" ")}`.toLowerCase()
-      await new Promise((resolve) => setTimeout(resolve, 1600))
+      const cleanedIngredients = ingredients.map((item) => item.trim()).filter(Boolean)
+      const data = await analyzeOcrText({
+        extracted_text: extractedText,
+        edited_ingredients: cleanedIngredients,
+        user_allergies: allergyCategoriesForApi(),
+        product_name: "Label scan",
+      })
 
-      let product = {
-        name: "Sample Nutrition Product",
-        brand: "Scanity Demo",
-        category: "Food Product",
-        score: 85,
-        status: "Safe",
-        calories: "120 kcal",
-        sugar: "8 g",
-        sodium: "90 mg",
-        protein: "4 g",
-        ingredients: ingredients.length > 0 ? ingredients : ["Water", "Sugar", "Milk"],
-      }
-
-      if (combinedText.includes("milk") || combinedText.includes("fresh milk")) {
-        product = {
-          name: "Fresh Milk", brand: "Sample Brand", category: "Dairy", score: 87, status: "Safe",
-          calories: "120 kcal", sugar: "8 g", sodium: "90 mg", protein: "4 g",
-          ingredients: ingredients.length > 0 ? ingredients : ["Milk", "Water", "Vitamin A", "Vitamin D"],
-        }
-      } else if (combinedText.includes("juice") || combinedText.includes("orange")) {
-        product = {
-          name: "Orange Juice", brand: "Sample Brand", category: "Beverage", score: 72, status: "Fair",
-          calories: "110 kcal", sugar: "22 g", sodium: "10 mg", protein: "1 g",
-          ingredients: ingredients.length > 0 ? ingredients : ["Orange Juice", "Water", "Sugar", "Citric Acid"],
-        }
-      } else if (combinedText.includes("chocolate") || combinedText.includes("cocoa")) {
-        product = {
-          name: "Chocolate Snack", brand: "Sample Brand", category: "Snack", score: 62, status: "Caution",
-          calories: "210 kcal", sugar: "18 g", sodium: "80 mg", protein: "3 g",
-          ingredients: ingredients.length > 0 ? ingredients : ["Sugar", "Cocoa", "Milk", "Wheat"],
-        }
-      }
-
-      const productResult = {
-        ...product,
+      const stored = storedScanFromAnalysis({
         source: "ocr",
-        extractedText,
-        ingredients: product.ingredients,
-        scannedAt: new Date().toISOString(),
-        allergyStatus: "Checking allergies...",
-        healthAnalysis:
-          product.score >= 80
-            ? "This product has a generally good nutrition profile."
-            : product.score >= 60
-              ? "This product is acceptable but should be consumed in moderation."
-              : "This product should be consumed carefully.",
-      }
+        name: data?.product_name || "Label scan",
+        ingredients: data?.parsed_ingredients || cleanedIngredients,
+        ingredientsText: data?.extracted_text || extractedText,
+        verdict: data?.verdict,
+        grade: data?.nutri_score_grade || data?.score,
+        explanation: data?.explanation,
+        allergyFlags: data?.allergy_flags,
+      })
+      appendScanHistory(stored)
 
-      localStorage.setItem("scanityProductResult", JSON.stringify(productResult))
-      localStorage.setItem("scanityLastScan", JSON.stringify(productResult))
-
-      setProductName(product.name)
+      setProductName(stored.name)
       setProductFound(true)
 
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 400))
       go("productResult")
     } catch (error) {
       console.error("Product lookup error:", error)
@@ -7508,18 +7623,26 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
 // ── Product Result Screen ─────────────────────────────────────────────────────
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
+  const scan = loadActiveScan()
 
-  // Nutrition grade (A–E) reflects ingredient/nutrition quality only — it is
-  // calculated from the product itself and is never lowered just because an
-  // ingredient happens to match this user's saved allergy profile. A product
-  // can be Grade A and still be flagged unsafe for a specific person; that
-  // personalized check is the separate Safety verdict below.
-  const grade: NutritionGrade = "a"
-
-  const verdict: CompareVerdict = "avoid"
-  const verdictReason =
-    "Flagged against your saved allergy profile — see allergens below."
-  const allergens = ["wheat", "soy"]
+  const rawGrade = scan?.grade
+  const grade: NutritionGrade | null =
+    rawGrade === "a" ||
+    rawGrade === "b" ||
+    rawGrade === "c" ||
+    rawGrade === "d" ||
+    rawGrade === "e"
+      ? rawGrade
+      : null
+  const verdict: CompareVerdict = (scan?.verdict as CompareVerdict) || null
+  const verdictReason = scan?.explanation || "Scan a barcode or nutrition label to see a safety result."
+  const allergens = scan?.allergens || []
+  const productName = scan?.name || "No product scanned yet"
+  const productBrand = [scan?.brand, scan?.barcode ? `Barcode ${scan.barcode}` : scan?.source === "ocr" ? "OCR label" : null]
+    .filter(Boolean)
+    .join(" · ") || "Scan a product to fill this page"
+  const imageUrl = scan?.imageUrl
+  const [saved, setSaved] = useState(Boolean(scan?.favorite))
 
   return (
     <div
@@ -7567,15 +7690,32 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               marginBottom: 16,
             }}
           >
+            {imageUrl ? (
             <img
-              src={beefNoodlesImg}
-              alt="Noodles Beef"
+              src={imageUrl}
+              alt={productName}
               style={{
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
               }}
             />
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "rgba(26,18,9,0.4)",
+                  fontFamily: FONT_BODY,
+                  fontSize: 13,
+                }}
+              >
+                No product photo
+              </div>
+            )}
           </div>
 
           {/* ── Product Name + Grade ──────────────────────────────────────── */}
@@ -7597,7 +7737,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                   color: C.black,
                 }}
               >
-                Noodles Beef
+                {productName}
               </p>
 
               <p
@@ -7609,7 +7749,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                   marginTop: 2,
                 }}
               >
-                Brand · 85g pack
+                {productBrand}
               </p>
             </div>
 
@@ -7691,6 +7831,11 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             {/* SAVE */}
             <button
               type="button"
+              onClick={() => {
+                if (!scan) return
+                markScanFavorite(scan.id, true)
+                setSaved(true)
+              }}
               style={{
                 flex: 1,
                 padding: "13px",
@@ -7704,7 +7849,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 cursor: "pointer",
               }}
             >
-              SAVE
+              {saved ? "SAVED" : "SAVE"}
             </button>
 
             {/* COMPARE */}
@@ -7890,64 +8035,6 @@ type CompareProduct = {
     nutrition: number
     processing: number
   } | null
-}
-
-const COMPARE_PRODUCT_A: CompareProduct = {
-  name: "Noodles Beef",
-  brand: "Golden Wok",
-  quantity: "85g pack",
-  imageUrl: beefNoodlesImg,
-  grade: "a",
-  verdict: "avoid",
-  verdictReason:
-    "Flagged against your saved allergy profile — see allergens detected below.",
-  allergens: ["wheat", "soy"],
-  ingredientsText:
-    "Wheat flour, palm oil, salt, beef flavoring (contains soy), sodium benzoate, maltodextrin, monosodium glutamate, dried vegetables (cabbage, carrot, scallion), spices, sugar, caramel color, disodium inosinate, disodium guanylate.",
-  nutrition: {
-    energyKcal100g: 436,
-    sugars100g: 4,
-    fat100g: 17,
-    saturatedFat100g: 8,
-    carbohydrates100g: 61,
-    proteins100g: 9,
-    sodium100g: 0.84,
-    fiber100g: 2,
-  },
-  breakdown: {
-    ingredient: 54,
-    nutrition: 48,
-    processing: 40,
-  },
-}
-
-const COMPARE_PRODUCT_B: CompareProduct = {
-  name: "Noodles Chicken",
-  brand: "Golden Wok",
-  quantity: "85g pack",
-  imageUrl: chickenNoodlesImg,
-  grade: "b",
-  verdict: "safe",
-  verdictReason:
-    "No allergens or ingredients flagged against your saved profile.",
-  allergens: [],
-  ingredientsText:
-    "Wheat flour, palm oil, salt, chicken flavoring, dried vegetables (carrot, scallion, corn), spices, sugar, turmeric, disodium inosinate, disodium guanylate.",
-  nutrition: {
-    energyKcal100g: 410,
-    sugars100g: 1,
-    fat100g: 14,
-    saturatedFat100g: 6,
-    carbohydrates100g: 58,
-    proteins100g: 10,
-    sodium100g: 0.41,
-    fiber100g: 3,
-  },
-  breakdown: {
-    ingredient: 66,
-    nutrition: 61,
-    processing: 55,
-  },
 }
 
 // ── Status Glyphs ────────────────────────────────────────────────────────────
@@ -9448,10 +9535,10 @@ function ProductCompareScreen({
   goBack: () => void
 }) {
   const isDesktop = useIsDesktop()
+  const history = loadScanHistory()
   const [scenario, setScenario] =
-    useState<CompareScenario>("success-a")
+    useState<CompareScenario>(history.length >= 2 ? "success-a" : "initial")
 
-  const [navOpen, setNavOpen] = useState(false)
 
   const H_PAD = isDesktop ? 40 : 20
 
@@ -9496,22 +9583,34 @@ function ProductCompareScreen({
 
   // ── Product data ──────────────────────────────────────────────────────────
 
-  let a: CompareProduct = COMPARE_PRODUCT_A
-  let b: CompareProduct = COMPARE_PRODUCT_B
+  const toCompareProduct = (scan: StoredScan): CompareProduct => ({
+    name: scan.name,
+    brand: scan.brand,
+    quantity: scan.barcode || (scan.source === "ocr" ? "Label scan" : undefined),
+    imageUrl: scan.imageUrl,
+    grade: scan.grade,
+    verdict: scan.verdict,
+    verdictReason: scan.explanation,
+    allergens: scan.allergens,
+    ingredientsText: scan.ingredientsText,
+    nutrition: scan.nutrition as CompareProduct["nutrition"],
+    breakdown: null,
+  })
 
-  if (scenario === "success-none") {
-    a = {
-      ...a,
-      grade: "c",
-      verdict: "caution",
-    }
-
-    b = {
-      ...b,
-      grade: "c",
-      verdict: "caution",
-    }
-  }
+  let a: CompareProduct = history[0]
+    ? toCompareProduct(history[0])
+    : {
+        name: "First product",
+        grade: null,
+        verdict: null,
+      }
+  let b: CompareProduct = history[1]
+    ? toCompareProduct(history[1])
+    : {
+        name: "Second product",
+        grade: null,
+        verdict: null,
+      }
 
   if (scenario === "incomplete") {
     b = {
@@ -9927,100 +10026,169 @@ function ProductCompareScreen({
     </section>
   )
 
+  const compareNavItems = [
+    { screen: "dashboard" as Screen, label: "Dashboard", path: null },
+    { screen: "productCompare" as Screen, label: "Compare Products", path: null },
+    { screen: "history" as Screen, label: "Scan History", path: null },
+    { screen: "settings" as Screen, label: "Settings", path: null },
+    { screen: "help" as Screen, label: "Help & FAQ", path: null },
+    { screen: "about" as Screen, label: "About", path: null },
+  ]
+
+  const CompareLayout = ({ children }: { children: ReactNode }) => (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        background: SOFT_SLATE.bg,
+        overflow: "hidden",
+        position: "relative",
+        fontFamily: SOFT_SLATE.fontFamily,
+      }}
+    >
+      {isDesktop && (
+        <div
+          style={{
+            position: "fixed",
+            top: 22,
+            left: 26,
+            bottom: 22,
+            width: 80,
+            zIndex: 5,
+          }}
+        >
+          <DashboardIconRail
+            go={go}
+            isDesktop
+            active="productCompare"
+            navItems={compareNavItems}
+          />
+        </div>
+      )}
+
+      {!isDesktop && (
+        <div style={{ padding: "12px 14px 0", boxSizing: "border-box" }}>
+          <DashboardIconRail
+            go={go}
+            isDesktop={false}
+            active="productCompare"
+            navItems={compareNavItems}
+          />
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          overflowY: "auto",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+
+  if (scenario === "initial" || history.length < 2) {
+    return (
+      <CompareLayout>
+        <div
+          style={{
+            padding: `${isDesktop ? "40px" : "16px"} ${H_PAD}px 10px`,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <BackBtn onPress={goBack} />
+            <h1
+              style={{
+                margin: 0,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontWeight: 800,
+                fontSize: 23,
+                color: SOFT_SLATE.textPrimary,
+              }}
+            >
+              Compare Products
+            </h1>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: `20px ${H_PAD}px 50px` }}>
+          <Center maxWidth={700}>
+            <div
+              style={{
+                ...raisedCard,
+                padding: isDesktop ? 48 : 30,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+                gap: 14,
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 17,
+                  fontWeight: 800,
+                  color: SOFT_SLATE.textPrimary,
+                }}
+              >
+                Scan two products first
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  maxWidth: 420,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 12.5,
+                  lineHeight: 1.6,
+                  color: SOFT_SLATE.textSecondary,
+                }}
+              >
+                Compare uses your latest real scans. Scan a barcode or nutrition label twice, then come back here.
+              </p>
+              <button
+                type="button"
+                onClick={() => go("barcode")}
+                style={{
+                  marginTop: 8,
+                  padding: "12px 24px",
+                  border: "none",
+                  borderRadius: 15,
+                  background: SOFT_SLATE.bg,
+                  color: SOFT_SLATE.green,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontWeight: 800,
+                  fontSize: 12.5,
+                  boxShadow: SOFT_SLATE.raisedBtn,
+                  cursor: "pointer",
+                }}
+              >
+                Scan a product
+              </button>
+            </div>
+          </Center>
+        </div>
+      </CompareLayout>
+    )
+  }
+
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (scenario === "loading") {
     return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-
-          background: SOFT_SLATE.bg,
-
-          overflow: "hidden",
-          position: "relative",
-
-          fontFamily: SOFT_SLATE.fontFamily,
-        }}
-      >
-        <DashboardIconRail
-          go={go}
-          isDesktop={isDesktop}
-          active="productCompare"
-          navItems={[
-            {
-              screen: "dashboard",
-              label: "Dashboard",
-              path: null,
-            },
-            {
-              screen: "productCompare",
-              label: "Compare Products",
-              path: null,
-            },
-            {
-              screen: "settings",
-              label: "Settings",
-              path: null,
-            },
-            {
-              screen: "help",
-              label: "Help & FAQ",
-              path: null,
-            },
-            {
-              screen: "about",
-              label: "About",
-              path: null,
-            },
-          ]}
-        />
-
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-
-            marginLeft: isDesktop ? 80 : 0,
-          }}
-        >
-          {!isDesktop && (
-            <button
-              type="button"
-              onClick={() => setNavOpen(true)}
-              style={{
-                position: "fixed",
-                top: `calc(${SAFE_TOP} + 14px)`,
-                left: 14,
-                zIndex: 50,
-
-                width: 42,
-                height: 42,
-
-                border: "none",
-                borderRadius: 14,
-
-                background: SOFT_SLATE.bg,
-                color: SOFT_SLATE.green,
-
-                boxShadow: SOFT_SLATE.raisedSm,
-
-                cursor: "pointer",
-              }}
-            >
-              ☰
-            </button>
-          )}
-
+      <CompareLayout>
           <div
             style={{
               padding: `${
-                isDesktop
-                  ? "40px"
-                  : `calc(${SAFE_TOP} + 66px)`
+                isDesktop ? "40px" : "16px"
               } ${H_PAD}px 10px`,
             }}
           >
@@ -10116,8 +10284,7 @@ function ProductCompareScreen({
               </div>
             </Center>
           </div>
-        </div>
-      </div>
+      </CompareLayout>
     )
   }
 
@@ -10130,67 +10297,13 @@ function ProductCompareScreen({
     const isError = scenario === "error"
 
     return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-
-          background: SOFT_SLATE.bg,
-
-          overflow: "hidden",
-          position: "relative",
-
-          fontFamily: SOFT_SLATE.fontFamily,
-        }}
-      >
-        <DashboardIconRail
-          go={go}
-          isDesktop={isDesktop}
-          active="productCompare"
-          navItems={[
-            {
-              screen: "dashboard",
-              label: "Dashboard",
-              path: null,
-            },
-            {
-              screen: "productCompare",
-              label: "Compare Products",
-              path: null,
-            },
-            {
-              screen: "settings",
-              label: "Settings",
-              path: null,
-            },
-            {
-              screen: "help",
-              label: "Help & FAQ",
-              path: null,
-            },
-            {
-              screen: "about",
-              label: "About",
-              path: null,
-            },
-          ]}
-        />
-
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-            marginLeft: isDesktop ? 80 : 0,
-          }}
-        >
+      <CompareLayout>
           <div
             style={{
               padding: `${
                 isDesktop
                   ? "40px"
-                  : `calc(${SAFE_TOP} + 66px)`
+                  : "16px"
               } ${H_PAD}px 10px`,
             }}
           >
@@ -10326,8 +10439,7 @@ function ProductCompareScreen({
               </div>
             </Center>
           </div>
-        </div>
-      </div>
+      </CompareLayout>
     )
   }
 
@@ -10340,110 +10452,7 @@ function ProductCompareScreen({
   )
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-
-        background: SOFT_SLATE.bg,
-
-        overflow: "hidden",
-        position: "relative",
-
-        fontFamily: SOFT_SLATE.fontFamily,
-      }}
-    >
-      {/* ── Dashboard-style icon rail ───────────────────────────────────── */}
-
-      <DashboardIconRail
-        go={go}
-        isDesktop={isDesktop}
-        active="productCompare"
-        navItems={[
-          {
-            screen: "dashboard",
-            label: "Dashboard",
-            path: null,
-          },
-          {
-            screen: "productCompare",
-            label: "Compare Products",
-            path: null,
-          },
-          {
-            screen: "history",
-            label: "Scan History",
-            path: null,
-          },
-          {
-            screen: "settings",
-            label: "Settings",
-            path: null,
-          },
-          {
-            screen: "help",
-            label: "Help & FAQ",
-            path: null,
-          },
-          {
-            screen: "about",
-            label: "About",
-            path: null,
-          },
-        ]}
-      />
-
-      {/* ── Mobile menu button ────────────────────────────────────────────── */}
-
-      {!isDesktop && !navOpen && (
-        <button
-          type="button"
-          onClick={() => setNavOpen(true)}
-          aria-label="Open menu"
-          style={{
-            position: "fixed",
-            top: `calc(${SAFE_TOP} + 14px)`,
-            left: 14,
-
-            zIndex: 55,
-
-            width: 42,
-            height: 42,
-
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-
-            border: "none",
-            borderRadius: 14,
-
-            background: SOFT_SLATE.bg,
-            color: SOFT_SLATE.green,
-
-            boxShadow: SOFT_SLATE.raisedSm,
-
-            cursor: "pointer",
-
-            fontSize: 18,
-          }}
-        >
-          ☰
-        </button>
-      )}
-
-      {/* ── Main area ─────────────────────────────────────────────────────── */}
-
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-
-          display: "flex",
-          flexDirection: "column",
-
-          marginLeft: isDesktop ? 80 : 0,
-        }}
-      >
+    <CompareLayout>
         {/* ── Header ─────────────────────────────────────────────────────── */}
 
         <div
@@ -10451,7 +10460,7 @@ function ProductCompareScreen({
             padding: `${
               isDesktop
                 ? "40px"
-                : `calc(${SAFE_TOP} + 66px)`
+                : "16px"
             } ${H_PAD}px 10px`,
           }}
         >
@@ -11163,8 +11172,7 @@ function ProductCompareScreen({
 
           </Center>
         </div>
-      </div>
-    </div>
+    </CompareLayout>
   )
 }
 
@@ -11173,8 +11181,12 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const [query, setQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
+  const [recentScans, setRecentScans] = useState<ScanRecord[]>([])
+  useEffect(() => {
+    setRecentScans(loadScanRecords())
+  }, [])
 
-  const scans = RECENT_SCANS.filter((scan) =>
+  const scans = recentScans.filter((scan) =>
     scan.name.toLowerCase().includes(query.toLowerCase()),
   )
 
@@ -11387,7 +11399,9 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                       textAlign: "center",
                     }}
                   >
-                    No scans found.
+                    {query.trim()
+                      ? "No scans match that search."
+                      : "No scans yet. Scan a barcode or nutrition label to start your history."}
                   </p>
                 </div>
               ) : (
@@ -11443,7 +11457,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                         <ScanRow
                           key={`${scan.name}-${scan.time}`}
                           scan={scan}
-                          onView={() => go("productResult")}
+                          onView={() => openStoredScan(scan.id, go)}
                           showDate={group.showDate}
                           isLast={index === group.scans.length - 1}
                         />
@@ -11788,7 +11802,7 @@ function ProfileScreen({
 
   // ── Saved preferences ────────────────────────────────────────────────────
   const [savedAllergies, setSavedAllergies] =
-    useState<Set<string>>(new Set())
+    useState<Set<string>>(new Set(loadHealthProfile().allergies))
 
   const [allergies, setAllergies] =
     useState<Set<string>>(
@@ -11796,7 +11810,7 @@ function ProfileScreen({
     )
 
   const [savedHealth, setSavedHealth] =
-    useState<Set<string>>(new Set())
+    useState<Set<string>>(new Set(loadHealthProfile().conditions))
 
   const [health, setHealth] =
     useState<Set<string>>(
@@ -11862,6 +11876,12 @@ function ProfileScreen({
   const handleSave = () => {
     setSavedAllergies(new Set(allergies))
     setSavedHealth(new Set(health))
+    const profile = loadHealthProfile()
+    saveHealthProfile({
+      ...profile,
+      allergies: Array.from(allergies),
+      conditions: Array.from(health),
+    })
   }
 
   // ── Start editing identity ───────────────────────────────────────────────
@@ -11908,10 +11928,11 @@ function ProfileScreen({
       .join(", ") ||
     "Nothing saved yet"
 
+  const historyRecords = loadScanRecords()
   const labelsScanned =
-    RECENT_SCANS.length
+    historyRecords.length
 
-  const lastScan = RECENT_SCANS[0]
+  const lastScan = historyRecords[0]
 
   const lastScanLabel = lastScan
     ? `${lastScan.name} · ${lastScan.date}`

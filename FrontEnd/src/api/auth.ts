@@ -22,7 +22,7 @@ const API_BASE_URL = trimTrailingSlash(
     (import.meta.env.DEV ? "http://localhost:8000/api/v1" : ""),
 )
 
-function requireApiBaseUrl() {
+export function requireApiBaseUrl() {
   if (!API_BASE_URL) {
     throw new Error("AUTH_API_NOT_READY")
   }

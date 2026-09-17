@@ -15,7 +15,7 @@ class ProductNotFoundError(Exception):
 
 def validate_barcode(barcode: str) -> bool:
     """Basic format check before any lookup — barcodes are numeric, typically 8-13 digits."""
-    return barcode.isdigit() and 8 <= len(barcode) <= 13
+    return barcode.isdigit() and 8 <= len(barcode) <= 14
 
 
 async def get_product_by_barcode(db, barcode: str) -> dict:
@@ -27,9 +27,18 @@ async def get_product_by_barcode(db, barcode: str) -> dict:
     if not validate_barcode(barcode):
         raise ValueError("Invalid barcode format")
 
-    # 1. Cache check — local DB is the cache, per the Definition of Done
+    # 1. Cache check — local DB is the cache, per the Definition of Done.
+    # Products table does not store nutriments/image, so a cache hit can miss
+    # Nutri-Score inputs. Re-fetch OFF once to enrich those fields.
     cached = _get_local_product(db, barcode)
     if cached:
+        if cached.get("nutrition") is None or not cached.get("image_url"):
+            try:
+                raw_product = await fetch_product_by_barcode(barcode)
+            except OpenFoodFactsError:
+                return cached
+            if raw_product:
+                return _enrich_cached_product(cached, raw_product, barcode)
         return cached
 
     # 2. Not cached -> call OpenFoodFacts
@@ -47,7 +56,25 @@ async def get_product_by_barcode(db, barcode: str) -> dict:
     mapped = _map_openfoodfacts_to_product_schema(raw_product, barcode)
     _validate_product(mapped)
     stored = _store_product(db, mapped)
-    return stored
+    return _merge_live_fields(stored, mapped)
+
+
+def _enrich_cached_product(cached: dict, raw_product: dict, barcode: str) -> dict:
+    mapped = _map_openfoodfacts_to_product_schema(raw_product, barcode)
+    return _merge_live_fields(cached, mapped)
+
+
+def _merge_live_fields(base: dict, mapped: dict) -> dict:
+    enriched = dict(base)
+    if mapped.get("nutrition") is not None:
+        enriched["nutrition"] = mapped.get("nutrition")
+    if mapped.get("image_url"):
+        enriched["image_url"] = mapped.get("image_url")
+    if mapped.get("ingredients_raw_text") and not enriched.get("ingredients_raw_text"):
+        enriched["ingredients_raw_text"] = mapped.get("ingredients_raw_text")
+    if mapped.get("ingredients") and not enriched.get("ingredients"):
+        enriched["ingredients"] = mapped.get("ingredients")
+    return enriched
 
 
 def _get_local_product(db, barcode: str) -> Optional[dict]:
@@ -64,6 +91,9 @@ def _get_local_product(db, barcode: str) -> Optional[dict]:
         "product_name": product.product_name,
         "brand": product.brand,
         "category": product.category,
+        "ingredients_raw_text": product.ingredients_raw_text,
+        "image_url": None,
+        "nutrition": None,
         "ingredients": [
             {"name": ing.ingredient_name, "is_allergen": bool(ing.is_allergen)}
             for ing in product.ingredients
@@ -110,8 +140,16 @@ def _map_ingredients(raw_ingredients: list) -> list[dict]:
 
 
 def _check_known_allergen(ingredient_name: str) -> bool:
-    """Placeholder — real logic cross-references against the rule-based allergen list (Issue #57)."""
-    return False
+    """True when the ingredient maps to a known allergen category in the seed table."""
+    from app.core.repo_path import ensure_repo_root
+
+    ensure_repo_root()
+    from ai.allergy_engine import check_allergies
+
+    flags = check_allergies([], [ingredient_name])
+    if not flags:
+        return False
+    return flags[0].get("matched_category") is not None
 
 
 def _validate_product(mapped: dict) -> None:
