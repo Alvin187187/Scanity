@@ -1,7 +1,7 @@
 import { requireApiBaseUrl } from "./auth"
 import { getAccessToken } from "./session"
 
-export async function lookupBarcodeProduct(barcode: string) {
+export async function lookupBarcodeProduct(barcode: string, userAllergies: string[] = []) {
   const token = getAccessToken()
   if (!token) {
     throw new Error("Please sign in again to look up products.")
@@ -14,7 +14,7 @@ export async function lookupBarcodeProduct(barcode: string) {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ barcode }),
+    body: JSON.stringify({ barcode, user_allergies: userAllergies }),
   })
 
   const data = await response.json().catch(() => null)
