@@ -162,6 +162,7 @@ type Screen =
   | "terms"
   | "settings"
   | "delete"
+  | "changePassword"
   | "forgotPassword"
   | "resetPassword"
   | "confirmationPassword"
@@ -1393,158 +1394,154 @@ function AppSidebar({
 // Screens
 // ────────────────────────────────────────────────────────────────────────────
 function SplashScreen({ go }: { go: (s: Screen) => void }) {
+  const isDesktop = useIsDesktop()
+
   return (
     <div
       style={{
         flex: 1,
+        minHeight: "100dvh",
+        width: "100%",
         display: "flex",
         flexDirection: "column",
-        position: "relative",
-        overflow: "hidden",
+        alignItems: "center",
+        justifyContent: "center",
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
+        boxSizing: "border-box",
+        padding: isDesktop ? "36px 24px" : "24px 24px",
       }}
     >
-      <img
-        src="https://images.unsplash.com/photo-1518843875459-f738682238a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxmcmVzaCUyMGNvbG9yZnVsJTIwZnJ1aXRzJTIwdmVnZXRhYmxlcyUyMGhlYWx0aHklMjBmb29kfGVufDF8fHx8MTc4NjIzOTc1M3ww&ixlib=rb-4.1.0&q=80&w=1080"
-        alt=""
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "center",
-        }}
-      />
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          background: "rgba(12,32,18,0.82)",
-        }}
-      />
-      <Center
-        maxWidth={480}
-        style={{
-          flex: 1,
+          width: "100%",
+          maxWidth: isDesktop ? 440 : 360,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          zIndex: 1,
-          gap: 0,
         }}
       >
-        <img
-          src={logoImg}
-          alt="Scanity logo"
+        <div
           style={{
-            width: 280,
-            height: 220,
-            objectFit: "contain",
-            mixBlendMode: "screen",
-            filter: "brightness(1.15) saturate(1.25)",
+            width: 168,
+            height: 168,
+            borderRadius: "50%",
+            background: SOFT_SLATE.bg,
+            boxShadow: SOFT_SLATE.raisedLg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 28,
           }}
-        />
-        <div style={{ textAlign: "center", marginTop: -16 }}>
-          <h1
+        >
+          <img
+            src={logoImg}
+            alt="Scanity logo"
             style={{
-              fontWeight: 800,
-              fontSize: 42,
-              letterSpacing: "-0.01em",
-              lineHeight: 1,
-              marginTop: 0,
-              marginBottom: 0,
-              marginLeft: 0,
-              marginRight: 0,
-              fontFamily: FONT_BODY,
+              width: 108,
+              height: 108,
+              objectFit: "contain",
             }}
-          >
-            <span style={{ color: C.textOnDark }}>Scan</span>
-            <span style={{ color: C.greenLight }}>ity</span>
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "rgb(190, 223, 162)",
-              marginTop: 10,
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              fontFamily: FONT_HEAD,
-              fontWeight: 500,
-            }}
-          >
-            See · Know · Eat
-          </p>
+          />
         </div>
-      </Center>
-      <Center
-        maxWidth={480}
-        style={{ padding: "28px 28px 44px", position: "relative", zIndex: 1 }}
-      >
+
+        <h1
+          style={{
+            fontWeight: 800,
+            fontSize: isDesktop ? 34 : 30,
+            letterSpacing: "-0.01em",
+            lineHeight: 1,
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          <span style={{ color: SOFT_SLATE.textPrimary }}>Scan</span>
+          <span style={{ color: SOFT_SLATE.green }}>ity</span>
+        </h1>
         <p
           style={{
-            fontSize: 15,
-            color: "rgba(255,255,255,0.8)",
+            fontSize: 12,
+            color: SOFT_SLATE.gold,
+            marginTop: 10,
+            marginBottom: 0,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            fontWeight: 700,
+          }}
+        >
+          See · Know · Eat
+        </p>
+
+        <p
+          style={{
+            fontSize: 14,
+            color: SOFT_SLATE.textSecondary,
             lineHeight: 1.65,
             textAlign: "center",
             fontWeight: 500,
-            marginBottom: 40,
-            fontFamily: FONT_HEAD,
+            marginTop: 22,
+            marginBottom: 36,
           }}
         >
           Your personal{" "}
-          <span style={{ color: C.greenLight, fontWeight: 700 }}>nutrition</span> &{" "}
-          <span style={{ color: C.greenLight, fontWeight: 700 }}>
+          <span style={{ color: SOFT_SLATE.green, fontWeight: 700 }}>nutrition</span> &{" "}
+          <span style={{ color: SOFT_SLATE.green, fontWeight: 700 }}>
             allergy safety
           </span>{" "}
           companion. Scan ingredients, understand what's in your food, and
-          instantly know if it fits your dietary needs
+          instantly know if it fits your dietary needs.
         </p>
-        <PrimaryBtn
-          label="Get Started"
+
+        <button
+          type="button"
           onClick={() => go("login")}
           style={{
             width: "100%",
-            padding: "17px",
-            borderRadius: 18,
+            padding: 15,
             border: "none",
-            background: `linear-gradient(135deg, ${C.mocha} 0%, ${C.mochaDark} 100%)`,
-            color: C.white,
-            fontFamily: FONT_HEAD,
+            borderRadius: 999,
+            background: `linear-gradient(135deg, ${SOFT_SLATE.green} 0%, ${C.greenDark} 100%)`,
+            color: "#ffffff",
+            fontFamily: SOFT_SLATE.fontFamily,
             fontWeight: 700,
-            fontSize: 16,
+            fontSize: 13,
+            letterSpacing: "0.03em",
+            boxShadow: SOFT_SLATE.raisedBtn,
             cursor: "pointer",
-            boxShadow: `0 8px 24px ${C.mocha}50`,
-            letterSpacing: "0.02em",
           }}
-        />
+        >
+          GET STARTED
+        </button>
+
         <p
           style={{
             textAlign: "center",
-            marginTop: 14,
-            fontSize: 13,
-            color: "rgba(255,255,255,0.6)",
-            fontFamily: FONT_HEAD,
+            marginTop: 16,
+            marginBottom: 0,
+            fontSize: 12,
+            color: SOFT_SLATE.textSecondary,
           }}
         >
           Already have an account?{" "}
           <button
+            type="button"
             onClick={() => go("login")}
             style={{
               background: "none",
               border: "none",
-              color: C.greenLight,
+              color: SOFT_SLATE.green,
+              fontFamily: SOFT_SLATE.fontFamily,
               fontWeight: 700,
-              fontSize: 13,
-              fontFamily: FONT_HEAD,
+              fontSize: 12,
               cursor: "pointer",
+              padding: 0,
             }}
           >
             Sign In
           </button>
         </p>
-      </Center>
+      </div>
     </div>
   )
 }
@@ -1556,6 +1553,7 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
   const [passwordError, setPasswordError] = useState("")
   const [loginError, setLoginError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const isDesktop = useIsDesktop()
 
@@ -1638,358 +1636,297 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
   return (
     <div
       style={{
+        flex: 1,
         minHeight: "100dvh",
         width: "100%",
         display: "flex",
         flexDirection: "column",
-        position: "relative",
-        overflow: "hidden",
+        alignItems: "center",
+        justifyContent: "center",
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
+        boxSizing: "border-box",
+        padding: isDesktop ? "36px 24px" : "24px 24px",
       }}
     >
-      <img
-        src="https://images.unsplash.com/photo-1518843875459-f738682238a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxmcmVzaCUyMGNvbG9yZnVsJTIwZnJ1aXRzJTIwdmVnZXRhYmxlcyUyMGhlYWx0aHklMjBmb29kfGVufDF8fHx8MTc4NjIzOTc1M3ww&ixlib=rb-4.1.0&q=80&w=1080"
-        alt=""
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "center",
-        }}
-      />
-
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          background: isDesktop
-            ? "rgba(5, 25, 14, 0.72)"
-            : "rgba(12, 32, 18, 0.82)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
           width: "100%",
-          minHeight: "100dvh",
+          maxWidth: isDesktop ? 420 : 360,
           display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          boxSizing: "border-box",
-          padding: isDesktop ? "40px 24px" : "20px 28px 40px",
+          flexDirection: "column",
         }}
       >
         <div
           style={{
-            width: "100%",
-            maxWidth: isDesktop ? 560 : 440,
             display: "flex",
             flexDirection: "column",
-            boxSizing: "border-box",
+            alignItems: "center",
+            marginBottom: 22,
           }}
         >
           <div
             style={{
+              width: 88,
+              height: 88,
+              borderRadius: "50%",
+              background: SOFT_SLATE.bg,
+              boxShadow: SOFT_SLATE.raisedMd,
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
-              paddingTop: isDesktop ? 0 : 10,
-              paddingBottom: isDesktop ? 28 : 32,
+              justifyContent: "center",
+              marginBottom: 14,
             }}
           >
-            <Logo
-              size={isDesktop ? 180 : 200}
-              style={{
-                borderRadius: 0,
-                marginBottom: -12,
-                mixBlendMode: "screen",
-              }}
+            <img
+              src={logoImg}
+              alt="Scanity logo"
+              style={{ width: 56, height: 56, objectFit: "contain" }}
             />
-
-            <p
-              style={{
-                marginTop: "-12px",
-                marginBottom: 0,
-                fontWeight: 800,
-                fontSize: isDesktop ? 30 : 32,
-                fontFamily: FONT_HEAD,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              <span style={{ color: C.textOnDark }}>Scan</span>
-              <span style={{ color: C.greenLight }}>ity</span>
-            </p>
-
-            <h2
-              style={{
-                marginTop: 8,
-                marginBottom: 0,
-                fontWeight: 800,
-                fontSize: isDesktop ? 30 : 26,
-                color: C.textOnDark,
-                textAlign: "center",
-              }}
-            >
-              Welcome Back!
-            </h2>
-
-            <p
-              style={{
-                fontSize: isDesktop ? 14 : 13,
-                color: "rgba(255,255,255,0.7)",
-                marginTop: 6,
-                marginBottom: 0,
-                textAlign: "center",
-              }}
-            >
-              Please login to continue
-            </p>
           </div>
-
-          <div>
-            <Field
-              icon={
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              }
-              placeholder="Email or username"
-              type="text"
-              value={email}
-              onChange={(value) => {
-                setEmail(value)
-                if (emailError) setEmailError("")
-                if (loginError) setLoginError("")
-              }}
-            />
-
-            {emailError && (
-              <p
-                style={{
-                  marginTop: -8,
-                  marginBottom: 12,
-                  color: C.statusDanger,
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-              >
-                {emailError}
-              </p>
-            )}
-
-            <Field
-              icon={
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect
-                    x="3"
-                    y="11"
-                    width="18"
-                    height="11"
-                    rx="2"
-                    ry="2"
-                  />
-                  <path d="M7 11V7a5 5 0 0110 0v4" />
-                </svg>
-              }
-              placeholder="Password"
-              type="password"
-              value={password}
-              onChange={(value) => {
-                setPassword(value)
-                if (passwordError) setPasswordError("")
-                if (loginError) setLoginError("")
-              }}
-            />
-
-            {passwordError && (
-              <p
-                style={{
-                  marginTop: -8,
-                  marginBottom: 12,
-                  color: C.statusDanger,
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-              >
-                {passwordError}
-              </p>
-            )}
-
-            {loginError && (
-              <div
-                role="alert"
-                style={{
-                  marginTop: 4,
-                  marginBottom: 16,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: C.mochaPale,
-                  border: `1px solid ${C.statusDanger}`,
-                  color: C.statusDanger,
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  lineHeight: 1.4,
-                }}
-              >
-                {loginError}
-              </div>
-            )}
-
-            <div
-              style={{
-                textAlign: "right",
-                marginTop: 4,
-                marginBottom: isDesktop ? 32 : 28,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => go("forgotPassword")}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: C.greenLight,
-                  fontFamily: FONT_BODY,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              >
-                Forgot Password?
-              </button>
-            </div>
-
-            <PrimaryBtn
-              label={
-                isLoading ? (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    style={{ display: "block", margin: "0 auto" }}
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="9"
-                      stroke="rgba(255,255,255,0.3)"
-                      strokeWidth="3"
-                      fill="none"
-                    />
-                    <path
-                      d="M21 12a9 9 0 0 0-9-9"
-                      stroke="#fff"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      fill="none"
-                    >
-                      <animateTransform
-                        attributeName="transform"
-                        type="rotate"
-                        from="0 12 12"
-                        to="360 12 12"
-                        dur="0.7s"
-                        repeatCount="indefinite"
-                      />
-                    </path>
-                  </svg>
-                ) : (
-                  "LOGIN"
-                )
-              }
-              onClick={handleLogin}
-              color={C.mocha}
-              disabled={isLoading}
-            />
-
-            <p
-              style={{
-                textAlign: "center",
-                marginTop: 22,
-                fontSize: isDesktop ? 14 : 13,
-                color: "rgba(255,255,255,0.7)",
-              }}
-            >
-              Don't have an account?{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isLoading) go("register")
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: C.greenLight,
-                  fontFamily: FONT_BODY,
-                  fontWeight: 500,
-                  fontSize: isDesktop ? 14 : 13,
-                  cursor: isLoading ? "default" : "pointer",
-                  opacity: isLoading ? 0.6 : 1,
-                }}
-              >
-                Register
-              </button>
-            </p>
+          <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em" }}>
+            <span style={{ color: SOFT_SLATE.textPrimary }}>Scan</span>
+            <span style={{ color: SOFT_SLATE.green }}>ity</span>
           </div>
+          <h2 style={{ margin: "10px 0 0", fontSize: isDesktop ? 23 : 21, fontWeight: 800, textAlign: "center", color: SOFT_SLATE.textPrimary }}>
+            Welcome Back!
+          </h2>
+          <p style={{ margin: "5px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Please login to continue
+          </p>
+        </div>
 
+        <div>
+          <label htmlFor="login-email" className="sr-only">
+            Email or username
+          </label>
           <div
             style={{
               display: "flex",
-              justifyContent: "center",
-              gap: 6,
-              marginTop: isDesktop ? 35 : 24,
+              alignItems: "center",
+              gap: 10,
+              background: SOFT_SLATE.bg,
+              borderRadius: 999,
+              padding: "12px 18px",
+              boxShadow: SOFT_SLATE.raisedSm,
+              marginBottom: 6,
             }}
           >
-            <div
-              style={{
-                width: 40,
-                height: 3,
-                borderRadius: 2,
-                background: C.green,
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <input
+              id="login-email"
+              type="text"
+              placeholder="Email or username"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (emailError) setEmailError("")
+                if (loginError) setLoginError("")
               }}
-            />
-
-            <div
               style={{
-                width: 12,
-                height: 3,
-                borderRadius: 2,
-                background: C.mocha,
-              }}
-            />
-
-            <div
-              style={{
-                width: 6,
-                height: 3,
-                borderRadius: 2,
-                background: C.gray,
+                border: "none",
+                background: "transparent",
+                outline: "none",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                color: SOFT_SLATE.textPrimary,
+                flex: 1,
+                minWidth: 0,
               }}
             />
           </div>
+          {emailError && (
+            <p style={{ margin: "0 0 8px 18px", color: C.statusDanger, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500 }}>
+              {emailError}
+            </p>
+          )}
+
+          <label htmlFor="login-password" className="sr-only">
+            Password
+          </label>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: SOFT_SLATE.bg,
+              borderRadius: 999,
+              padding: "12px 18px",
+              boxShadow: SOFT_SLATE.raisedSm,
+              marginBottom: 6,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <input
+              id="login-password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (passwordError) setPasswordError("")
+                if (loginError) setLoginError("")
+              }}
+              style={{
+                border: "none",
+                background: "transparent",
+                outline: "none",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                color: SOFT_SLATE.textPrimary,
+                flex: 1,
+                minWidth: 0,
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: SOFT_SLATE.textSecondary,
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              {showPassword ? (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                  <path d="M14.12 14.12a3 3 0 11-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {passwordError && (
+            <p style={{ margin: "0 0 8px 18px", color: C.statusDanger, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500 }}>
+              {passwordError}
+            </p>
+          )}
+
+          {loginError && (
+            <div
+              role="alert"
+              style={{
+                margin: "4px 4px 16px",
+                padding: "10px 14px",
+                borderRadius: 14,
+                background: "#f6e3e1",
+                color: C.statusDanger,
+                fontFamily: FONT_BODY,
+                fontSize: 12,
+                fontWeight: 500,
+                lineHeight: 1.4,
+              }}
+            >
+              {loginError}
+            </div>
+          )}
+
+          <div style={{ textAlign: "right", margin: "2px 4px 20px" }}>
+            <button
+              type="button"
+              onClick={() => go("forgotPassword")}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: SOFT_SLATE.green,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              Forgot Password?
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLogin}
+            disabled={isLoading}
+            style={{
+              width: "100%",
+              padding: 15,
+              border: "none",
+              borderRadius: 999,
+              background: `linear-gradient(135deg, ${SOFT_SLATE.green} 0%, ${C.greenDark} 100%)`,
+              color: "#ffffff",
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "0.03em",
+              boxShadow: SOFT_SLATE.raisedBtn,
+              cursor: isLoading ? "default" : "pointer",
+              opacity: isLoading ? 0.75 : 1,
+            }}
+          >
+            {isLoading ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display: "block", margin: "0 auto" }}>
+                <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.3)" strokeWidth="3" fill="none" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none">
+                  <animateTransform
+                    attributeName="transform"
+                    type="rotate"
+                    from="0 12 12"
+                    to="360 12 12"
+                    dur="0.7s"
+                    repeatCount="indefinite"
+                  />
+                </path>
+              </svg>
+            ) : (
+              "LOGIN"
+            )}
+          </button>
+
+          <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary }}>
+            Don't have an account?{" "}
+            <button
+              type="button"
+              onClick={() => {
+                if (!isLoading) go("register")
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: SOFT_SLATE.green,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: isLoading ? "default" : "pointer",
+                opacity: isLoading ? 0.6 : 1,
+                padding: 0,
+              }}
+            >
+              Register
+            </button>
+          </p>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: isDesktop ? 30 : 22 }}>
+          <div style={{ width: 40, height: 3, borderRadius: 2, background: SOFT_SLATE.green }} />
+          <div style={{ width: 12, height: 3, borderRadius: 2, background: SOFT_SLATE.gold }} />
+          <div style={{ width: 6, height: 3, borderRadius: 2, background: "#c7ccd2" }} />
         </div>
       </div>
     </div>
@@ -2001,6 +1938,8 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const [nameError, setNameError] = useState("")
   const [emailError, setEmailError] = useState("")
@@ -2111,6 +2050,93 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
     }
   }
 
+  const registerFields: {
+    id: string
+    label: string
+    placeholder: string
+    value: string
+    onChange: (v: string) => void
+    error: string
+    isPassword?: boolean
+    path: ReactNode
+  }[] = [
+    {
+      id: "register-name",
+      label: "Full name",
+      placeholder: "Full name",
+      value: name,
+      onChange: (v) => {
+        setName(v)
+        if (nameError) setNameError("")
+        if (registerError) setRegisterError("")
+      },
+      error: nameError,
+      path: (
+        <>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </>
+      ),
+    },
+    {
+      id: "register-email",
+      label: "Email",
+      placeholder: "Email",
+      value: email,
+      onChange: (v) => {
+        setEmail(v)
+        if (emailError) setEmailError("")
+        if (registerError) setRegisterError("")
+      },
+      error: emailError,
+      path: (
+        <>
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 6-10 7L2 6" />
+        </>
+      ),
+    },
+    {
+      id: "register-password",
+      label: "Password",
+      placeholder: "Password",
+      value: password,
+      onChange: (v) => {
+        setPassword(v)
+        if (passwordError) setPasswordError("")
+        if (confirmError) setConfirmError("")
+        if (registerError) setRegisterError("")
+      },
+      error: passwordError,
+      isPassword: true,
+      path: (
+        <>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </>
+      ),
+    },
+    {
+      id: "register-confirm",
+      label: "Confirm password",
+      placeholder: "Confirm password",
+      value: confirm,
+      onChange: (v) => {
+        setConfirm(v)
+        if (confirmError) setConfirmError("")
+        if (registerError) setRegisterError("")
+      },
+      error: confirmError,
+      isPassword: true,
+      path: (
+        <>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </>
+      ),
+    },
+  ]
+
   return (
     <div
       style={{
@@ -2119,353 +2145,227 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
         width: "100%",
         display: "flex",
         flexDirection: "column",
-        position: "relative",
-        overflow: "hidden",
+        alignItems: "center",
+        justifyContent: "center",
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
+        boxSizing: "border-box",
+        padding: isDesktop ? "36px 24px" : "24px 24px",
       }}
     >
-      <img
-        src="https://images.unsplash.com/photo-1518843875459-f738682238a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxmcmVzaCUyMGNvbG9yZnVsJTIwZnJ1aXRzJTIwdmVnZXRhYmxlcyUyMGhlYWx0aHklMjBmb29kfGVufDF8fHx8MTc4NjIzOTc1M3ww&ixlib=rb-4.1.0&q=80&w=1080"
-        alt=""
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "center",
-        }}
-      />
-
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          background: isDesktop
-            ? "rgba(5, 25, 14, 0.72)"
-            : "rgba(12, 32, 18, 0.82)",
+          width: "100%",
+          maxWidth: isDesktop ? 420 : 360,
+          display: "flex",
+          flexDirection: "column",
         }}
-      />
-
-      <Center maxWidth={440}>
+      >
         <div
           style={{
-            flex: 1,
             display: "flex",
             flexDirection: "column",
-            paddingTop: 50,
-            paddingLeft: 28,
-            paddingRight: 28,
-            paddingBottom: 36,
-            position: "relative",
-            zIndex: 1,
+            alignItems: "center",
+            marginBottom: 18,
           }}
         >
           <div
             style={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              background: SOFT_SLATE.bg,
+              boxShadow: SOFT_SLATE.raisedIconWell,
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
-              marginBottom: 8,
+              justifyContent: "center",
             }}
           >
-            <Logo
-              size={120}
-              style={{ borderRadius: 0, mixBlendMode: "screen" }}
-            />
-
-            <p
-              style={{
-                marginTop: -8,
-                fontWeight: 800,
-                fontSize: 24,
-                fontFamily: FONT_HEAD,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              <span style={{ color: C.textOnDark }}>Scan</span>
-              <span style={{ color: C.greenLight }}>ity</span>
-            </p>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
           </div>
-
-          <h2
-            style={{
-              fontWeight: 800,
-              fontSize: 24,
-              color: C.textOnDark,
-              textAlign: "center",
-              marginTop: 0,
-              marginBottom: 2,
-            }}
-          >
+          <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em", marginTop: 8 }}>
+            <span style={{ color: SOFT_SLATE.textPrimary }}>Scan</span>
+            <span style={{ color: SOFT_SLATE.green }}>ity</span>
+          </div>
+          <h2 style={{ margin: "10px 0 0", fontSize: isDesktop ? 23 : 21, fontWeight: 800, textAlign: "center", color: SOFT_SLATE.textPrimary }}>
             Create Account
           </h2>
-
-          <p
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.6)",
-              textAlign: "center",
-              marginTop: 4,
-              marginBottom: 20,
-            }}
-          >
-            Sign up to get started
-          </p>
-
-          <Field
-            icon={
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            }
-            placeholder="Full Name"
-            value={name}
-            onChange={(value) => {
-              setName(value)
-              if (nameError) setNameError("")
-              if (registerError) setRegisterError("")
-            }}
-          />
-
-          {nameError && (
-            <p
-              style={{
-                marginTop: -8,
-                marginBottom: 12,
-                color: C.statusDanger,
-                fontFamily: FONT_BODY,
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              {nameError}
-            </p>
-          )}
-
-          <Field
-            icon={
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-            }
-            placeholder="Email"
-            type="email"
-            value={email}
-            onChange={(value) => {
-              setEmail(value)
-              if (emailError) setEmailError("")
-              if (registerError) setRegisterError("")
-            }}
-          />
-
-          {emailError && (
-            <p
-              style={{
-                marginTop: -8,
-                marginBottom: 12,
-                color: C.statusDanger,
-                fontFamily: FONT_BODY,
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              {emailError}
-            </p>
-          )}
-
-          <Field
-            icon={
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0110 0v4" />
-              </svg>
-            }
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(value) => {
-              setPassword(value)
-              if (passwordError) setPasswordError("")
-              if (confirmError) setConfirmError("")
-              if (registerError) setRegisterError("")
-            }}
-            hint="Min 8 characters, 1 number"
-          />
-
-          {passwordError && (
-            <p
-              style={{
-                marginTop: -8,
-                marginBottom: 12,
-                color: C.statusDanger,
-                fontFamily: FONT_BODY,
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              {passwordError}
-            </p>
-          )}
-
-          <Field
-            icon={
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0110 0v4" />
-              </svg>
-            }
-            placeholder="Confirm Password"
-            type="password"
-            value={confirm}
-            onChange={(value) => {
-              setConfirm(value)
-              if (confirmError) setConfirmError("")
-              if (registerError) setRegisterError("")
-            }}
-          />
-
-          {confirmError && (
-            <p
-              style={{
-                marginTop: -8,
-                marginBottom: 12,
-                color: C.statusDanger,
-                fontFamily: FONT_BODY,
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              {confirmError}
-            </p>
-          )}
-
-          {registerError && (
-            <div
-              role="alert"
-              style={{
-                marginTop: 4,
-                marginBottom: 16,
-                padding: "10px 12px",
-                borderRadius: 10,
-                background: C.mochaPale,
-                border: `1px solid ${C.statusDanger}`,
-                color: C.statusDanger,
-                fontFamily: FONT_BODY,
-                fontSize: 12,
-                fontWeight: 500,
-                lineHeight: 1.4,
-              }}
-            >
-              {registerError}
-            </div>
-          )}
-
-          <div style={{ marginTop: 8 }}>
-            <PrimaryBtn
-              label={
-                isLoading ? (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    style={{ display: "block", margin: "0 auto" }}
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="9"
-                      stroke="rgba(255,255,255,0.3)"
-                      strokeWidth="3"
-                      fill="none"
-                    />
-                    <path
-                      d="M21 12a9 9 0 0 0-9-9"
-                      stroke="#fff"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      fill="none"
-                    >
-                      <animateTransform
-                        attributeName="transform"
-                        type="rotate"
-                        from="0 12 12"
-                        to="360 12 12"
-                        dur="0.7s"
-                        repeatCount="indefinite"
-                      />
-                    </path>
-                  </svg>
-                ) : (
-                  "Register"
-                )
-              }
-              onClick={handleRegister}
-              color={C.mocha}
-              disabled={isLoading}
-            />
-          </div>
-
-          <p
-            style={{
-              textAlign: "center",
-              marginTop: 16,
-              fontSize: 13,
-              color: "rgba(255,255,255,0.6)",
-            }}
-          >
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={() => {
-                if (!isLoading) go("login")
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                color: C.greenLight,
-                fontFamily: FONT_BODY,
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: isLoading ? "default" : "pointer",
-                opacity: isLoading ? 0.6 : 1,
-              }}
-            >
-              Login
-            </button>
+          <p style={{ margin: "5px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Start your nutrition &amp; safety journey
           </p>
         </div>
-      </Center>
+
+        {registerFields.map((field) => {
+          const showThis = field.id === "register-password" ? showPassword : showConfirm
+          const setShowThis = field.id === "register-password" ? setShowPassword : setShowConfirm
+          return (
+            <div key={field.id}>
+              <label htmlFor={field.id} className="sr-only">
+                {field.label}
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: SOFT_SLATE.bg,
+                  borderRadius: 999,
+                  padding: "12px 18px",
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  marginBottom: 6,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  {field.path}
+                </svg>
+                <input
+                  id={field.id}
+                  type={field.isPassword ? (showThis ? "text" : "password") : field.id === "register-email" ? "email" : "text"}
+                  placeholder={field.placeholder}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    outline: "none",
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 13,
+                    color: SOFT_SLATE.textPrimary,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                />
+                {field.isPassword && (
+                  <button
+                    type="button"
+                    onClick={() => setShowThis((v) => !v)}
+                    aria-label={showThis ? "Hide password" : "Show password"}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: SOFT_SLATE.textSecondary,
+                      padding: 0,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {showThis ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                        <path d="M14.12 14.12a3 3 0 11-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
+              {field.error && (
+                <p style={{ margin: "0 0 8px 18px", color: C.statusDanger, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500 }}>
+                  {field.error}
+                </p>
+              )}
+            </div>
+          )
+        })}
+
+        <p style={{ margin: "0 0 16px 6px", fontSize: 11, color: SOFT_SLATE.textSecondary }}>
+          At least 8 characters, with 1 number.
+        </p>
+
+        {registerError && (
+          <div
+            role="alert"
+            style={{
+              margin: "0 4px 16px",
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: "#f6e3e1",
+              color: C.statusDanger,
+              fontFamily: FONT_BODY,
+              fontSize: 12,
+              fontWeight: 500,
+              lineHeight: 1.4,
+            }}
+          >
+            {registerError}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleRegister}
+          disabled={isLoading}
+          style={{
+            width: "100%",
+            padding: 15,
+            border: "none",
+            borderRadius: 999,
+            background: `linear-gradient(135deg, ${SOFT_SLATE.green} 0%, ${C.greenDark} 100%)`,
+            color: "#ffffff",
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontWeight: 700,
+            fontSize: 13,
+            letterSpacing: "0.03em",
+            boxShadow: SOFT_SLATE.raisedBtn,
+            cursor: isLoading ? "default" : "pointer",
+            opacity: isLoading ? 0.75 : 1,
+          }}
+        >
+          {isLoading ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display: "block", margin: "0 auto" }}>
+              <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.3)" strokeWidth="3" fill="none" />
+              <path d="M21 12a9 9 0 0 0-9-9" stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none">
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  from="0 12 12"
+                  to="360 12 12"
+                  dur="0.7s"
+                  repeatCount="indefinite"
+                />
+              </path>
+            </svg>
+          ) : (
+            "CREATE ACCOUNT"
+          )}
+        </button>
+
+        <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary }}>
+          Already have an account?{" "}
+          <button
+            type="button"
+            onClick={() => {
+              if (!isLoading) go("login")
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: SOFT_SLATE.green,
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: isLoading ? "default" : "pointer",
+              opacity: isLoading ? 0.6 : 1,
+              padding: 0,
+            }}
+          >
+            Login
+          </button>
+        </p>
+      </div>
     </div>
   )
 }
@@ -7721,6 +7621,14 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     rawGrade === "e"
       ? rawGrade
       : null
+  const gradeLabels: Record<NutritionGrade, string> = {
+    a: "Excellent",
+    b: "Good",
+    c: "Fair",
+    d: "Poor",
+    e: "Avoid",
+  }
+  const gradeLabel = grade ? `${grade.toUpperCase()} — ${gradeLabels[grade]}` : "Not yet scored"
   const verdict: CompareVerdict = (scan?.verdict as CompareVerdict) || null
   const verdictReason = scan?.explanation || "Scan a barcode or nutrition label to see a safety result."
   const allergens = scan?.allergens || []
@@ -7738,55 +7646,141 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         minHeight: 0,
         display: "flex",
         flexDirection: "column",
-        background: C.offWhite,
+        position: "relative",
         overflow: "hidden",
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
       }}
     >
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div>
-        <InfoHeader
-          title="Product Result"
-          subtitle="Scan analysis complete"
-          go={go}
-        />
+      <div
+        style={{
+          flexShrink: 0,
+          padding: isDesktop
+            ? "26px 40px 18px"
+            : "18px 16px 14px",
+          background: SOFT_SLATE.bg,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          {/* Back Button */}
+          <button
+            type="button"
+            onClick={() => go("dashboard")}
+            aria-label="Back"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 15,
+              border: "none",
+              background: SOFT_SLATE.bg,
+              color: SOFT_SLATE.textPrimary,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+              boxShadow: SOFT_SLATE.raisedSm,
+            }}
+          >
+            <svg
+              width="19"
+              height="19"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 12H5" />
+              <path d="m12 19-7-7 7-7" />
+            </svg>
+          </button>
+
+          {/* Header Title */}
+          <div
+            style={{
+              minWidth: 0,
+            }}
+          >
+            <h1
+              style={{
+                margin: 0,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: isDesktop ? 24 : 21,
+                fontWeight: 800,
+                lineHeight: 1.15,
+                letterSpacing: "-0.02em",
+                color: SOFT_SLATE.textPrimary,
+              }}
+            >
+              Product Result
+            </h1>
+
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 11,
+                lineHeight: 1.4,
+                color: SOFT_SLATE.textMuted,
+              }}
+            >
+              Scan analysis complete
+            </p>
+          </div>
+        </div>
       </div>
 
+      {/* ── Scrollable Content ───────────────────────────────────────────── */}
       <div
         style={{
           flex: 1,
           overflowY: "auto",
+          minHeight: 0,
         }}
       >
         <Center
           maxWidth={isDesktop ? 900 : 640}
           style={{
             padding: isDesktop
-              ? "30px 40px 40px"
-              : "0 16px 24px",
+              ? "10px 40px 40px"
+              : "8px 16px 28px",
+            boxSizing: "border-box",
           }}
         >
-          {/* ── Product Image ─────────────────────────────────────────────── */}
+          {/* ── Product Image ────────────────────────────────────────────── */}
           <div
             style={{
               width: "100%",
-              aspectRatio: "16/9",
-              borderRadius: C.radiusLg ?? 16,
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
+              aspectRatio: "16 / 9",
+              borderRadius: 26,
+              background: SOFT_SLATE.bg,
               overflow: "hidden",
-              marginBottom: 16,
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+              marginBottom: 24,
             }}
           >
             {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={productName}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
+              <img
+                src={imageUrl}
+                alt={productName}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                  objectFit: "cover",
+                }}
+              />
             ) : (
               <div
                 style={{
@@ -7795,8 +7789,8 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "rgba(26,18,9,0.4)",
-                  fontFamily: FONT_BODY,
+                  color: SOFT_SLATE.textMuted,
+                  fontFamily: SOFT_SLATE.fontFamily,
                   fontSize: 13,
                 }}
               >
@@ -7805,23 +7799,33 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             )}
           </div>
 
-          {/* ── Product Name + Grade ──────────────────────────────────────── */}
+          {/* ── Product Information ─────────────────────────────────────── */}
           <div
             style={{
+              width: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 12,
+              gap: 20,
+              marginBottom: 20,
             }}
           >
-            <div>
+            <div
+              style={{
+                minWidth: 0,
+              }}
+            >
               <p
                 style={{
                   margin: 0,
-                  fontFamily: FONT_HEAD,
-                  fontWeight: 700,
-                  fontSize: 16,
-                  color: C.black,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: isDesktop ? 24 : 21,
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                  color: SOFT_SLATE.textPrimary,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {productName}
@@ -7829,90 +7833,235 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
 
               <p
                 style={{
-                  margin: 0,
-                  fontFamily: FONT_BODY,
+                  margin: "5px 0 0",
+                  fontFamily: SOFT_SLATE.fontFamily,
                   fontSize: 12,
-                  color: "rgba(26,18,9,0.45)",
-                  marginTop: 2,
+                  color: SOFT_SLATE.textSecondary,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {productBrand}
               </p>
             </div>
 
-            {/* Grade Badge */}
+            {/* ── Grade Badge ───────────────────────────────────────────── */}
             <div
               style={{
+                width: 82,
+                height: 82,
+                borderRadius: 22,
+                background: SOFT_SLATE.bg,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 4,
+                justifyContent: "center",
                 flexShrink: 0,
+                boxShadow: SOFT_SLATE.raisedMd,
+                gap: 3,
               }}
             >
-              <GradeBadge grade={grade} size={56} />
+              <GradeBadge
+                grade={grade}
+                size={52}
+              />
 
               <span
                 style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 9,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 8,
                   fontWeight: 700,
-                  letterSpacing: "0.05em",
+                  letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "rgba(26,18,9,0.42)",
+                  color: SOFT_SLATE.textMuted,
                 }}
               >
-                grade
+                Grade
               </span>
             </div>
           </div>
 
-          {/* ── Grade Scale ──────────────────────────────────────────────── */}
+          {/* ── Nutrition Grade Scale ───────────────────────────────────── */}
           <div
             style={{
-              marginBottom: 20,
+              width: "100%",
+              padding: "16px 18px",
+              borderRadius: 20,
+              background: SOFT_SLATE.bg,
+              boxShadow: SOFT_SLATE.insetMd,
+              boxSizing: "border-box",
+              marginBottom: 22,
             }}
           >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 10,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: SOFT_SLATE.textMuted,
+                }}
+              >
+                Nutrition Grade
+              </span>
+
+              <span
+                style={{
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: SOFT_SLATE.green,
+                }}
+              >
+                {gradeLabel}
+              </span>
+            </div>
+
             <GradeScale grade={grade} />
           </div>
 
           {/* ── Allergy & Safety ─────────────────────────────────────────── */}
           <div
             style={{
-              borderRadius: 14,
-              background: C.white,
-              border: `1.5px solid rgba(224,167,46,0.2)`,
-              padding: "14px 16px",
+              width: "100%",
+              borderRadius: 26,
+              background: SOFT_SLATE.bg,
+              padding: isDesktop ? "24px" : "20px",
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
               marginBottom: 24,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
             }}
           >
-            <p
+            {/* Section Header */}
+            <div
               style={{
-                margin: 0,
-                fontFamily: FONT_HEAD,
-                fontWeight: 700,
-                fontSize: 11,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "rgba(26,18,9,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 16,
               }}
             >
-              Allergy &amp; safety
-            </p>
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: SOFT_SLATE.textPrimary,
+                  }}
+                >
+                  Allergy & Safety
+                </p>
 
-            <StatusBadge verdict={verdict} reason={verdictReason} size="lg" />
+                <p
+                  style={{
+                    margin: "3px 0 0",
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 10,
+                    color: SOFT_SLATE.textMuted,
+                  }}
+                >
+                  Personalized safety check
+                </p>
+              </div>
 
-            <AllergenList allergens={allergens} />
+              {/* Safety Icon Well */}
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 13,
+                  background: SOFT_SLATE.bg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: SOFT_SLATE.insetSm,
+                  flexShrink: 0,
+                }}
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={SOFT_SLATE.unsafe}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3 20 7v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z" />
+                  <path d="M12 8v4" />
+                  <path d="M12 16h.01" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Safety Status */}
+            <div
+              style={{
+                width: "100%",
+                padding: "15px 16px",
+                borderRadius: 18,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetMd,
+                boxSizing: "border-box",
+                marginBottom: 16,
+              }}
+            >
+              <StatusBadge
+                verdict={verdict}
+                reason={verdictReason}
+                size="lg"
+              />
+            </div>
+
+            {/* Allergens */}
+            <div
+              style={{
+                width: "100%",
+                padding: "15px 16px",
+                borderRadius: 18,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.raisedSm,
+                boxSizing: "border-box",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 10px",
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: SOFT_SLATE.textSecondary,
+                }}
+              >
+                Detected Allergens
+              </p>
+
+              <AllergenList allergens={allergens} />
+            </div>
           </div>
 
-          {/* ── Action Buttons ────────────────────────────────────────────── */}
+          {/* ── Action Buttons ───────────────────────────────────────────── */}
           <div
             style={{
+              width: "100%",
               display: "flex",
-              gap: 12,
+              flexDirection: isDesktop ? "row" : "column",
+              gap: 14,
             }}
           >
             {/* SAVE */}
@@ -7925,15 +8074,32 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               }}
               style={{
                 flex: 1,
-                padding: "13px",
-                borderRadius: 14,
-                border: `1.5px solid rgba(224,167,46,0.4)`,
-                background: "transparent",
-                color: C.greenLight,
-                fontFamily: FONT_HEAD,
-                fontWeight: 400,
-                fontSize: 14,
+                minHeight: 52,
+                padding: "14px 20px",
+                border: "none",
+                borderRadius: 17,
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.green,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
                 cursor: "pointer",
+                boxShadow: SOFT_SLATE.raisedBtn,
+                transition:
+                  "transform 0.15s ease, box-shadow 0.15s ease",
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.boxShadow =
+                  SOFT_SLATE.insetMd
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.boxShadow =
+                  SOFT_SLATE.raisedBtn
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow =
+                  SOFT_SLATE.raisedBtn
               }}
             >
               {saved ? "SAVED" : "SAVE"}
@@ -7945,19 +8111,35 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               onClick={() => go("productCompare")}
               style={{
                 flex: 1,
-                padding: "13px",
-                borderRadius: 14,
+                minHeight: 52,
+                padding: "14px 20px",
                 border: "none",
-                background:
-                  "linear-gradient(135deg, #E0A72E, #C98A1F)",
-                color: C.offWhite,
-                fontFamily: FONT_HEAD,
-                fontWeight: 400,
-                fontSize: 14,
+                borderRadius: 17,
+                background: SOFT_SLATE.green,
+                color: "#ffffff",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
                 cursor: "pointer",
+                boxShadow: SOFT_SLATE.raisedBtn,
+                transition:
+                  "transform 0.15s ease, box-shadow 0.15s ease",
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.boxShadow =
+                  SOFT_SLATE.insetMd
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.boxShadow =
+                  SOFT_SLATE.raisedBtn
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow =
+                  SOFT_SLATE.raisedBtn
               }}
             >
-              COMPARE
+              COMPARE PRODUCTS
             </button>
           </div>
         </Center>
@@ -11846,6 +12028,132 @@ const PRF_SUPPORTING: CSSProperties = {
   maxWidth: 440,
 }
 
+function SoftSlateChip({
+  active,
+  dotColor,
+  label,
+  onClick,
+}: {
+  active: boolean
+  dotColor: string
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "9px 14px",
+        borderRadius: 999,
+        border: "none",
+        background: SOFT_SLATE.bg,
+        boxShadow: active ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+        fontFamily: SOFT_SLATE.fontFamily,
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: active ? SOFT_SLATE.textPrimary : SOFT_SLATE.textMuted,
+        cursor: "pointer",
+      }}
+    >
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+      {label}
+      {active && (
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+          <polyline points="12 3 5.5 10 2 6.5" stroke={SOFT_SLATE.green} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
+function SoftSlateOtherChip({
+  active,
+  value,
+  onToggle,
+  onChangeText,
+  placeholder,
+}: {
+  active: boolean
+  value: string
+  onToggle: () => void
+  onChangeText: (v: string) => void
+  placeholder: string
+}) {
+  return (
+    <div
+      onClick={!active ? onToggle : undefined}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "9px 12px",
+        borderRadius: 999,
+        background: SOFT_SLATE.bg,
+        boxShadow: active ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+        cursor: active ? "text" : "pointer",
+      }}
+    >
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: SOFT_SLATE.gold, flexShrink: 0 }} />
+
+      {active ? (
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => onChangeText(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          placeholder={placeholder}
+          style={{
+            width: 132,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontWeight: 600,
+            fontSize: 12.5,
+            color: SOFT_SLATE.textPrimary,
+          }}
+        />
+      ) : (
+        <span style={{ fontFamily: SOFT_SLATE.fontFamily, fontWeight: 600, fontSize: 12.5, color: SOFT_SLATE.textMuted }}>
+          Other
+        </span>
+      )}
+
+      {active && (
+        <Tooltip label="Remove">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onChangeText("")
+              onToggle()
+            }}
+            aria-label="Remove"
+            style={{
+              border: "none",
+              background: "none",
+              color: SOFT_SLATE.textMuted,
+              cursor: "pointer",
+              padding: 0,
+              display: "flex",
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  )
+}
+
 function ProfileScreen({
   go,
 }: {
@@ -11919,9 +12227,6 @@ function ProfileScreen({
   const [otherHealth, setOtherHealth] =
     useState("")
 
-  const watchPanelRef =
-    useRef<HTMLDivElement>(null)
-
   // ── Toggle allergy ───────────────────────────────────────────────────────
   const toggleAllergy = (id: string) => {
     setAllergies((prev) => {
@@ -11987,14 +12292,6 @@ function ProfileScreen({
     setEditingIdentity(true)
   }
 
-  // ── Scroll to preference panel ───────────────────────────────────────────
-  const scrollToWatchPanel = () => {
-    watchPanelRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    })
-  }
-
   // ── Profile information ──────────────────────────────────────────────────
   const joinedLabel = storedUser?.joinedAt
     ? formatJoinedLabel(storedUser.joinedAt)
@@ -12025,9 +12322,6 @@ function ProfileScreen({
     "Nothing saved yet"
 
   const historyRecords = loadScanRecords()
-  const labelsScanned =
-    historyRecords.length
-
   const lastScan = historyRecords[0]
 
   const lastScanLabel = lastScan
@@ -12042,1115 +12336,560 @@ function ProfileScreen({
         display: "flex",
         position: "relative",
         overflow: "hidden",
+        background: SOFT_SLATE.bg,
       }}
     >
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <AppSidebar
-        go={go}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isDesktop={isDesktop}
-        active="profile"
-      />
+      {/* SIDEBAR — mobile drawer only; desktop uses the Soft Slate rail below,
+          same component and shading as the Dashboard. */}
+      {!isDesktop && (
+        <AppSidebar
+          go={go}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          isDesktop={false}
+          active="profile"
+        />
+      )}
+
+      {/* ICON RAIL — Dashboard's own rail component, reused as-is. Profile
+          isn't one of its four destinations, so nothing shows active. */}
+      {isDesktop && (
+        <div
+          style={{
+            position: "fixed",
+            top: 22,
+            left: 26,
+            bottom: 22,
+            width: 80,
+            zIndex: 5,
+          }}
+        >
+          <DashboardIconRail go={go} isDesktop active="profile" />
+        </div>
+      )}
 
       <div
         style={{
           flex: 1,
           minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-          background: PALETTE.page,
-          color: PALETTE.textDark,
-          overflow: "hidden",
-          marginLeft: isDesktop
-            ? SIDEBAR_WIDTH
-            : 0,
+          overflowY: "auto",
+          paddingTop: isDesktop ? 0 : SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        {/* ── Header ────────────────────────────────────────────────────── */}
-        <InfoHeader
-          title="My Profile"
-          subtitle="Your saved details and preferences"
-          go={go}
-          backTo="dashboard"
-          showBack={false}
-          onMobileMenuClick={() =>
-            setSidebarOpen(true)
-          }
-        />
-
-        {/* ── Scrollable content ───────────────────────────────────────── */}
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-          }}
-        >
-          <Center
-            maxWidth={
-              isDesktop ? 960 : 680
-            }
+        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+          <div
             style={{
-              padding: isDesktop
-                ? "48px 32px 48px"
-                : "26px 20px 40px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              padding: isDesktop ? "26px 40px 40px 0" : "16px 14px 32px",
+              boxSizing: "border-box",
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
             }}
           >
-            {/* ────────────────────────────────────────────────────────────
-                IDENTITY CARD
-            ──────────────────────────────────────────────────────────── */}
-            <div
-              style={{
-                position: "relative",
-                borderRadius: 20,
-                background: PALETTE.panel,
-                border: `1.5px solid ${PALETTE.border}`,
-                boxShadow: cardShadow,
-                overflow: "hidden",
-                paddingTop: 14,
-              }}
-            >
-              {/* Profile badge */}
-              {!editingIdentity && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 14,
-                    left: 16,
-                    padding: "3px 11px",
-                    borderRadius: 999,
-                    background:
-                      PALETTE.greenLight,
-                    border: `1px solid ${PALETTE.green}`,
-                    fontFamily: FONT_HEAD,
-                    fontWeight: 700,
-                    fontSize: 9.5,
-                    letterSpacing: "0.03em",
-                    color:
-                      PALETTE.greenText,
-                  }}
-                >
-                  {profileBadge}
-                </span>
-              )}
-
-              {/* Identity content */}
-              <div
+            {!isDesktop && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
                 style={{
+                  width: 40,
+                  height: 40,
                   display: "flex",
-                  flexDirection: "column",
                   alignItems: "center",
-                  padding: isDesktop
-                    ? "26px 30px 30px"
-                    : "18px 22px 22px",
-                  textAlign: "center",
+                  justifyContent: "center",
+                  borderRadius: 12,
+                  border: "none",
+                  background: SOFT_SLATE.bg,
+                  color: SOFT_SLATE.textPrimary,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  cursor: "pointer",
+                  alignSelf: "flex-start",
                 }}
               >
-                {/* Avatar */}
+                <svg width={18} height={14} viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="0" y1="1" x2="24" y2="1" />
+                  <line x1="0" y1="9" x2="24" y2="9" />
+                  <line x1="0" y1="17" x2="24" y2="17" />
+                </svg>
+              </button>
+            )}
+
+            {/* Header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 20,
+              }}
+            >
+              <div>
                 <div
                   style={{
-                    position: "relative",
+                    fontSize: isDesktop ? 30 : 24,
+                    fontWeight: 800,
+                    letterSpacing: "-0.02em",
+                    color: SOFT_SLATE.textPrimary,
                   }}
                 >
-                  {/* Hidden file input backing the avatar upload */}
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={
-                      handleAvatarChange
-                    }
-                    style={{
-                      display: "none",
-                    }}
-                  />
+                  My Profile
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: SOFT_SLATE.textSecondary,
+                    marginTop: 4,
+                  }}
+                >
+                  Your saved details and preferences
+                </div>
+              </div>
 
-                  <Tooltip
-                    label={
-                      avatarUrl
-                        ? "Change profile picture"
-                        : "Add profile picture"
-                    }
-                  >
-                    <button
-                      type="button"
-                      onClick={
-                        openAvatarPicker
-                      }
-                      aria-label={
-                        avatarUrl
-                          ? "Change profile picture"
-                          : "Add profile picture"
-                      }
-                      style={{
-                        width: isDesktop
-                          ? 92
-                          : 76,
-                        height: isDesktop
-                          ? 92
-                          : 76,
-                        borderRadius:
-                          "50%",
-                        padding: 0,
-                        background:
-                          avatarUrl
-                            ? "transparent"
-                            : PALETTE.goldDark,
-                        border: `3px solid ${PALETTE.goldDark}`,
-                        display: "flex",
-                        alignItems:
-                          "center",
-                        justifyContent:
-                          "center",
-                        boxShadow:
-                          "0 4px 10px rgba(0,0,0,0.12)",
-                        cursor: "pointer",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt="Profile"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit:
-                              "cover",
-                          }}
-                        />
-                      ) : (
-                        <span
-                          style={{
-                            fontFamily:
-                              FONT_HEAD,
-                            fontWeight: 600,
-                            fontSize:
-                              isDesktop
-                                ? 28
-                                : 23,
-                            color:
-                              PALETTE.brown,
-                          }}
-                        >
-                          {initials(name)}
-                        </span>
-                      )}
-                    </button>
-                  </Tooltip>
+              <Tooltip label="Back to Dashboard">
+                <button
+                  type="button"
+                  onClick={() => go("dashboard")}
+                  aria-label="Back to Dashboard"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background: SOFT_SLATE.bg,
+                    border: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: SOFT_SLATE.raisedSm,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <path d="M9 22V12h6v10" />
+                  </svg>
+                </button>
+              </Tooltip>
+            </div>
 
-                  {/* Add/change photo badge */}
-                  <Tooltip
-                    label={
-                      avatarUrl
-                        ? "Change profile picture"
-                        : "Add profile picture"
-                    }
-                    wrapperStyle={{
-                      position:
-                        "absolute",
-                      bottom: -2,
-                      left: -2,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={
-                        openAvatarPicker
-                      }
-                      aria-label={
-                        avatarUrl
-                          ? "Change profile picture"
-                          : "Add profile picture"
-                      }
-                      style={{
-                        width: 24,
-                        height: 24,
-                        display: "flex",
-                        alignItems:
-                          "center",
-                        justifyContent:
-                          "center",
-                        borderRadius:
-                          "50%",
-                        border: `1.5px solid ${C.white}`,
-                        background:
-                          C.green,
-                        color: C.white,
-                        cursor:
-                          "pointer",
-                        boxShadow:
-                          "0 2px 6px rgba(0,0,0,0.18)",
-                      }}
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+            {/* Two columns on desktop, stacked on mobile */}
+            <div
+              style={{
+                display: "flex",
+                gap: 22,
+                alignItems: "flex-start",
+                flexDirection: isDesktop ? "row" : "column",
+              }}
+            >
+              {/* ── LEFT — identity + stats ─────────────────────────────── */}
+              <div
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 18,
+                }}
+              >
+                {/* Identity card */}
+                <div
+                  style={{
+                    background: SOFT_SLATE.bg,
+                    borderRadius: 26,
+                    padding: isDesktop ? "30px 28px" : "24px 20px",
+                    boxShadow: SOFT_SLATE.raisedLg,
+                    boxSizing: "border-box",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ position: "relative" }}>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      style={{ display: "none" }}
+                    />
+
+                    <Tooltip label={avatarUrl ? "Change profile picture" : "Add profile picture"}>
+                      <button
+                        type="button"
+                        onClick={openAvatarPicker}
+                        aria-label={avatarUrl ? "Change profile picture" : "Add profile picture"}
+                        style={{
+                          width: isDesktop ? 92 : 76,
+                          height: isDesktop ? 92 : 76,
+                          borderRadius: "50%",
+                          padding: 0,
+                          background: SOFT_SLATE.bg,
+                          border: `3px solid ${SOFT_SLATE.gold}`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: SOFT_SLATE.raisedSm,
+                          cursor: "pointer",
+                          overflow: "hidden",
+                          boxSizing: "border-box",
+                        }}
                       >
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                        <circle
-                          cx="12"
-                          cy="13"
-                          r="4"
-                        />
-                      </svg>
-                    </button>
-                  </Tooltip>
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt="Profile"
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: isDesktop ? 28 : 23,
+                              fontWeight: 700,
+                              color: SOFT_SLATE.textPrimary,
+                            }}
+                          >
+                            {initials(name)}
+                          </span>
+                        )}
+                      </button>
+                    </Tooltip>
 
-                  {/* Edit button */}
-                  {!editingIdentity && (
                     <Tooltip
-                      label="Edit name and email"
-                      wrapperStyle={{
-                        position:
-                          "absolute",
-                        bottom: -2,
-                        right: -2,
-                      }}
+                      label={avatarUrl ? "Change profile picture" : "Add profile picture"}
+                      wrapperStyle={{ position: "absolute", bottom: -2, left: -2 }}
                     >
                       <button
                         type="button"
-                        onClick={
-                          startEditingIdentity
-                        }
-                        aria-label="Edit name and email"
+                        onClick={openAvatarPicker}
+                        aria-label={avatarUrl ? "Change profile picture" : "Add profile picture"}
                         style={{
-                          width: 24,
-                          height: 24,
+                          width: 26,
+                          height: 26,
                           display: "flex",
-                          alignItems:
-                            "center",
-                          justifyContent:
-                            "center",
-                          borderRadius:
-                            "50%",
-                          border: `1.5px solid ${PALETTE.panel}`,
-                          background:
-                            PALETTE.green,
-                          color:
-                            "#FFFFFF",
-                          cursor:
-                            "pointer",
-                          boxShadow:
-                            "0 2px 6px rgba(0,0,0,0.18)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: "50%",
+                          border: `2px solid ${SOFT_SLATE.bg}`,
+                          background: SOFT_SLATE.textMuted,
+                          color: "#ffffff",
+                          cursor: "pointer",
+                          boxShadow: SOFT_SLATE.raisedSm,
                         }}
                       >
-                        <svg
-                          width="11"
-                          height="11"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                          <circle cx="12" cy="13" r="4" />
                         </svg>
                       </button>
                     </Tooltip>
+
+                    {!editingIdentity && (
+                      <Tooltip
+                        label="Edit name and email"
+                        wrapperStyle={{ position: "absolute", bottom: -2, right: -2 }}
+                      >
+                        <button
+                          type="button"
+                          onClick={startEditingIdentity}
+                          aria-label="Edit name and email"
+                          style={{
+                            width: 26,
+                            height: 26,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "50%",
+                            border: `2px solid ${SOFT_SLATE.bg}`,
+                            background: SOFT_SLATE.green,
+                            color: "#ffffff",
+                            cursor: "pointer",
+                            boxShadow: SOFT_SLATE.raisedSm,
+                          }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                          </svg>
+                        </button>
+                      </Tooltip>
+                    )}
+                  </div>
+
+                  {!editingIdentity ? (
+                    <>
+                      <div
+                        style={{
+                          marginTop: 16,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 7,
+                          padding: "6px 14px",
+                          borderRadius: 999,
+                          boxShadow: SOFT_SLATE.insetSm,
+                        }}
+                      >
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: SOFT_SLATE.green }} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: SOFT_SLATE.green }}>{profileBadge}</span>
+                      </div>
+
+                      <h3 style={{ margin: "14px 0 0", fontSize: isDesktop ? 22 : 19, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                        {name || "Your name"}
+                      </h3>
+                      <div style={{ marginTop: 6, fontSize: 13, color: SOFT_SLATE.textMuted }}>{email || "No email on file"}</div>
+                      <div style={{ marginTop: 2, fontSize: 12, color: SOFT_SLATE.textMuted }}>Member since {joinedLabel}</div>
+                    </>
+                  ) : (
+                    <div style={{ marginTop: 18, width: "100%", maxWidth: 360, textAlign: "left" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
+                        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: SOFT_SLATE.textMuted }}>Name</span>
+                          <input
+                            autoFocus
+                            value={draftName}
+                            onChange={(e) => setDraftName(e.target.value)}
+                            placeholder="Your name"
+                            style={{
+                              fontFamily: SOFT_SLATE.fontFamily,
+                              fontWeight: 700,
+                              fontSize: 14,
+                              color: SOFT_SLATE.textPrimary,
+                              background: SOFT_SLATE.bg,
+                              border: "none",
+                              borderRadius: 12,
+                              padding: "10px 12px",
+                              outline: "none",
+                              boxSizing: "border-box",
+                              width: "100%",
+                              boxShadow: SOFT_SLATE.insetSm,
+                            }}
+                          />
+                        </label>
+
+                        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: SOFT_SLATE.textMuted }}>Email Address</span>
+                          <input
+                            value={draftEmail}
+                            onChange={(e) => setDraftEmail(e.target.value)}
+                            placeholder="you@email.com"
+                            style={{
+                              fontFamily: SOFT_SLATE.fontFamily,
+                              fontWeight: 600,
+                              fontSize: 13,
+                              color: SOFT_SLATE.textPrimary,
+                              background: SOFT_SLATE.bg,
+                              border: "none",
+                              borderRadius: 12,
+                              padding: "10px 12px",
+                              outline: "none",
+                              boxSizing: "border-box",
+                              width: "100%",
+                              boxShadow: SOFT_SLATE.insetSm,
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextName =
+                              draftName.trim() || name
+                            const nextEmail =
+                              draftEmail.trim() || email
+
+                            setName(nextName)
+                            setEmail(nextEmail)
+                            saveSessionUser({
+                              name: nextName,
+                              email: nextEmail,
+                              joinedAt:
+                                storedUser?.joinedAt ||
+                                new Date().toISOString(),
+                            })
+                            setEditingIdentity(false)
+                          }}
+                          style={{
+                            padding: "10px 20px",
+                            borderRadius: 12,
+                            border: "none",
+                            background: SOFT_SLATE.green,
+                            color: "#ffffff",
+                            fontFamily: SOFT_SLATE.fontFamily,
+                            fontWeight: 700,
+                            fontSize: 12.5,
+                            cursor: "pointer",
+                            boxShadow: SOFT_SLATE.raisedBtn,
+                          }}
+                        >
+                          Save
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingIdentity(false)}
+                          style={{
+                            padding: "10px 20px",
+                            borderRadius: 12,
+                            border: "none",
+                            background: SOFT_SLATE.bg,
+                            color: SOFT_SLATE.textMuted,
+                            fontFamily: SOFT_SLATE.fontFamily,
+                            fontWeight: 600,
+                            fontSize: 12.5,
+                            cursor: "pointer",
+                            boxShadow: SOFT_SLATE.raisedBtnAlt,
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* Name / edit form */}
-                {!editingIdentity ? (
-                  <>
-                    <h3
-                      style={{
-                        margin:
-                          "12px 0 0",
-                        fontFamily:
-                          FONT_HEAD,
-                        fontWeight: 600,
-                        fontSize:
-                          isDesktop
-                            ? 23
-                            : 19,
-                        color:
-                          PALETTE.brown,
-                      }}
-                    >
-                      {name}
-                    </h3>
+                {/* Stat row — Avoids / Watching / Last Scan */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr",
+                    gap: 18,
+                  }}
+                >
+                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 20, padding: "18px 20px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>Avoids</div>
+                    <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{avoidsLabel}</div>
+                  </div>
+                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 20, padding: "18px 20px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>Watching</div>
+                    <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{watchingLabel}</div>
+                  </div>
+                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 20, padding: "18px 20px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>Last Scan</div>
+                    <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{lastScanLabel}</div>
+                  </div>
+                </div>
+              </div>
 
-                    <span
-                      style={{
-                        display: "block",
-                        width: 34,
-                        height: 3,
-                        borderRadius: 2,
-                        background:
-                          PALETTE.brown,
-                        margin:
-                          "7px auto 0",
-                      }}
-                    />
-                  </>
-                ) : (
+              {/* ── RIGHT — preferences ─────────────────────────────────── */}
+              <div
+                style={{
+                  width: isDesktop ? 420 : "100%",
+                  flexShrink: 0,
+                  background: SOFT_SLATE.bg,
+                  borderRadius: 26,
+                  padding: isDesktop ? "26px 24px" : "22px 20px",
+                  boxShadow: SOFT_SLATE.raisedLg,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 22,
+                  boxSizing: "border-box",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Preferences</div>
                   <div
                     style={{
-                      marginTop: 18,
-                      width: "100%",
-                      maxWidth: 360,
-                      textAlign: "left",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "5px 11px",
+                      borderRadius: 999,
+                      boxShadow: SOFT_SLATE.insetSm,
+                      flexShrink: 0,
                     }}
                   >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fit, minmax(150px, 1fr))",
-                        gap: 14,
-                      }}
-                    >
-                      {/* Name */}
-                      <label
-                        style={{
-                          display: "flex",
-                          flexDirection:
-                            "column",
-                          gap: 6,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily:
-                              FONT_BODY,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color:
-                              PALETTE.textMuted,
-                          }}
-                        >
-                          Name
-                        </span>
-
-                        <input
-                          autoFocus
-                          value={
-                            draftName
-                          }
-                          onChange={(e) =>
-                            setDraftName(
-                              e.target
-                                .value
-                            )
-                          }
-                          placeholder="Your name"
-                          style={{
-                            fontFamily:
-                              FONT_HEAD,
-                            fontWeight: 700,
-                            fontSize: 14,
-                            color:
-                              PALETTE.textDark,
-                            background:
-                              PALETTE.page,
-                            border: `1.5px solid ${PALETTE.border}`,
-                            borderRadius: 10,
-                            padding:
-                              "10px 12px",
-                            outline:
-                              "none",
-                            boxSizing:
-                              "border-box",
-                            width:
-                              "100%",
-                          }}
-                        />
-                      </label>
-
-                      {/* Email */}
-                      <label
-                        style={{
-                          display: "flex",
-                          flexDirection:
-                            "column",
-                          gap: 6,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily:
-                              FONT_BODY,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color:
-                              PALETTE.textMuted,
-                          }}
-                        >
-                          Email Address
-                        </span>
-
-                        <input
-                          value={
-                            draftEmail
-                          }
-                          onChange={(e) =>
-                            setDraftEmail(
-                              e.target
-                                .value
-                            )
-                          }
-                          placeholder="you@email.com"
-                          style={{
-                            fontFamily:
-                              FONT_BODY,
-                            fontWeight: 600,
-                            fontSize: 13,
-                            color:
-                              PALETTE.textDark,
-                            background:
-                              PALETTE.page,
-                            border: `1.5px solid ${PALETTE.border}`,
-                            borderRadius: 10,
-                            padding:
-                              "10px 12px",
-                            outline:
-                              "none",
-                            boxSizing:
-                              "border-box",
-                            width:
-                              "100%",
-                          }}
-                        />
-                      </label>
-                    </div>
-
-                    {/* Edit actions */}
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent:
-                          "flex-end",
-                        gap: 8,
-                        marginTop: 16,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextName =
-                            draftName.trim() || name
-                          const nextEmail =
-                            draftEmail.trim() || email
-
-                          setName(nextName)
-                          setEmail(nextEmail)
-                          saveSessionUser({
-                            name: nextName,
-                            email: nextEmail,
-                            joinedAt:
-                              storedUser?.joinedAt ||
-                              new Date().toISOString(),
-                          })
-                          setEditingIdentity(false)
-                        }}
-                        style={{
-                          padding:
-                            "9px 20px",
-                          borderRadius: 10,
-                          border: "none",
-                          background:
-                            PALETTE.green,
-                          color:
-                            "#FFFFFF",
-                          fontFamily:
-                            FONT_HEAD,
-                          fontWeight: 700,
-                          fontSize: 12,
-                          cursor:
-                            "pointer",
-                          boxShadow:
-                            "0 4px 12px rgba(23,107,58,0.22)",
-                        }}
-                      >
-                        Save
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditingIdentity(
-                            false
-                          )
-                        }
-                        style={{
-                          padding:
-                            "9px 20px",
-                          borderRadius: 10,
-                          border: `1px solid ${PALETTE.border}`,
-                          background:
-                            "transparent",
-                          color:
-                            PALETTE.textMuted,
-                          fontFamily:
-                            FONT_HEAD,
-                          fontWeight: 600,
-                          fontSize: 12,
-                          cursor:
-                            "pointer",
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: isDirty ? SOFT_SLATE.caution : SOFT_SLATE.green }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: isDirty ? SOFT_SLATE.caution : SOFT_SLATE.green }}>
+                      {isDirty ? "Unsaved" : "Saved"}
+                    </span>
                   </div>
-                )}
-              </div>
-
-              {/* Email / member since */}
-              {!editingIdentity && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems:
-                      "center",
-                    justifyContent:
-                      "space-between",
-                    gap: 8,
-                    padding: isDesktop
-                      ? "16px 30px"
-                      : "12px 22px",
-                    background:
-                      PALETTE.goldDark,
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "flex",
-                      flexDirection:
-                        "column",
-                      gap: 2,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily:
-                          FONT_BODY,
-                        fontSize: 12,
-                        color:
-                          PALETTE.textDark,
-                      }}
-                    >
-                      <strong
-                        style={{
-                          fontFamily:
-                            FONT_HEAD,
-                        }}
-                      >
-                        Email:
-                      </strong>{" "}
-                      {email}
-                    </span>
-
-                    <span
-                      style={{
-                        fontFamily:
-                          FONT_BODY,
-                        fontSize: 12,
-                        color:
-                          PALETTE.textDark,
-                      }}
-                    >
-                      <strong
-                        style={{
-                          fontFamily:
-                            FONT_HEAD,
-                        }}
-                      >
-                        Member since:
-                      </strong>{" "}
-                      {joinedLabel}
-                    </span>
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* ────────────────────────────────────────────────────────────
-                ABOUT YOU
-            ──────────────────────────────────────────────────────────── */}
-            <div
-              style={{
-                marginTop: 18,
-              }}
-            >
-              {/* About you */}
-              <div
-                style={{
-                  borderRadius: 16,
-                  background:
-                    PALETTE.panel,
-                  border: `1.5px solid ${PALETTE.border}`,
-                  boxShadow:
-                    cardShadow,
-                  padding: isDesktop
-                    ? "22px 24px 24px"
-                    : "16px 18px 18px",
-                }}
-              >
-                <h4
-                  style={{
-                    margin: 0,
-                    fontFamily:
-                      FONT_HEAD,
-                    fontWeight: 700,
-                    fontSize:
-                      isDesktop
-                        ? 15
-                        : 13.5,
-                    color:
-                      PALETTE.textDark,
-                    paddingBottom: 8,
-                    borderBottom: `2px solid ${PALETTE.green}`,
-                  }}
-                >
-                  About you
-                </h4>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection:
-                      "column",
-                    gap: isDesktop
-                      ? 12
-                      : 9,
-                    marginTop:
-                      isDesktop
-                        ? 16
-                        : 12,
-                  }}
-                >
-                  {[
-                    {
-                      label: "Avoids",
-                      value:
-                        avoidsLabel,
-                    },
-                    {
-                      label:
-                        "Watching",
-                      value:
-                        watchingLabel,
-                    },
-                    {
-                      label:
-                        "Labels scanned",
-                      value:
-                        String(
-                          labelsScanned
-                        ),
-                    },
-                    {
-                      label:
-                        "Last scan",
-                      value:
-                        lastScanLabel,
-                    },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      style={{
-                        display:
-                          "flex",
-                        justifyContent:
-                          "space-between",
-                        gap: 10,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily:
-                            FONT_BODY,
-                          fontSize:
-                            isDesktop
-                              ? 13
-                              : 11.5,
-                          color:
-                            PALETTE.textMuted,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {row.label}
-                      </span>
-
-                      <span
-                        style={{
-                          fontFamily:
-                            FONT_BODY,
-                          fontWeight: 600,
-                          fontSize:
-                            isDesktop
-                              ? 13
-                              : 11.5,
-                          color:
-                            PALETTE.textDark,
-                          textAlign:
-                            "right",
-                        }}
-                      >
-                        {row.value}
-                      </span>
-                    </div>
-                  ))}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={
-                    scrollToWatchPanel
-                  }
-                  style={{
-                    marginTop:
-                      isDesktop
-                        ? 17
-                        : 13,
-                    padding: 0,
-                    border: "none",
-                    background:
-                      "none",
-                    fontFamily:
-                      FONT_HEAD,
-                    fontWeight: 700,
-                    fontSize:
-                      isDesktop
-                        ? 13
-                        : 11.5,
-                    color:
-                      PALETTE.green,
-                    cursor:
-                      "pointer",
-                  }}
-                >
-                  Edit details →
-                </button>
-              </div>
-            </div>
-
-            {/* ────────────────────────────────────────────────────────────
-                WHAT SCANITY WATCHES FOR YOU
-            ──────────────────────────────────────────────────────────── */}
-            <div
-              ref={watchPanelRef}
-              style={{
-                borderRadius: 18,
-                background:
-                  PALETTE.panel,
-                border: `1.5px solid ${PALETTE.border}`,
-                boxShadow:
-                  cardShadow,
-                padding: isDesktop
-                  ? "26px 30px 28px"
-                  : "18px 20px 20px",
-                marginTop: 18,
-                scrollMarginTop: 20,
-              }}
-            >
-              {/* Section header */}
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  justifyContent:
-                    "space-between",
-                  gap: 8,
-                }}
-              >
-                <h4
-                  style={{
-                    margin: 0,
-                    fontFamily:
-                      FONT_HEAD,
-                    fontWeight: 700,
-                    fontSize:
-                      isDesktop
-                        ? 17
-                        : 15,
-                    color:
-                      PALETTE.textDark,
-                  }}
-                >
-                  What Scanity watches
-                  for you
-                </h4>
-
-                {/* Save status */}
-                <span
-                  style={{
-                    fontFamily:
-                      FONT_HEAD,
-                    fontWeight: 700,
-                    fontSize: 10.5,
-                    color: isDirty
-                      ? PALETTE.cautionText
-                      : PALETTE.greenText,
-                    background: isDirty
-                      ? "#FBF1D9"
-                      : PALETTE.greenLight,
-                    border: `1px solid ${
-                      isDirty
-                        ? "#E0C067"
-                        : PALETTE.green
-                    }`,
-                    borderRadius: 999,
-                    padding:
-                      "3px 10px",
-                  }}
-                >
-                  {isDirty
-                    ? "Unsaved changes"
-                    : "Everything saved"}
-                </span>
-              </div>
-
-              {/* ── Allergies ─────────────────────────────────────────── */}
-              <div
-                style={{
-                  marginTop: 18,
-                  borderTop: `1px solid ${PALETTE.border}`,
-                  paddingTop: 18,
-                }}
-              >
-                <h4
-                  style={PRF_HEADING}
-                >
-                  Allergies
-                </h4>
-
-                <p
-                  style={
-                    PRF_SUPPORTING
-                  }
-                >
-                  Anything you select
-                  here gets flagged the
-                  moment it shows up on a
-                  label.
-                </p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    marginTop: 13,
-                  }}
-                >
-                  {ALLERGY_LIST
-                    .filter(
-                      (i) =>
-                        i.id !==
-                        "other"
-                    )
-                    .map((item) => (
-                      <PreferenceChip
+                {/* Allergies */}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Allergies</div>
+                  <p style={{ margin: "4px 0 0", fontSize: 11.5, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                    Anything you select here gets flagged the moment it shows up on a label.
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13 }}>
+                    {ALLERGY_LIST.filter((i) => i.id !== "other").map((item) => (
+                      <SoftSlateChip
                         key={item.id}
-                        active={allergies.has(
-                          item.id
-                        )}
-                        iconSrc={
-                          item.icon
-                        }
-                        iconBg={
-                          item.iconBg
-                        }
-                        label={
-                          item.label
-                        }
-                        onClick={() =>
-                          toggleAllergy(
-                            item.id
-                          )
-                        }
-                        accent="green"
+                        active={allergies.has(item.id)}
+                        dotColor={item.iconBg}
+                        label={item.label}
+                        onClick={() => toggleAllergy(item.id)}
                       />
                     ))}
-
-                  <OtherChip
-                    active={allergies.has(
-                      "other"
-                    )}
-                    value={
-                      otherAllergy
-                    }
-                    onToggle={() =>
-                      toggleAllergy(
-                        "other"
-                      )
-                    }
-                    onChangeText={
-                      setOtherAllergy
-                    }
-                    placeholder="Name an allergy"
-                  />
+                    <SoftSlateOtherChip
+                      active={allergies.has("other")}
+                      value={otherAllergy}
+                      onToggle={() => toggleAllergy("other")}
+                      onChangeText={setOtherAllergy}
+                      placeholder="Name an allergy"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* ── Health conditions ─────────────────────────────────── */}
-              <div
-                style={{
-                  marginTop: 18,
-                  borderTop: `1px solid ${PALETTE.border}`,
-                  paddingTop: 18,
-                }}
-              >
-                <h4
-                  style={PRF_HEADING}
-                >
-                  Health conditions
-                </h4>
+                <div style={{ width: "100%", height: 1, background: "#c6ccd4" }} />
 
-                <p
-                  style={
-                    PRF_SUPPORTING
-                  }
-                >
-                  These shape how we read
-                  sodium, sugar, and
-                  saturated fat on a label.
-                </p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    marginTop: 13,
-                  }}
-                >
-                  {HEALTH_LIST
-                    .filter(
-                      (i) =>
-                        i.id !==
-                        "none"
-                    )
-                    .map((item) => (
-                      <PreferenceChip
+                {/* Health conditions */}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Health Conditions</div>
+                  <p style={{ margin: "4px 0 0", fontSize: 11.5, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                    These shape how we read sodium, sugar, and saturated fat on a label.
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13 }}>
+                    {HEALTH_LIST.filter((i) => i.id !== "none").map((item) => (
+                      <SoftSlateChip
                         key={item.id}
-                        active={health.has(
-                          item.id
-                        )}
-                        iconSrc={
-                          item.icon
-                        }
-                        iconBg={
-                          item.iconBg
-                        }
-                        label={
-                          item.label
-                        }
-                        onClick={() =>
-                          toggleHealth(
-                            item.id
-                          )
-                        }
-                        accent="red"
+                        active={health.has(item.id)}
+                        dotColor={item.iconBg}
+                        label={item.label}
+                        onClick={() => toggleHealth(item.id)}
                       />
                     ))}
-
-                  <OtherChip
-                    active={health.has(
-                      "other"
-                    )}
-                    value={
-                      otherHealth
-                    }
-                    onToggle={() =>
-                      toggleHealth(
-                        "other"
-                      )
-                    }
-                    onChangeText={
-                      setOtherHealth
-                    }
-                    placeholder="Name a condition"
-                  />
+                    <SoftSlateOtherChip
+                      active={health.has("other")}
+                      value={otherHealth}
+                      onToggle={() => toggleHealth("other")}
+                      onChangeText={setOtherHealth}
+                      placeholder="Name a condition"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Divider */}
-              <div
-                style={{
-                  height: 1,
-                  background:
-                    PALETTE.border,
-                  margin:
-                    "22px 0 16px",
-                }}
-              />
-
-              {/* Save section */}
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems:
-                    "center",
-                  gap: 14,
-                }}
-              >
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={!isDirty}
                   style={{
-                    padding:
-                      "11px 26px",
-                    borderRadius: 12,
                     border: "none",
-                    background: isDirty
-                      ? `linear-gradient(135deg, ${PALETTE.green}, ${PALETTE.greenDark})`
-                      : PALETTE.border,
-                    color: isDirty
-                      ? "#FFFFFF"
-                      : PALETTE.textMuted,
-                    fontFamily:
-                      FONT_HEAD,
-                    fontWeight: 600,
-                    fontSize: 12.5,
-                    cursor: isDirty
-                      ? "pointer"
-                      : "not-allowed",
-                    boxShadow: isDirty
-                      ? "0 6px 18px rgba(23,107,58,0.26)"
-                      : "none",
-                    transition:
-                      "background 0.15s ease, box-shadow 0.15s ease",
-                    flexShrink: 0,
+                    borderRadius: 16,
+                    background: isDirty ? SOFT_SLATE.green : SOFT_SLATE.bg,
+                    color: isDirty ? "#ffffff" : SOFT_SLATE.textMuted,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    padding: "15px 26px",
+                    boxShadow: isDirty ? SOFT_SLATE.raisedBtn : SOFT_SLATE.insetSm,
+                    cursor: isDirty ? "pointer" : "not-allowed",
+                    transition: "background 0.15s ease, box-shadow 0.15s ease",
                   }}
                 >
-                  {isDirty
-                    ? "Update profile"
-                    : "No changes to update"}
+                  {isDirty ? "Save changes" : "No changes to save"}
                 </button>
-
-                <span
-                  style={{
-                    fontFamily:
-                      FONT_BODY,
-                    fontSize: 11,
-                    color:
-                      PALETTE.textMuted,
-                  }}
-                >
-                  Changes apply to your
-                  next scan.
-                </span>
               </div>
             </div>
-          </Center>
-        </div>
+          </div>
+        </Center>
       </div>
     </div>
   )
@@ -13321,9 +13060,8 @@ function InfoHeader({
    ========================================================= */
 
 function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
-  const [openQuestion, setOpenQuestion] = useState(0)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
+  const [openQuestion, setOpenQuestion] = useState(0)
 
   return (
     <div
@@ -13333,226 +13071,214 @@ function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
         display: "flex",
         position: "relative",
         overflow: "hidden",
-        background: PALETTE.page,
-        fontFamily: FONT_BODY,
+        background: SOFT_SLATE.bg,
       }}
     >
-      <AppSidebar
-        go={go}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isDesktop={isDesktop}
-        active="help"
-      />
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="help" />
+        </div>
+      )}
 
       <div
         style={{
           flex: 1,
           minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-          background: PALETTE.page,
-          overflow: "hidden",
-          marginLeft: isDesktop ? SIDEBAR_WIDTH : 0,
+          overflowY: "auto",
+          paddingTop: isDesktop ? 0 : SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        <InfoHeader
-          title="Help & FAQ"
-          subtitle="Answers for a safer scan"
-          go={go}
-          showBack={false}
-          onMobileMenuClick={() => setSidebarOpen(true)}
-        />
-
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-          }}
-        >
-          <Center
-            maxWidth={isDesktop ? 1180 : undefined}
+        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+          <div
             style={{
-              padding: isDesktop
-                ? "24px 40px 32px"
-                : "18px 12px 24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              padding: isDesktop ? "26px 40px 40px 0" : "16px 14px 32px",
+              boxSizing: "border-box",
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
+              maxWidth: 720,
             }}
           >
-            {/* HELP INTRO */}
-            <div
-              style={{
-                padding: "16px",
-                marginBottom: 18,
-                borderRadius: 13,
-                border: `1px solid rgba(224,167,46,0.28)`,
-                background: PALETTE.panel,
-                boxShadow: cardShadow,
-              }}
-            >
-              <i
-                className="fa fa-question-circle"
-                style={{
-                  color: C.greenLight,
-                  fontSize: 24,
-                  marginBottom: 8,
-                }}
-              />
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="help" />}
 
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: FONT_HEAD,
-                  color: PALETTE.textDark,
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                How can we help?
-              </p>
-
-              <p
-                style={{
-                  margin: "4px 0 0",
-                  fontFamily: FONT_BODY,
-                  color: "rgba(26,26,26,0.55)",
-                  fontSize: 10,
-                  lineHeight: 1.5,
-                }}
-              >
-                Find quick answers about scanning products and managing your
-                nutrition profile.
-              </p>
+            {/* Header */}
+            <div>
+              <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
+                Help &amp; FAQ
+              </div>
+              <div style={{ fontSize: 14, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
+                Answers for a safer scan
+              </div>
             </div>
 
-            {/* FAQ TITLE */}
-            <p
+            {/* Intro card */}
+            <div
               style={{
-                margin: "0 0 8px 2px",
-                fontFamily: FONT_HEAD,
-                color: "rgba(26,26,26,0.55)",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
+                background: SOFT_SLATE.bg,
+                borderRadius: 26,
+                padding: isDesktop ? "26px 24px" : "22px 18px",
+                boxShadow: SOFT_SLATE.raisedLg,
+                boxSizing: "border-box",
               }}
             >
-              Frequently asked questions
-            </p>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.insetSm,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </div>
+              <div style={{ marginTop: 14, fontSize: 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                How can we help?
+              </div>
+              <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>
+                Find quick answers about scanning products and managing your nutrition profile.
+              </div>
+            </div>
 
-            {/* FAQ ITEMS */}
+            {/* FAQ */}
+            <div>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: SOFT_SLATE.textMuted,
+                  margin: "0 0 10px 4px",
+                }}
+              >
+                Frequently asked questions
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {FAQ_ITEMS.map((item, index) => {
+                  const open = openQuestion === index
+
+                  return (
+                    <div
+                      key={item.question}
+                      style={{
+                        background: SOFT_SLATE.bg,
+                        borderRadius: 18,
+                        padding: "17px 20px",
+                        boxShadow: open ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenQuestion(open ? -1 : index)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          width: "100%",
+                          border: "none",
+                          background: "none",
+                          padding: 0,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          fontFamily: SOFT_SLATE.fontFamily,
+                          fontSize: 13.5,
+                          fontWeight: 700,
+                          color: SOFT_SLATE.textPrimary,
+                        }}
+                      >
+                        <span>{item.question}</span>
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke={SOFT_SLATE.textMuted}
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            flexShrink: 0,
+                            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                            transition: "transform 0.15s",
+                          }}
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+
+                      {open && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            paddingTop: 12,
+                            borderTop: "1px solid #c6ccd4",
+                            fontSize: 12.5,
+                            lineHeight: 1.6,
+                            color: SOFT_SLATE.textSecondary,
+                          }}
+                        >
+                          {item.answer}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Contact support */}
             <div
               style={{
                 display: "flex",
-                flexDirection: "column",
-                gap: 8,
+                alignItems: "center",
+                gap: 14,
+                padding: "16px 18px",
+                borderRadius: 18,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetMd,
+                boxSizing: "border-box",
               }}
             >
-              {FAQ_ITEMS.map((item, index) => {
-                const open = openQuestion === index
-
-                return (
-                  <div
-                    key={item.question}
-                    style={{
-                      borderRadius: 13,
-                      border: `1px solid rgba(224,167,46,0.28)`,
-                      background: PALETTE.panel,
-                      overflow: "hidden",
-                      boxShadow: cardShadow,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenQuestion(open ? -1 : index)
-                      }
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        width: "100%",
-                        padding: "13px",
-                        border: "none",
-                        background: "none",
-                        color: PALETTE.textDark,
-                        textAlign: "left",
-                        fontFamily: FONT_HEAD,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span>{item.question}</span>
-
-                      <i
-                        className={`fa fa-angle-${
-                          open ? "up" : "down"
-                        }`}
-                        style={{
-                          color: C.greenLight,
-                          fontSize: 16,
-                          flexShrink: 0,
-                        }}
-                      />
-                    </button>
-
-                    {open && (
-                      <p
-                        style={{
-                          margin: 0,
-                          padding: "0 13px 13px",
-                          fontFamily: FONT_BODY,
-                          color: "rgba(26,26,26,0.58)",
-                          fontSize: 10,
-                          lineHeight: 1.55,
-                        }}
-                      >
-                        {item.answer}
-                      </p>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-
-            {/* CONTACT SUPPORT */}
-            <div
-              style={{
-                marginTop: 18,
-                padding: "14px",
-                borderRadius: 13,
-                border: `1px solid rgba(224,167,46,0.20)`,
-                background: PALETTE.panel,
-                boxShadow: cardShadow,
-              }}
-            >
-              <p
+              <div
                 style={{
-                  margin: 0,
-                  fontFamily: FONT_HEAD,
-                  color: PALETTE.textDark,
-                  fontSize: 11,
-                  fontWeight: 700,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
                 }}
               >
-                Still need help?
-              </p>
-
-              <p
-                style={{
-                  margin: "4px 0 0",
-                  fontFamily: FONT_BODY,
-                  color: "rgba(26,26,26,0.52)",
-                  fontSize: 10,
-                }}
-              >
-                Contact us at support@scanity.app
-              </p>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16v12H7l-3 3z" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>Still need help?</div>
+                <div style={{ marginTop: 3, fontSize: 11.5, color: SOFT_SLATE.textSecondary }}>Contact us at support@scanity.app</div>
+              </div>
             </div>
-          </Center>
-        </div>
+          </div>
+        </Center>
       </div>
     </div>
   )
@@ -13565,125 +13291,371 @@ function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
 
 function AboutScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const features = [
-    { icon: "fa-shield", title: "Personalized Safety", text: "Scanity checks products against your allergies, dietary restrictions, and health conditions." },
-    { icon: "fa-barcode", title: "Smart Scanning", text: "Scan a barcode or capture a nutrition label using OCR to identify useful information." },
-    { icon: "fa-leaf", title: "Nutrition Insights", text: "Get an easy-to-understand nutrition score based on important nutritional factors." },
-    { icon: "fa-lightbulb-o", title: "AI Explanations", text: "Understand why a product may be safe, cautionary, or unsafe for you." },
+    {
+      title: "Personalized Safety",
+      text: "Scanity checks products against your allergies, dietary restrictions, and health conditions.",
+      path: (
+        <path d="M12 2 4 5v6c0 5.5 3.8 9.7 8 11 4.2-1.3 8-5.5 8-11V5z" />
+      ),
+    },
+    {
+      title: "Smart Scanning",
+      text: "Scan a barcode or capture a nutrition label using OCR to identify useful information.",
+      path: (
+        <>
+          <rect x="3" y="4" width="2" height="16" />
+          <rect x="7" y="4" width="1" height="16" />
+          <rect x="10" y="4" width="3" height="16" />
+          <rect x="15" y="4" width="1" height="16" />
+          <rect x="18" y="4" width="2" height="16" />
+          <rect x="21" y="4" width="1" height="16" />
+        </>
+      ),
+    },
+    {
+      title: "Nutrition Insights",
+      text: "Get an easy-to-understand nutrition score based on important nutritional factors.",
+      path: (
+        <>
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+        </>
+      ),
+    },
+    {
+      title: "AI Explanations",
+      text: "Understand why a product may be safe, cautionary, or unsafe for you.",
+      path: (
+        <>
+          <path d="M9 18h6" />
+          <path d="M10 22h4" />
+          <path d="M12 2a7 7 0 0 0-4 12.7c.5.4.9 1 1 1.8v.5h6v-.5c.1-.8.5-1.4 1-1.8A7 7 0 0 0 12 2Z" />
+        </>
+      ),
+    },
   ]
 
   const steps = [
-    ["01", "fa-barcode", "Scan", "Scan the product barcode or food label."],
-    ["02", "fa-search", "Analyze", "Scanity analyzes ingredients and nutrition information."],
-    ["03", "fa-user", "Personalize", "The system compares the product against your health profile."],
-    ["04", "fa-file-text-o", "Understand", "Scanity explains potential risks and unfamiliar ingredients."],
-    ["05", "fa-shield", "Decide", "Safe, caution, or avoid recommendation."],
+    {
+      num: "01",
+      title: "Scan",
+      text: "Scan the product barcode or food label.",
+      path: (
+        <>
+          <rect x="3" y="4" width="2" height="16" />
+          <rect x="7" y="4" width="1" height="16" />
+          <rect x="10" y="4" width="3" height="16" />
+          <rect x="15" y="4" width="1" height="16" />
+          <rect x="18" y="4" width="2" height="16" />
+        </>
+      ),
+    },
+    {
+      num: "02",
+      title: "Analyze",
+      text: "Scanity analyzes ingredients and nutrition information.",
+      path: (
+        <>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m21 21-4.3-4.3" />
+        </>
+      ),
+    },
+    {
+      num: "03",
+      title: "Personalize",
+      text: "The system compares the product against your health profile.",
+      path: (
+        <>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M6 21v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
+        </>
+      ),
+    },
+    {
+      num: "04",
+      title: "Understand",
+      text: "Scanity explains potential risks and unfamiliar ingredients.",
+      path: (
+        <>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M9 13h6" />
+          <path d="M9 17h6" />
+        </>
+      ),
+    },
+    {
+      num: "05",
+      title: "Decide",
+      text: "Safe, caution, or avoid recommendation.",
+      path: (
+        <path d="M12 2 4 5v6c0 5.5 3.8 9.7 8 11 4.2-1.3 8-5.5 8-11V5z" />
+      ),
+    },
   ]
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", background: C.offWhite, fontFamily: FONT_BODY }}>
-      <AppSidebar
-        go={go}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isDesktop={isDesktop}
-        active="about"
-      />
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        position: "relative",
+        overflow: "hidden",
+        background: SOFT_SLATE.bg,
+      }}
+    >
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="about" />
+        </div>
+      )}
 
-      <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", marginLeft: isDesktop ? SIDEBAR_WIDTH : 0 }}>
-        <InfoHeader
-          title="About Us"
-          subtitle=""
-          go={go}
-          showBack={false}
-          onMobileMenuClick={() => setSidebarOpen(true)}
-        />
-
-        <main style={{ flex: 1, overflowY: "auto" }}>
-          <section
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          paddingTop: isDesktop ? 0 : SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          fontFamily: SOFT_SLATE.fontFamily,
+        }}
+      >
+        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+          <div
             style={{
-              position: "relative",
-              minHeight: isDesktop ? 330 : 430,
               display: "flex",
-              alignItems: "center",
-              overflow: "hidden",
-              background: C.green,
+              flexDirection: "column",
+              gap: 24,
+              padding: isDesktop ? "26px 40px 40px 0" : "16px 14px 32px",
+              boxSizing: "border-box",
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
             }}
           >
-            <img
-              src={aboutHeroImg}
-              alt="Person shopping for food in a grocery store"
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
-            />
-            <div style={{ position: "absolute", inset: 0, background: `color-mix(in srgb, ${PALETTE.green} 68%, transparent)` }} />
-            <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 1180, margin: "0 auto", padding: isDesktop ? "54px 68px" : "54px 22px" }}>
-              <p style={{ margin: "0 0 14px", fontFamily: FONT_HEAD, fontSize: 11, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: C.textOnDark }}>About Scanity</p>
-              <h1 style={{ margin: 0, maxWidth: 540, fontFamily: FONT_HEAD, fontSize: isDesktop ? 36 : 29, lineHeight: 1.1, fontWeight: 800, color: C.white }}>Making every food choice safer, simpler, and smarter.</h1>
-              <p style={{ maxWidth: 480, margin: "18px 0 0", fontSize: 13, lineHeight: 1.6, color: "rgba(255,255,255,0.88)" }}>
-                Scanity is an AI-powered food safety and nutrition decision support tool that helps consumers understand food labels and determine whether packaged food products are suitable for their personal health profile.
-              </p>
-              <button type="button" onClick={() => go("dashboard")} style={{ marginTop: 22, display: "inline-flex", alignItems: "center", gap: 8, border: "none", borderRadius: 999, padding: "11px 17px", background: PALETTE.greenDark, color: C.white, fontFamily: FONT_HEAD, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                <i className="fa fa-play-circle" /> How Scanity Works <i className="fa fa-arrow-right" />
-              </button>
-            </div>
-          </section>
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="about" />}
 
-          <section style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", alignItems: "center", gap: isDesktop ? 48 : 28, padding: isDesktop ? "42px 68px 36px" : "34px 22px 36px" }}>
+            {/* Header */}
             <div>
-              <h2 style={{ margin: 0, maxWidth: 470, fontFamily: FONT_HEAD, fontSize: isDesktop ? 25 : 22, lineHeight: 1.12, color: PALETTE.greenDark }}>Food labels shouldn't be difficult to understand.</h2>
-              <p style={{ margin: "14px 0 0", maxWidth: 470, fontSize: 12.5, lineHeight: 1.65, color: PALETTE.textMuted }}>Ingredients and nutrition facts can contain technical terms that are difficult for ordinary consumers to interpret. Scanity transforms this information into simple, understandable insights so users can make more informed food choices.</p>
+              <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
+                About Us
+              </div>
             </div>
-            <img src={aboutLabelImg} alt="Nutrition facts label" style={{ width: "100%", height: isDesktop ? 170 : 190, objectFit: "cover", objectPosition: "center", borderRadius: 12 }} />
-          </section>
 
-          <section style={{ background: PALETTE.greenLight, padding: isDesktop ? "28px 68px 34px" : "26px 22px 32px" }}>
-            <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-              <h2 style={{ margin: "0 0 16px", fontFamily: FONT_HEAD, fontSize: 17, color: PALETTE.greenDark }}>How Scanity Helps</h2>
-              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(4, 1fr)" : "1fr", gap: isDesktop ? 16 : 12 }}>
+            {/* Hero card */}
+            <div
+              style={{
+                position: "relative",
+                borderRadius: 28,
+                overflow: "hidden",
+                boxShadow: SOFT_SLATE.raisedLg,
+                minHeight: isDesktop ? 300 : 340,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <img
+                src={aboutHeroImg}
+                alt="Person shopping for food in a grocery store"
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+              />
+              <div style={{ position: "absolute", inset: 0, background: `linear-gradient(120deg, rgba(43,49,56,0.88), rgba(30,107,63,0.82))` }} />
+              <div style={{ position: "relative", zIndex: 1, padding: isDesktop ? "44px 40px" : "34px 22px", maxWidth: 560 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)" }}>
+                  About Scanity
+                </div>
+                <div style={{ marginTop: 12, fontSize: isDesktop ? 28 : 22, fontWeight: 800, lineHeight: 1.15, color: "#ffffff" }}>
+                  Making every food choice safer, simpler, and smarter.
+                </div>
+                <div style={{ marginTop: 14, maxWidth: 460, fontSize: 12.5, lineHeight: 1.6, color: "rgba(255,255,255,0.85)" }}>
+                  Scanity is an AI-powered food safety and nutrition decision support tool that helps consumers understand food labels and determine whether packaged food products are suitable for their personal health profile.
+                </div>
+              </div>
+            </div>
+
+            {/* Label explainer */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr",
+                alignItems: "center",
+                gap: isDesktop ? 26 : 18,
+                background: SOFT_SLATE.bg,
+                borderRadius: 26,
+                padding: isDesktop ? "28px 26px" : "22px 18px",
+                boxShadow: SOFT_SLATE.raisedMd,
+                boxSizing: "border-box",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: isDesktop ? 19 : 17, fontWeight: 800, lineHeight: 1.2, color: SOFT_SLATE.textPrimary }}>
+                  Food labels shouldn't be difficult to understand.
+                </div>
+                <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.6, color: SOFT_SLATE.textSecondary }}>
+                  Ingredients and nutrition facts can contain technical terms that are difficult for ordinary consumers to interpret. Scanity transforms this information into simple, understandable insights so users can make more informed food choices.
+                </div>
+              </div>
+              <img
+                src={aboutLabelImg}
+                alt="Nutrition facts label"
+                style={{ width: "100%", height: isDesktop ? 160 : 180, objectFit: "cover", objectPosition: "center", borderRadius: 18 }}
+              />
+            </div>
+
+            {/* Feature grid */}
+            <div>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: SOFT_SLATE.textMuted,
+                  margin: "0 0 10px 4px",
+                }}
+              >
+                How Scanity Helps
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(4, 1fr)" : "1fr 1fr", gap: 16 }}>
                 {features.map((feature) => (
-                  <article key={feature.title} style={{ minHeight: isDesktop ? 150 : 0, padding: "18px 17px", borderRadius: 8, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(23,107,58,0.08)" }}>
-                    <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: PALETTE.green, color: C.white, fontSize: 18 }}><i className={`fa ${feature.icon}`} /></div>
-                    <h3 style={{ margin: "12px 0 5px", fontFamily: FONT_HEAD, fontSize: 12, color: PALETTE.greenDark }}>{feature.title}</h3>
-                    <p style={{ margin: 0, fontSize: 10.5, lineHeight: 1.5, color: PALETTE.textMuted }}>{feature.text}</p>
-                  </article>
+                  <div
+                    key={feature.title}
+                    style={{
+                      background: SOFT_SLATE.bg,
+                      borderRadius: 20,
+                      padding: 20,
+                      boxShadow: SOFT_SLATE.raisedMd,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 13,
+                        background: SOFT_SLATE.bg,
+                        boxShadow: SOFT_SLATE.insetSm,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        {feature.path}
+                      </svg>
+                    </div>
+                    <div style={{ marginTop: 14, fontSize: 14, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>{feature.title}</div>
+                    <div style={{ marginTop: 5, fontSize: 11.5, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>{feature.text}</div>
+                  </div>
                 ))}
               </div>
             </div>
-          </section>
 
-          <section style={{ maxWidth: 1180, margin: "0 auto", padding: isDesktop ? "34px 68px 38px" : "34px 22px 40px" }}>
-            <h2 style={{ margin: "0 0 20px", fontFamily: FONT_HEAD, fontSize: 17, color: PALETTE.greenDark }}>How It Works</h2>
-            <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(5, 1fr)" : "1fr", gap: isDesktop ? 18 : 24 }}>
-              {steps.map(([number, icon, title, text], index) => (
-                <div key={title} style={{ position: "relative", textAlign: "center", padding: "0 8px" }}>
-                  <span style={{ position: "absolute", top: 0, left: isDesktop ? 0 : 8, fontSize: 9, fontWeight: 700, color: PALETTE.greenMid }}>{number}</span>
-                  <div style={{ width: 46, height: 46, margin: "0 auto 9px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: PALETTE.greenLight, color: C.green, fontSize: 19 }}><i className={`fa ${icon}`} /></div>
-                  <h3 style={{ margin: 0, fontFamily: FONT_HEAD, fontSize: 12, color: PALETTE.greenDark }}>{title}</h3>
-                  <p style={{ margin: "6px auto 0", maxWidth: 170, fontSize: 10, lineHeight: 1.5, color: PALETTE.textMuted }}>{text}</p>
-                  {isDesktop && index < steps.length - 1 && <i className="fa fa-arrow-right" style={{ position: "absolute", top: 16, right: -10, color: PALETTE.greenMid, fontSize: 11 }} />}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section style={{ background: `linear-gradient(110deg, ${PALETTE.greenDark}, ${PALETTE.greenMid})`, color: C.white, padding: isDesktop ? "24px 68px" : "28px 22px" }}>
-            <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", alignItems: "center", gap: 18 }}>
-              <img src={logoImg} alt="Scanity logo" style={{ width: isDesktop ? 105 : 70, height: 80, objectFit: "contain", mixBlendMode: "screen" }} />
-              <div style={{ borderLeft: "1px solid rgba(255,255,255,0.5)", paddingLeft: 18 }}>
-                <p style={{ margin: 0, fontSize: 9, color: C.textOnDark }}>Our Purpose</p>
-                <h2 style={{ margin: 0, fontFamily: FONT_HEAD, fontSize: isDesktop ? 18 : 16, lineHeight: 1.2 }}>We believe understanding what you eat should be simple.</h2>
-                <p style={{ margin: "8px 0 0", maxWidth: 560, fontSize: 10.5, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" }}>Scanity was created to help consumers better understand food labels, recognize potentially unsafe ingredients, and make food decisions based on their individual health needs.</p>
+            {/* How it works */}
+            <div>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: SOFT_SLATE.textMuted,
+                  margin: "0 0 10px 4px",
+                }}
+              >
+                How It Works
+              </div>
+              <div
+                style={{
+                  background: SOFT_SLATE.bg,
+                  borderRadius: 26,
+                  padding: isDesktop ? "26px 24px" : "22px 16px",
+                  boxShadow: SOFT_SLATE.raisedMd,
+                  boxSizing: "border-box",
+                  display: "grid",
+                  gridTemplateColumns: isDesktop ? "repeat(5, 1fr)" : "1fr 1fr",
+                  gap: isDesktop ? 14 : 22,
+                }}
+              >
+                {steps.map((step) => (
+                  <div key={step.title} style={{ textAlign: "center", padding: "0 6px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: SOFT_SLATE.gold, marginBottom: 8 }}>{step.num}</div>
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        margin: "0 auto 10px",
+                        borderRadius: 16,
+                        background: SOFT_SLATE.bg,
+                        boxShadow: SOFT_SLATE.raisedSm,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        {step.path}
+                      </svg>
+                    </div>
+                    <div style={{ fontSize: 12.5, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>{step.title}</div>
+                    <div style={{ marginTop: 5, fontSize: 10.5, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>{step.text}</div>
+                  </div>
+                ))}
               </div>
             </div>
-          </section>
 
-          <footer style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 22px 18px", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontSize: 9, color: PALETTE.textMuted }}>
-            <span>Scanity &nbsp;|&nbsp; See · Know · Eat</span>
-            <span>About &nbsp; | &nbsp; Privacy Policy &nbsp; | &nbsp; Terms &nbsp; | &nbsp; Contact</span>
-          </footer>
-        </main>
+            {/* Purpose banner */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 20,
+                padding: isDesktop ? "22px 26px" : "20px 18px",
+                borderRadius: 22,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetMd,
+                boxSizing: "border-box",
+              }}
+            >
+              <img
+                src={logoImg}
+                alt="Scanity logo"
+                style={{ width: isDesktop ? 64 : 48, height: isDesktop ? 64 : 48, objectFit: "contain", flexShrink: 0 }}
+              />
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+                  Our Purpose
+                </div>
+                <div style={{ marginTop: 4, fontSize: isDesktop ? 16 : 14, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                  We believe understanding what you eat should be simple.
+                </div>
+                <div style={{ marginTop: 6, maxWidth: 560, fontSize: 11.5, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>
+                  Scanity was created to help consumers better understand food labels, recognize potentially unsafe ingredients, and make food decisions based on their individual health needs.
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 10,
+                padding: "4px 6px",
+                fontSize: 10.5,
+                color: SOFT_SLATE.textMuted,
+              }}
+            >
+              <span>Scanity &nbsp;&middot;&nbsp; See &middot; Know &middot; Eat</span>
+              <span>About &nbsp;&middot;&nbsp; Privacy Policy &nbsp;&middot;&nbsp; Terms &nbsp;&middot;&nbsp; Contact</span>
+            </div>
+          </div>
+        </Center>
       </div>
     </div>
   )
@@ -14353,194 +14325,166 @@ function LegalScreen({
         flex: 1,
         minHeight: 0,
         display: "flex",
-        flexDirection: "column",
-        background: PALETTE.page,
+        position: "relative",
         overflow: "hidden",
-        fontFamily: FONT_BODY,
+        background: SOFT_SLATE.bg,
       }}
     >
-      <InfoHeader
-        title={privacy ? "Privacy Policy" : "Terms of Service"}
-        subtitle={
-          privacy
-            ? "Your information and choices"
-            : "Using Scanity responsibly"
-        }
-        go={go}
-      />
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="settings" />
+        </div>
+      )}
 
       <div
         style={{
           flex: 1,
+          minHeight: 0,
           overflowY: "auto",
+          paddingTop: isDesktop ? 0 : SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        <Center
-          maxWidth={isDesktop ? 1180 : undefined}
-          style={{
-            padding: isDesktop
-              ? "24px 40px 32px"
-              : "18px 12px 24px",
-          }}
-        >
-          {/* INTRO */}
-          <div
-            style={{
-              padding: "15px",
-              marginBottom: 16,
-              borderRadius: 13,
-              border: `1px solid rgba(224,167,46,0.28)`,
-              background: PALETTE.panel,
-              boxShadow: cardShadow,
-            }}
-          >
-            <i
-              className={`fa ${
-                privacy ? "fa-shield" : "fa-file-text-o"
-              }`}
-              style={{
-                color: C.greenLight,
-                fontSize: 23,
-                marginBottom: 8,
-              }}
-            />
-
-            <p
-              style={{
-                margin: 0,
-                fontFamily: FONT_HEAD,
-                color: PALETTE.textDark,
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              {privacy
-                ? "Your privacy matters"
-                : "A few important notes"}
-            </p>
-
-            <p
-              style={{
-                margin: "4px 0 0",
-                fontFamily: FONT_BODY,
-                color: "rgba(26,26,26,0.55)",
-                fontSize: 10,
-                lineHeight: 1.55,
-              }}
-            >
-              {privacy
-                ? "Here is how Scanity uses information to personalize your experience."
-                : "Please read these guidelines before using Scanity."}
-            </p>
-          </div>
-
-          {/* SECTION TITLE */}
-          <p
-            style={{
-              margin: "0 0 8px 2px",
-              fontFamily: FONT_HEAD,
-              color: "rgba(26,26,26,0.55)",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            {privacy ? "Policy details" : "Terms details"}
-          </p>
-
-          {/* LEGAL SECTIONS */}
+        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 9,
+              gap: 22,
+              padding: isDesktop ? "26px 40px 40px 0" : "16px 14px 32px",
+              boxSizing: "border-box",
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
+              maxWidth: 720,
             }}
           >
-            {sections.map(([title, text]) => (
-              <section
-                key={title}
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="settings" />}
+
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
+              <div>
+                <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
+                  {privacy ? "Privacy Policy" : "Terms of Service"}
+                </div>
+                <div style={{ fontSize: 14, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
+                  {privacy ? "Your information and choices" : "Using Scanity responsibly"}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Intro card */}
+            <div
+              style={{
+                background: SOFT_SLATE.bg,
+                borderRadius: 26,
+                padding: isDesktop ? "26px 24px" : "22px 18px",
+                boxShadow: SOFT_SLATE.raisedLg,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
                 style={{
-                  padding: "14px",
-                  borderRadius: 13,
-                  border: `1px solid rgba(224,167,46,0.28)`,
-                  background: PALETTE.panel,
-                  boxShadow: cardShadow,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.insetSm,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <p
-                  style={{
-                    margin: "0 0 5px",
-                    fontFamily: FONT_HEAD,
-                    color: PALETTE.textDark,
-                    fontSize: 11,
-                    fontWeight: 700,
-                  }}
-                >
-                  {title}
-                </p>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {privacy ? (
+                    <path d="M12 2 4 5v6c0 5.5 3.8 9.7 8 11 4.2-1.3 8-5.5 8-11V5z" />
+                  ) : (
+                    <>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <path d="M14 2v6h6" />
+                      <path d="M9 13h6" />
+                      <path d="M9 17h6" />
+                    </>
+                  )}
+                </svg>
+              </div>
+              <div style={{ marginTop: 14, fontSize: 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                {privacy ? "Your privacy matters" : "A few important notes"}
+              </div>
+              <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>
+                {privacy
+                  ? "Here is how Scanity uses information to personalize your experience."
+                  : "Please read these guidelines before using Scanity."}
+              </div>
+            </div>
 
-                <p
-                  style={{
-                    margin: 0,
-                    fontFamily: FONT_BODY,
-                    color: "rgba(26,26,26,0.56)",
-                    fontSize: 10,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {text}
-                </p>
-              </section>
-            ))}
+            {/* Sections */}
+            <div>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: SOFT_SLATE.textMuted,
+                  margin: "0 0 10px 4px",
+                }}
+              >
+                {privacy ? "Policy details" : "Terms details"}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {sections.map(([title, text]) => (
+                  <div
+                    key={title}
+                    style={{
+                      background: SOFT_SLATE.bg,
+                      borderRadius: 18,
+                      padding: "18px 20px",
+                      boxShadow: SOFT_SLATE.raisedSm,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{title}</div>
+                    <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6, color: SOFT_SLATE.textSecondary }}>{text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ textAlign: "center", fontSize: 11, color: SOFT_SLATE.textMuted, marginTop: 4 }}>
+              Last updated August 2026
+            </div>
           </div>
-
-          {/* LAST UPDATED */}
-          <p
-            style={{
-              margin: "18px 0 0",
-              fontFamily: FONT_BODY,
-              color: "rgba(26,26,26,0.38)",
-              fontSize: 9,
-              textAlign: "center",
-            }}
-          >
-            Last updated August 2026
-          </p>
         </Center>
       </div>
     </div>
   )
 }
 function SettingsScreen({ go }: { go: (s: Screen) => void }) {
-  const [notifications, setNotifications] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
 
   const Section = ({ title }: { title: string }) => (
-    <p
+    <div
       style={{
-        margin: "0 0 8px 2px",
-        fontFamily: FONT_HEAD,
+        fontSize: 10.5,
         fontWeight: 700,
-        fontSize: 10,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
-        color: "rgba(26,26,26,0.55)",
+        color: SOFT_SLATE.textMuted,
+        margin: "0 0 10px 4px",
       }}
     >
       {title}
-    </p>
+    </div>
   )
 
   const Chevron = () => (
-    <i
-      className="fa fa-angle-right"
-      style={{
-        fontSize: 18,
-        color: "rgba(26,26,26,0.45)",
-      }}
-    />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.textMuted} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
   )
 
   const Row = ({
@@ -14562,97 +14506,52 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
 
     return (
       <Tag
-        {...(onClick
-          ? {
-              type: "button" as const,
-              onClick,
-            }
-          : {})}
+        {...(onClick ? { type: "button" as const, onClick } : {})}
         style={{
           width: "100%",
           display: "flex",
           alignItems: "center",
-          gap: 12,
-          padding: "12px 13px",
-          marginBottom: 7,
-          borderRadius: 13,
-
-          /* DELETE ACCOUNT CARD */
-          border: danger
-            ? "1px solid rgba(232,69,60,0.20)"
-            : `1px solid ${PALETTE.border}`,
-
-          background: danger
-            ? PALETTE.dangerBg
-            : PALETTE.panel,
-
-          boxShadow: cardShadow,
+          gap: 14,
+          padding: "16px 18px",
+          borderRadius: 18,
+          background: SOFT_SLATE.bg,
+          boxShadow: SOFT_SLATE.raisedSm,
           boxSizing: "border-box",
+          border: "none",
           cursor: onClick ? "pointer" : "default",
           textAlign: "left",
+          fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        {/* ICON BOX */}
         <div
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: 10,
+            width: 42,
+            height: 42,
+            borderRadius: 13,
+            background: SOFT_SLATE.bg,
+            boxShadow: SOFT_SLATE.insetSm,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-
-            background: danger
-              ? "rgba(232,69,60,0.10)"
-              : PALETTE.greenLight,
-
-            border: danger
-              ? "1px solid rgba(232,69,60,0.20)"
-              : `1px solid ${PALETTE.border}`,
           }}
         >
-          {icon}
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={danger ? SOFT_SLATE.unsafe : SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {icon}
+          </svg>
         </div>
 
-        {/* TEXT */}
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontFamily: FONT_HEAD,
-              fontWeight: 700,
-              fontSize: 11,
-              color: danger
-                ? C.statusDanger
-                : PALETTE.textDark,
-            }}
-          >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: danger ? SOFT_SLATE.unsafe : SOFT_SLATE.textPrimary }}>
             {label}
-          </p>
-
+          </div>
           {sub && (
-            <p
-              style={{
-                margin: "2px 0 0",
-                fontFamily: FONT_BODY,
-                fontSize: 8,
-                color: danger
-                  ? "rgba(185,55,48,0.75)"
-                  : "rgba(26,26,26,0.52)",
-              }}
-            >
+            <div style={{ marginTop: 2, fontSize: 11.5, color: SOFT_SLATE.textMuted }}>
               {sub}
-            </p>
+            </div>
           )}
         </div>
 
-        {/* RIGHT ICON */}
         {right}
       </Tag>
     )
@@ -14666,301 +14565,356 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
         display: "flex",
         position: "relative",
         overflow: "hidden",
-        background: PALETTE.page,
-        fontFamily: FONT_BODY,
+        background: SOFT_SLATE.bg,
       }}
     >
-      {/* SIDEBAR */}
-      <AppSidebar
-        go={go}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isDesktop={isDesktop}
-        active="settings"
-      />
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="settings" />
+        </div>
+      )}
 
       <div
         style={{
           flex: 1,
-          position: "relative",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          background: PALETTE.page,
-          marginLeft: isDesktop ? SIDEBAR_WIDTH : 0,
+          minHeight: 0,
+          overflowY: "auto",
+          paddingTop: isDesktop ? 0 : SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        {/* HEADER */}
-        <div
+        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              padding: isDesktop ? "26px 40px 40px 0" : "16px 14px 32px",
+              boxSizing: "border-box",
+              color: SOFT_SLATE.textPrimary,
+              minWidth: 0,
+              maxWidth: 640,
+            }}
+          >
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="settings" />}
+
+            {/* Header */}
+            <div>
+              <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
+                Settings
+              </div>
+              <div style={{ fontSize: 14, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
+                Customize your Scanity experience
+              </div>
+            </div>
+
+            {/* SECURITY */}
+            <div>
+              <Section title="Security" />
+              <Row
+                onClick={() => go("changePassword")}
+                label="Change Password"
+                sub="Update your current password"
+                right={<Chevron />}
+                icon={
+                  <>
+                    <circle cx="7.5" cy="15.5" r="5.5" />
+                    <path d="m21 2-9.6 9.6" />
+                    <path d="m15.5 7.5 3 3L22 7l-3-3" />
+                  </>
+                }
+              />
+            </div>
+
+            {/* SUPPORT & INFO */}
+            <div>
+              <Section title="Support & Info" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <Row
+                  onClick={() => go("privacy")}
+                  label="Privacy Policy"
+                  right={<Chevron />}
+                  icon={<path d="M12 2 4 5v6c0 5.5 3.8 9.7 8 11 4.2-1.3 8-5.5 8-11V5z" />}
+                />
+                <Row
+                  onClick={() => go("terms")}
+                  label="Terms of Service"
+                  right={<Chevron />}
+                  icon={
+                    <>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <path d="M14 2v6h6" />
+                      <path d="M9 13h6" />
+                      <path d="M9 17h6" />
+                    </>
+                  }
+                />
+              </div>
+            </div>
+
+            {/* ACCOUNT */}
+            <div>
+              <Section title="Account" />
+              <Row
+                danger
+                onClick={() => go("delete")}
+                label="Delete Account"
+                sub="Permanently delete your account"
+                right={<Chevron />}
+                icon={
+                  <>
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  </>
+                }
+              />
+            </div>
+          </div>
+        </Center>
+      </div>
+    </div>
+  )
+}
+
+function ChangePasswordScreen({
+  go,
+}: {
+  go: (s: Screen) => void
+}) {
+  const isDesktop = useIsDesktop()
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showSaved, setShowSaved] = useState(false)
+
+  const canSubmit =
+    currentPassword.length > 0 &&
+    newPassword.length >= 8 &&
+    newPassword === confirmPassword
+
+  const handleUpdate = () => {
+    if (!canSubmit) return
+
+    setShowSaved(true)
+
+    setTimeout(() => {
+      setShowSaved(false)
+      go("settings")
+    }, 1400)
+  }
+
+  const Field = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string
+    value: string
+    onChange: (v: string) => void
+  }) => (
+    <label style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: SOFT_SLATE.textMuted }}>{label}</span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "14px 16px",
+          borderRadius: 14,
+          background: SOFT_SLATE.bg,
+          boxShadow: SOFT_SLATE.insetMd,
+          boxSizing: "border-box",
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <rect x="3" y="11" width="18" height="10" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        <input
+          type="password"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="••••••••"
           style={{
-            position: "relative",
-            zIndex: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            paddingTop: isDesktop
-              ? 13
-              : `calc(${SAFE_TOP} + 12px)`,
-            paddingLeft: isDesktop ? 20 : 16,
-            paddingRight: 20,
-            paddingBottom: 13,
-            borderBottom: `1px solid ${PALETTE.border}`,
-            background: PALETTE.panel,
-            boxSizing: "border-box",
+            flex: 1,
+            minWidth: 0,
+            border: "none",
+            background: "none",
+            outline: "none",
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontSize: 13,
+            color: SOFT_SLATE.textPrimary,
           }}
-        >
-          {/* MOBILE MENU */}
-          {!isDesktop && (
+        />
+      </div>
+    </label>
+  )
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        position: "relative",
+        overflow: "hidden",
+        background: SOFT_SLATE.bg,
+      }}
+    >
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="settings" />
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          paddingTop: isDesktop ? 0 : SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          fontFamily: SOFT_SLATE.fontFamily,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {!isDesktop && (
+          <div style={{ padding: "16px 14px 0" }}>
+            <DashboardIconRail go={go} isDesktop={false} active="settings" />
+          </div>
+        )}
+
+        <div style={{ padding: isDesktop ? "22px 40px 8px 0" : "18px 14px 0" }}>
+          <Tooltip label="Back to Settings">
             <button
               type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open menu"
+              onClick={() => go("settings")}
+              aria-label="Back to Settings"
               style={{
-                width: 38,
-                height: 38,
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: SOFT_SLATE.bg,
+                border: "none",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                borderRadius: 10,
-                border: `1px solid ${PALETTE.border}`,
-                background: "#EAF4EE",
-                color: PALETTE.green,
+                boxShadow: SOFT_SLATE.raisedSm,
                 cursor: "pointer",
-                boxShadow: "0 3px 10px rgba(23,107,58,0.08)",
                 flexShrink: 0,
               }}
             >
-              <svg
-                width={18}
-                height={14}
-                viewBox="0 0 24 18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              >
-                <line
-                  x1="0"
-                  y1="1"
-                  x2="24"
-                  y2="1"
-                />
-                <line
-                  x1="0"
-                  y1="9"
-                  x2="24"
-                  y2="9"
-                />
-                <line
-                  x1="0"
-                  y1="17"
-                  x2="24"
-                  y2="17"
-                />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-          )}
-
-          {/* TITLE */}
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: FONT_HEAD,
-                fontWeight: 800,
-                fontSize: 23,
-                lineHeight: 1.2,
-                letterSpacing: "-0.04em",
-                color: PALETTE.textDark,
-              }}
-            >
-              Settings
-            </h2>
-
-            <p
-              style={{
-                margin: "4px 0 0",
-                fontFamily: FONT_BODY,
-                fontSize: 12,
-                color: "rgba(26,26,26,0.58)",
-              }}
-            >
-              Customize your Scanity experience
-            </p>
-          </div>
+          </Tooltip>
         </div>
 
-        {/* CONTENT */}
         <div
           style={{
-            position: "relative",
-            zIndex: 2,
             flex: 1,
-            overflowY: "auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 22,
             boxSizing: "border-box",
           }}
         >
-          <Center
-            maxWidth={isDesktop ? 1180 : undefined}
+          <div
             style={{
-              padding: isDesktop
-                ? "24px 40px 32px"
-                : "15px 12px 25px",
+              width: "100%",
+              maxWidth: 420,
+              background: SOFT_SLATE.bg,
+              borderRadius: 28,
+              padding: isDesktop ? "34px 32px" : "28px 22px",
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
             }}
           >
-            {/* PREFERENCES */}
-            <Section title="Preferences" />
-
-            <Row
-              icon={
-                <i
-                  className="fa fa-bell-o"
-                  style={{
-                    fontSize: 17,
-                    color: PALETTE.green,
-                  }}
-                />
-              }
-              label="Notifications"
-              sub="Receive updates and reminders"
-              right={
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setNotifications(!notifications)
-                  }}
-                  aria-label={
-                    notifications
-                      ? "Disable notifications"
-                      : "Enable notifications"
-                  }
-                  style={{
-                    width: 42,
-                    height: 24,
-                    padding: 0,
-                    border: "none",
-                    borderRadius: 12,
-                    background: notifications
-                      ? PALETTE.green
-                      : "rgba(26,26,26,0.20)",
-                    position: "relative",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 3,
-                      left: notifications ? 21 : 3,
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: C.white,
-                      transition: "left 0.2s",
-                      boxShadow:
-                        "0 2px 5px rgba(0,0,0,0.25)",
-                    }}
-                  />
-                </button>
-              }
-            />
-
-            {/* SECURITY */}
-            <div style={{ marginTop: 17 }}>
-              <Section title="Security" />
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetSm,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="7.5" cy="15.5" r="5.5" />
+                <path d="m21 2-9.6 9.6" />
+                <path d="m15.5 7.5 3 3L22 7l-3-3" />
+              </svg>
             </div>
 
-            <Row
-              onClick={() => go("forgotPassword")}
-              icon={
-                <i
-                  className="fa fa-key"
-                  style={{
-                    fontSize: 17,
-                    color: PALETTE.green,
-                  }}
-                />
-              }
-              label="Change Password"
-              sub="Update your current password"
-              right={<Chevron />}
-            />
-
-            {/* SUPPORT & INFO */}
-            <div style={{ marginTop: 17 }}>
-              <Section title="Support & Info" />
+            <div style={{ marginTop: 16, fontSize: 19, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+              Change Password
+            </div>
+            <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+              Use at least 8 characters with 1 number.
             </div>
 
-            <Row
-              icon={
-                <i
-                  className="fa fa-shield"
-                  style={{
-                    fontSize: 16,
-                    color: PALETTE.green,
-                  }}
-                />
-              }
-              onClick={() => go("privacy")}
-              label="Privacy Policy"
-              right={<Chevron />}
-            />
-
-            <Row
-              icon={
-                <i
-                  className="fa fa-file-text-o"
-                  style={{
-                    fontSize: 16,
-                    color: PALETTE.green,
-                  }}
-                />
-              }
-              onClick={() => go("terms")}
-              label="Terms of Service"
-              right={<Chevron />}
-            />
-
-            {/* ACCOUNT */}
-            <div style={{ marginTop: 17 }}>
-              <Section title="Account" />
+            <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 16 }}>
+              <Field label="Current Password" value={currentPassword} onChange={setCurrentPassword} />
+              <Field label="New Password" value={newPassword} onChange={setNewPassword} />
+              <Field label="Confirm New Password" value={confirmPassword} onChange={setConfirmPassword} />
             </div>
 
-            {/* DELETE ACCOUNT */}
-            <Row
-              danger
-              onClick={() => go("delete")}
-              icon={
-                <i
-                  className="fa fa-trash-o"
-                  style={{
-                    fontSize: 18,
-                    color: C.statusDanger,
-                  }}
-                />
-              }
-              label="Delete Account"
-              sub="Permanently delete your account"
-              right={
-                <i
-                  className="fa fa-angle-right"
-                  style={{
-                    fontSize: 18,
-                    color: "rgba(232,69,60,0.55)",
-                  }}
-                />
-              }
-            />
+            <button
+              type="button"
+              disabled={!canSubmit || showSaved}
+              onClick={handleUpdate}
+              style={{
+                width: "100%",
+                marginTop: 24,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.green,
+                color: "#ffffff",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "6px 6px 14px #c6ccd4, -4px -4px 10px #ffffff",
+                cursor: canSubmit && !showSaved ? "pointer" : "not-allowed",
+                opacity: canSubmit ? 1 : 0.6,
+                boxSizing: "border-box",
+              }}
+            >
+              {showSaved ? "Password Updated" : "Update Password"}
+            </button>
 
-            <div style={{ height: 15 }} />
-          </Center>
+            <button
+              type="button"
+              onClick={() => go("settings")}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.textMuted,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: SOFT_SLATE.raisedSm,
+                cursor: "pointer",
+                boxSizing: "border-box",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -14972,245 +14926,179 @@ function DeleteAccountScreen({
 }: {
   go: (s: Screen) => void
 }) {
-  const [showDeleteLoading, setShowDeleteLoading] =
-    useState(false)
+  const isDesktop = useIsDesktop()
+  const [showDeleteLoading, setShowDeleteLoading] = useState(false)
 
   return (
     <div
       style={{
-        position: "relative",
         flex: 1,
+        minHeight: 0,
         display: "flex",
-        flexDirection: "column",
+        position: "relative",
         overflow: "hidden",
-        background: PALETTE.page,
+        background: SOFT_SLATE.bg,
       }}
     >
-      {/* ── Back Button ─────────────────────────────────────────────────── */}
-      <Tooltip
-        label="Back to settings"
-        wrapperStyle={{
-          position: "absolute",
-          top: SAFE_TOP,
-          left: 18,
-          zIndex: 5,
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="settings" />
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          paddingTop: isDesktop ? 0 : SAFE_TOP,
+          boxSizing: "border-box",
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          fontFamily: SOFT_SLATE.fontFamily,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <button
-          type="button"
-          onClick={() => go("settings")}
-          aria-label="Back to settings"
+        {!isDesktop && (
+          <div style={{ padding: "16px 14px 0" }}>
+            <DashboardIconRail go={go} isDesktop={false} active="settings" />
+          </div>
+        )}
+
+        <div style={{ padding: isDesktop ? "22px 40px 8px 0" : "18px 14px 0" }}>
+        </div>
+
+        <div
           style={{
-            width: 38,
-            height: 38,
+            flex: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: 11,
-            border: `1px solid ${PALETTE.border}`,
-            background: PALETTE.panel,
-            color: PALETTE.textDark,
-            cursor: "pointer",
-            boxShadow:
-              "0 2px 8px rgba(0,0,0,0.08)",
-          }}
-        >
-          <i
-            className="fa fa-angle-left"
-            style={{
-              fontSize: 21,
-            }}
-          />
-        </button>
-      </Tooltip>
-
-      {/* ── Main Content ────────────────────────────────────────────────── */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 22,
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 330,
-            padding: "30px 22px 22px",
-            borderRadius: 24,
-            background: PALETTE.panel,
-            border: `1.5px solid ${PALETTE.border}`,
-            boxShadow:
-              "0 18px 50px rgba(0,0,0,0.16)",
-            textAlign: "center",
+            padding: 22,
             boxSizing: "border-box",
           }}
         >
-          {/* ── Delete Icon ─────────────────────────────────────────────── */}
           <div
             style={{
-              width: 78,
-              height: 78,
-              margin: "0 auto 17px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              background: PALETTE.dangerBg,
-              border:
-                "2px solid rgba(217,74,74,0.35)",
-            }}
-          >
-            <i
-              className="fa fa-trash-o"
-              style={{
-                fontSize: 35,
-                color: PALETTE.danger,
-              }}
-            />
-          </div>
-
-          {/* ── Title ──────────────────────────────────────────────────── */}
-          <h2
-            style={{
-              margin: "0 0 8px",
-              fontFamily: FONT_HEAD,
-              fontWeight: 800,
-              fontSize: 18,
-              color: PALETTE.textDark,
-            }}
-          >
-            Delete your account?
-          </h2>
-
-          {/* ── Description ────────────────────────────────────────────── */}
-          <p
-            style={{
-              margin: "0 auto 19px",
-              maxWidth: 255,
-              fontFamily: FONT_BODY,
-              fontSize: 9,
-              lineHeight: "15px",
-              color: "rgba(26,26,26,0.58)",
-            }}
-          >
-            This action cannot be undone. All
-            your data, scan history, and
-            preferences will be permanently
-            deleted.
-          </p>
-
-          {/* ── Warning ────────────────────────────────────────────────── */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
               width: "100%",
-              padding: "11px 12px",
-              marginBottom: 20,
+              maxWidth: 400,
+              background: SOFT_SLATE.bg,
+              borderRadius: 28,
+              padding: isDesktop ? "38px 32px" : "32px 24px",
+              boxShadow: SOFT_SLATE.raisedLg,
               boxSizing: "border-box",
-              borderRadius: 12,
-              background:
-                "rgba(245,197,24,0.10)",
-              border:
-                "1px solid rgba(245,197,24,0.20)",
-              textAlign: "left",
+              textAlign: "center",
             }}
           >
-            <i
-              className="fa fa-exclamation-triangle"
+            <div
               style={{
-                fontSize: 13,
-                color: "#F5C518",
-                flexShrink: 0,
-              }}
-            />
-
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 9,
-                lineHeight: "13px",
-                color: "rgba(26,26,26,0.68)",
+                width: 76,
+                height: 76,
+                margin: "0 auto 18px",
+                borderRadius: "50%",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetMd,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              This action cannot be undone.
-            </span>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.unsafe} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              </svg>
+            </div>
+
+            <div style={{ fontSize: 19, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+              Delete your account?
+            </div>
+
+            <div style={{ marginTop: 8, fontSize: 12.5, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>
+              This action cannot be undone. All your data, scan history, and preferences will be permanently deleted.
+            </div>
+
+            <div
+              style={{
+                marginTop: 20,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "13px 15px",
+                borderRadius: 14,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetSm,
+                textAlign: "left",
+                boxSizing: "border-box",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="m21.7 18.4-8.6-15a1.5 1.5 0 0 0-2.6 0l-8.6 15a1.5 1.5 0 0 0 1.3 2.2h17.2a1.5 1.5 0 0 0 1.3-2.2Z" />
+                <path d="M12 9v4" />
+                <path d="M12 17h.01" />
+              </svg>
+              <span style={{ fontSize: 11.5, color: SOFT_SLATE.textSecondary }}>This action cannot be undone.</span>
+            </div>
+
+            <button
+              type="button"
+              disabled={showDeleteLoading}
+              onClick={() => {
+                setShowDeleteLoading(true)
+
+                setTimeout(() => {
+                  setShowDeleteLoading(false)
+                  go("splash")
+                }, 1800)
+              }}
+              style={{
+                width: "100%",
+                marginTop: 22,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.unsafe,
+                color: "#ffffff",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "6px 6px 14px #c6ccd4, -4px -4px 10px #ffffff",
+                cursor: showDeleteLoading ? "not-allowed" : "pointer",
+                opacity: showDeleteLoading ? 0.7 : 1,
+                boxSizing: "border-box",
+              }}
+            >
+              Yes, Delete My Account
+            </button>
+
+            <button
+              type="button"
+              disabled={showDeleteLoading}
+              onClick={() => go("settings")}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.textMuted,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: SOFT_SLATE.raisedSm,
+                cursor: showDeleteLoading ? "not-allowed" : "pointer",
+                opacity: showDeleteLoading ? 0.6 : 1,
+                boxSizing: "border-box",
+              }}
+            >
+              Cancel
+            </button>
           </div>
-
-          {/* ── Delete Button ───────────────────────────────────────────── */}
-          <button
-            type="button"
-            disabled={showDeleteLoading}
-            onClick={() => {
-              setShowDeleteLoading(true)
-
-              setTimeout(() => {
-                setShowDeleteLoading(false)
-                go("splash")
-              }, 1800)
-            }}
-            style={{
-              width: "100%",
-              height: 43,
-              marginBottom: 9,
-              border: "none",
-              borderRadius: 12,
-              background:
-                "linear-gradient(135deg, #D9534F, #B93E3A)",
-              color: "#FFFFFF",
-              fontFamily: FONT_HEAD,
-              fontWeight: 700,
-              fontSize: 10,
-              cursor: showDeleteLoading
-                ? "not-allowed"
-                : "pointer",
-              boxShadow:
-                "0 5px 16px rgba(217,83,79,0.24)",
-              opacity: showDeleteLoading
-                ? 0.7
-                : 1,
-            }}
-          >
-            Yes, Delete My Account
-          </button>
-
-          {/* ── Cancel Button ───────────────────────────────────────────── */}
-          <button
-            type="button"
-            disabled={showDeleteLoading}
-            onClick={() => go("settings")}
-            style={{
-              width: "100%",
-              height: 43,
-              border:
-                `1px solid ${PALETTE.border}`,
-              borderRadius: 12,
-              background: PALETTE.page,
-              color: PALETTE.textDark,
-              fontFamily: FONT_BODY,
-              fontWeight: 600,
-              fontSize: 10,
-              cursor: showDeleteLoading
-                ? "not-allowed"
-                : "pointer",
-              opacity: showDeleteLoading
-                ? 0.6
-                : 1,
-            }}
-          >
-            Cancel
-          </button>
         </div>
       </div>
 
-      {/* ── Delete Loading Overlay ─────────────────────────────────────── */}
+      {/* Delete loading overlay */}
       {showDeleteLoading && (
         <div
           style={{
@@ -15221,89 +15109,60 @@ function DeleteAccountScreen({
             alignItems: "center",
             justifyContent: "center",
             padding: 20,
-            background:
-              "rgba(3,18,10,0.78)",
+            background: "rgba(36,41,47,0.55)",
             backdropFilter: "blur(8px)",
-            WebkitBackdropFilter:
-              "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
           }}
         >
           <div
             style={{
               width: "100%",
-              maxWidth: 300,
-              padding: "30px 22px 24px",
-              borderRadius: 24,
-              background: PALETTE.panel,
-              border:
-                `1.5px solid ${PALETTE.border}`,
-              boxShadow:
-                "0 18px 50px rgba(0,0,0,0.28)",
-              textAlign: "center",
+              maxWidth: 320,
+              background: SOFT_SLATE.bg,
+              borderRadius: 28,
+              padding: "30px 24px 26px",
+              boxShadow: SOFT_SLATE.raisedLg,
               boxSizing: "border-box",
+              textAlign: "center",
             }}
           >
-            {/* Loading Icon */}
             <div
               style={{
                 width: 70,
                 height: 70,
                 margin: "0 auto 16px",
+                borderRadius: "50%",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetMd,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                borderRadius: "50%",
-                border:
-                  "2px solid rgba(217,74,74,0.35)",
-                background:
-                  PALETTE.dangerBg,
               }}
             >
-              <i
-                className="fa fa-trash-o"
-                style={{
-                  fontSize: 29,
-                  color: PALETTE.danger,
-                }}
-              />
+              <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.unsafe} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              </svg>
             </div>
 
-            {/* Loading Title */}
-            <h2
-              style={{
-                margin: "0 0 7px",
-                fontFamily: FONT_HEAD,
-                fontWeight: 800,
-                fontSize: 17,
-                color: PALETTE.textDark,
-              }}
-            >
+            <div style={{ fontSize: 17, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
               Deleting Account
-            </h2>
+            </div>
 
-            {/* Loading Description */}
-            <p
-              style={{
-                margin: "0 0 19px",
-                fontFamily: FONT_HEAD,
-                fontSize: 9,
-                color: "rgba(26,26,26,0.52)",
-              }}
-            >
+            <div style={{ marginTop: 7, fontSize: 11.5, color: SOFT_SLATE.textMuted }}>
               Please wait...
-            </p>
+            </div>
 
-            {/* Progress Bar */}
             <div
               style={{
+                marginTop: 19,
                 width: "100%",
                 height: 8,
                 borderRadius: 8,
                 overflow: "hidden",
-                background:
-                  "rgba(26,26,26,0.10)",
-                border:
-                  "1px solid rgba(26,26,26,0.18)",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetSm,
               }}
             >
               <div
@@ -15311,31 +15170,19 @@ function DeleteAccountScreen({
                   width: "0%",
                   height: "100%",
                   borderRadius: 8,
-                  background:
-                    PALETTE.danger,
-                  animation:
-                    "deleteProgress 1.8s linear forwards",
+                  background: SOFT_SLATE.unsafe,
+                  animation: "deleteProgress 1.8s linear forwards",
                 }}
               />
             </div>
 
-            {/* Loading Message */}
-            <p
-              style={{
-                margin: "11px 0 0",
-                fontFamily: FONT_BODY,
-                fontWeight: 600,
-                fontSize: 8,
-                color: "rgba(26,26,26,0.60)",
-              }}
-            >
+            <div style={{ marginTop: 11, fontSize: 11, fontWeight: 600, color: SOFT_SLATE.textSecondary }}>
               Please wait a moment.
-            </p>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Animation ───────────────────────────────────────────────────── */}
       <style>
         {`
           @keyframes deleteProgress {
@@ -16639,7 +16486,7 @@ const SCREEN_HISTORY_STORAGE_KEY = "scanity_screen_history"
 const VALID_SCREENS: string[] = [
   "splash", "login", "register", "success", "allergies", "health", "loading",
   "allset", "dashboard", "history", "barcode", "ocr", "profile", "help",
-  "about", "privacy", "terms", "settings", "delete", "forgotPassword",
+  "about", "privacy", "terms", "settings", "delete", "changePassword", "forgotPassword",
   "resetPassword", "confirmationPassword", "productResult", "productCompare",
   "language",
 ]
@@ -16728,6 +16575,7 @@ export default function App() {
     ocr: <OCRScannerScreen go={go} />,
     settings: <SettingsScreen go={go} />,
     delete: <DeleteAccountScreen go={go} />,
+    changePassword: <ChangePasswordScreen go={go} />,
     forgotPassword: <ForgotPasswordScreen go={go} goBack={goBack} />,
     resetPassword: <ResetPasswordScreen go={go} />,
     confirmationPassword: <ConfirmationPasswordScreen go={go} />,
