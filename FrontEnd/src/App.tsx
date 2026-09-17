@@ -24,6 +24,15 @@ import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
 import { loginUser, registerUser } from "./api/auth"
+import {
+  clearSessionUser,
+  firstName,
+  formatJoinedLabel,
+  loadSessionUser,
+  saveSessionUser,
+  sessionUserFromLogin,
+  sessionUserFromRegister,
+} from "./api/session"
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -631,6 +640,7 @@ function AppSidebar({
   const handleLogout = () => {
     setShowLogoutConfirm(false)
     setShowLogoutLoading(true)
+    clearSessionUser()
 
     setTimeout(() => {
       setShowLogoutLoading(false)
@@ -1587,10 +1597,13 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
     setLoginError("")
 
     try {
-      await loginUser({
+      const result = await loginUser({
         identifier: email.trim(),
         password,
       })
+      saveSessionUser(
+        sessionUserFromLogin(result?.access_token, email.trim()),
+      )
 
       // Only navigate after the API confirms successful login.
       go("dashboard")
@@ -2050,11 +2063,14 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
     setRegisterError("")
 
     try {
-      await registerUser({
+      const result = await registerUser({
         name: name.trim(),
         email: email.trim(),
         password,
       })
+      saveSessionUser(
+        sessionUserFromRegister(result, name.trim(), email.trim()),
+      )
 
       // Only show success after the API confirms registration.
       go("success")
@@ -4427,6 +4443,7 @@ function DashboardIconRail({
 
 function DashboardScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
+  const greetingName = firstName(loadSessionUser()?.name || "")
 
   const actionCards: {
     label: string
@@ -4543,7 +4560,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                       color: SOFT_SLATE.textPrimary,
                     }}
                   >
-                    Hello, User!
+                    Hello, {greetingName}!
                   </div>
                   <div
                     style={{
@@ -5429,6 +5446,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
     setShowLogoutConfirm(false)
     setShowLogoutLoading(true)
     stopCamera()
+    clearSessionUser()
     setTimeout(() => {
       setShowLogoutLoading(false)
       go("splash")
@@ -6755,6 +6773,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     setShowLogoutConfirm(false)
     setShowLogoutLoading(true)
     stopCamera()
+    clearSessionUser()
     setTimeout(() => {
       setShowLogoutLoading(false)
       go("splash")
@@ -11725,12 +11744,11 @@ function ProfileScreen({
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isDesktop = useIsDesktop()
+  const storedUser = loadSessionUser()
 
   // ── Identity ─────────────────────────────────────────────────────────────
-  const [name, setName] = useState("Cedric Hamilton")
-  const [email, setEmail] = useState(
-    "cedrichamilton@gmail.com"
-  )
+  const [name, setName] = useState(storedUser?.name || "")
+  const [email, setEmail] = useState(storedUser?.email || "")
 
   const [editingIdentity, setEditingIdentity] =
     useState(false)
@@ -11770,9 +11788,7 @@ function ProfileScreen({
 
   // ── Saved preferences ────────────────────────────────────────────────────
   const [savedAllergies, setSavedAllergies] =
-    useState<Set<string>>(
-      new Set(["peanuts", "dairy"])
-    )
+    useState<Set<string>>(new Set())
 
   const [allergies, setAllergies] =
     useState<Set<string>>(
@@ -11780,9 +11796,7 @@ function ProfileScreen({
     )
 
   const [savedHealth, setSavedHealth] =
-    useState<Set<string>>(
-      new Set(["hypertension"])
-    )
+    useState<Set<string>>(new Set())
 
   const [health, setHealth] =
     useState<Set<string>>(
@@ -11866,7 +11880,9 @@ function ProfileScreen({
   }
 
   // ── Profile information ──────────────────────────────────────────────────
-  const joinedLabel = "March 2026"
+  const joinedLabel = storedUser?.joinedAt
+    ? formatJoinedLabel(storedUser.joinedAt)
+    : "—"
 
   const profileBadge =
     savedAllergies.size > 0 ||
@@ -12404,19 +12420,21 @@ function ProfileScreen({
                       <button
                         type="button"
                         onClick={() => {
-                          setName(
-                            draftName.trim() ||
-                              name
-                          )
+                          const nextName =
+                            draftName.trim() || name
+                          const nextEmail =
+                            draftEmail.trim() || email
 
-                          setEmail(
-                            draftEmail.trim() ||
-                              email
-                          )
-
-                          setEditingIdentity(
-                            false
-                          )
+                          setName(nextName)
+                          setEmail(nextEmail)
+                          saveSessionUser({
+                            name: nextName,
+                            email: nextEmail,
+                            joinedAt:
+                              storedUser?.joinedAt ||
+                              new Date().toISOString(),
+                          })
+                          setEditingIdentity(false)
                         }}
                         style={{
                           padding:
