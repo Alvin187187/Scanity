@@ -1710,7 +1710,7 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
               borderRadius: 999,
               padding: "12px 18px",
               boxShadow: SOFT_SLATE.raisedSm,
-              marginBottom: 6,
+              marginBottom: 16,
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -1757,7 +1757,7 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
               borderRadius: 999,
               padding: "12px 18px",
               boxShadow: SOFT_SLATE.raisedSm,
-              marginBottom: 6,
+              marginBottom: 16,
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -2182,10 +2182,11 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
               justifyContent: "center",
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
+            <img
+              src={logoImg}
+              alt="Scanity logo"
+              style={{ width: 42, height: 42, objectFit: "contain" }}
+            />
           </div>
           <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em", marginTop: 8 }}>
             <span style={{ color: SOFT_SLATE.textPrimary }}>Scan</span>
@@ -2216,7 +2217,7 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
                   borderRadius: 999,
                   padding: "12px 18px",
                   boxShadow: SOFT_SLATE.raisedSm,
-                  marginBottom: 6,
+                  marginBottom: 16,
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -10296,12 +10297,24 @@ function ProductCompareScreen({
   )
 
   const compareNavItems = [
-    { screen: "dashboard" as Screen, label: "Dashboard", path: null },
-    { screen: "productCompare" as Screen, label: "Compare Products", path: null },
-    { screen: "history" as Screen, label: "Scan History", path: null },
-    { screen: "settings" as Screen, label: "Settings", path: null },
-    { screen: "help" as Screen, label: "Help & FAQ", path: null },
-    { screen: "about" as Screen, label: "About", path: null },
+    DASHBOARD_RAIL_ITEMS[0],
+    {
+      screen: "productCompare" as Screen,
+      label: "Compare Products",
+      path: (
+        <>
+          <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+          <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+          <path d="M7 21h10" />
+          <path d="M12 3v18" />
+          <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+        </>
+      ),
+    },
+    { screen: "history" as Screen, label: "Scan History", path: CLOCK_ICON_PATH },
+    DASHBOARD_RAIL_ITEMS[1],
+    DASHBOARD_RAIL_ITEMS[2],
+    DASHBOARD_RAIL_ITEMS[3],
   ]
 
   const CompareLayout = ({ children }: { children: ReactNode }) => (
