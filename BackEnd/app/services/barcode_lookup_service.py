@@ -1,11 +1,29 @@
 # app/services/barcode_lookup_service.py
 """
 Orchestrates barcode product lookup: local cache check -> OpenFoodFacts fallback ->
-mapping -> validation -> storage. This is what ScanOrchestrator calls for FR-01
-barcode scans.
+mapping -> validation -> storage.
+
+Database cache/store is best-effort. Open Food Facts results must still return
+even when the local products table is missing, truncated, or otherwise rejects
+the write — that was surfacing as "A database operation failed." on phones.
 """
+from __future__ import annotations
+
+import logging
+import uuid
 from typing import Optional
-from app.services.openfoodfacts_service import fetch_product_by_barcode, OpenFoodFactsError
+
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.services.openfoodfacts_service import OpenFoodFactsError, fetch_product_by_barcode
+
+logger = logging.getLogger(__name__)
+
+# Match BackEnd/app/models/schema.py column lengths.
+_MAX_PRODUCT_NAME = 200
+_MAX_BRAND = 25
+_MAX_CATEGORY = 25
+_MAX_INGREDIENT_NAME = 100
 
 
 class ProductNotFoundError(Exception):
@@ -18,6 +36,15 @@ def validate_barcode(barcode: str) -> bool:
     return barcode.isdigit() and 8 <= len(barcode) <= 14
 
 
+def _clip(value: str | None, limit: int) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    return text[:limit]
+
+
 async def get_product_by_barcode(db, barcode: str) -> dict:
     """
     Main entry point. Returns a dict matching the Product schema.
@@ -27,10 +54,9 @@ async def get_product_by_barcode(db, barcode: str) -> dict:
     if not validate_barcode(barcode):
         raise ValueError("Invalid barcode format")
 
-    # 1. Cache check — local DB is the cache, per the Definition of Done.
-    # Products table does not store nutriments/image, so a cache hit can miss
-    # Nutri-Score inputs. Re-fetch OFF once to enrich those fields.
-    cached = _get_local_product(db, barcode)
+    # 1. Cache check — best-effort. A broken/missing products table must not
+    # block live Open Food Facts lookups.
+    cached = _safe_get_local_product(db, barcode)
     if cached:
         if cached.get("nutrition") is None or not cached.get("image_url"):
             try:
@@ -45,18 +71,18 @@ async def get_product_by_barcode(db, barcode: str) -> dict:
     try:
         raw_product = await fetch_product_by_barcode(barcode)
     except OpenFoodFactsError:
-        # Distinguish external-service-failure from genuine not-found —
-        # caller must not conflate these into the same response
         raise
 
     if raw_product is None:
         raise ProductNotFoundError(barcode)
 
-    # 3. Map, validate, store
+    # 3. Map, validate, try to store (optional)
     mapped = _map_openfoodfacts_to_product_schema(raw_product, barcode)
     _validate_product(mapped)
-    stored = _store_product(db, mapped)
-    return _merge_live_fields(stored, mapped)
+    stored = _safe_store_product(db, mapped)
+    if stored:
+        return _merge_live_fields(stored, mapped)
+    return _ephemeral_product(mapped)
 
 
 def _enrich_cached_product(cached: dict, raw_product: dict, barcode: str) -> dict:
@@ -75,6 +101,45 @@ def _merge_live_fields(base: dict, mapped: dict) -> dict:
     if mapped.get("ingredients") and not enriched.get("ingredients"):
         enriched["ingredients"] = mapped.get("ingredients")
     return enriched
+
+
+def _ephemeral_product(mapped: dict) -> dict:
+    """OFF payload shaped like a ProductOut when the local DB cannot store it."""
+    return {
+        "product_id": uuid.uuid5(uuid.NAMESPACE_URL, f"scanity:barcode:{mapped['barcode']}"),
+        "barcode": mapped["barcode"],
+        "product_name": mapped.get("product_name") or "Unknown product",
+        "brand": mapped.get("brand"),
+        "category": mapped.get("category"),
+        "ingredients_raw_text": mapped.get("ingredients_raw_text"),
+        "image_url": mapped.get("image_url"),
+        "nutrition": mapped.get("nutrition"),
+        "ingredients": mapped.get("ingredients") or [],
+    }
+
+
+def _safe_get_local_product(db, barcode: str) -> Optional[dict]:
+    try:
+        return _get_local_product(db, barcode)
+    except SQLAlchemyError:
+        logger.warning("Local barcode cache read failed; continuing with Open Food Facts.")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None
+
+
+def _safe_store_product(db, mapped: dict) -> Optional[dict]:
+    try:
+        return _store_product(db, mapped)
+    except SQLAlchemyError:
+        logger.warning("Local barcode cache write failed; returning live Open Food Facts data.")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None
 
 
 def _get_local_product(db, barcode: str) -> Optional[dict]:
@@ -106,22 +171,39 @@ def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
     Normalizes OpenFoodFacts' raw response into Scanity's Product schema.
     OpenFoodFacts field names -> our schema field names, with missing-field handling.
     """
-    nutriments = raw.get("nutriments", {})
+    nutriments = raw.get("nutriments", {}) or {}
+    brand = raw.get("brands", "").split(",")[0].strip() if raw.get("brands") else None
+    category = raw.get("categories", "").split(",")[0].strip() if raw.get("categories") else None
+    ingredients_raw = raw.get("ingredients_text") or raw.get("ingredients_text_en") or ""
+
+    mapped_ingredients = _map_ingredients(raw.get("ingredients") or [])
+    if not mapped_ingredients and ingredients_raw:
+        from app.services.ocr_service import clean_ingredient_text
+
+        mapped_ingredients = [
+            {"name": name, "is_allergen": _check_known_allergen(name)}
+            for name in clean_ingredient_text(ingredients_raw)
+        ]
 
     return {
         "barcode": barcode,
-        "product_name": raw.get("product_name") or raw.get("product_name_en") or "Unknown product",
-        "brand": raw.get("brands", "").split(",")[0].strip() if raw.get("brands") else None,
-        "category": raw.get("categories", "").split(",")[0].strip() if raw.get("categories") else None,
-        "image_url": raw.get("image_url"),
-        "ingredients_raw_text": raw.get("ingredients_text", ""),  # for OCR-parity/fallback display
-        "ingredients": _map_ingredients(raw.get("ingredients", [])),
-        # Per-100g/100mL normalized values, required for Nutri-Score (Issue #57)
+        "product_name": _clip(
+            raw.get("product_name") or raw.get("product_name_en") or "Unknown product",
+            _MAX_PRODUCT_NAME,
+        )
+        or "Unknown product",
+        "brand": _clip(brand, _MAX_BRAND),
+        "category": _clip(category, _MAX_CATEGORY),
+        "image_url": raw.get("image_url") or raw.get("image_front_url"),
+        "ingredients_raw_text": ingredients_raw,
+        "ingredients": mapped_ingredients,
         "nutrition": {
-            "energy_kj": nutriments.get("energy-kj_100g"),
+            "energy_kj": nutriments.get("energy-kj_100g") or nutriments.get("energy_100g"),
             "sugars_g": nutriments.get("sugars_100g"),
             "sat_fat_g": nutriments.get("saturated-fat_100g"),
-            "sodium_mg": nutriments.get("sodium_100g", 0) * 1000 if nutriments.get("sodium_100g") is not None else None,
+            "sodium_mg": nutriments.get("sodium_100g", 0) * 1000
+            if nutriments.get("sodium_100g") is not None
+            else None,
             "fiber_g": nutriments.get("fiber_100g"),
             "protein_g": nutriments.get("proteins_100g"),
         },
@@ -132,38 +214,37 @@ def _map_ingredients(raw_ingredients: list) -> list[dict]:
     """Maps OpenFoodFacts' ingredient list to our Ingredient schema, flagging known allergens."""
     mapped = []
     for ing in raw_ingredients:
-        mapped.append({
-            "name": ing.get("text", "").strip(),
-            "is_allergen": bool(ing.get("vegan") == "no" and False) or _check_known_allergen(ing.get("text", "")),
-        })
+        name = _clip((ing.get("text") or ing.get("id") or "").strip(), _MAX_INGREDIENT_NAME)
+        if not name:
+            continue
+        mapped.append(
+            {
+                "name": name,
+                "is_allergen": _check_known_allergen(name),
+            }
+        )
     return mapped
 
 
 def _check_known_allergen(ingredient_name: str) -> bool:
     """True when the ingredient maps to a known allergen category in the seed table."""
-    from app.core.repo_path import ensure_repo_root
+    try:
+        from app.core.repo_path import ensure_repo_root
 
-    ensure_repo_root()
-    from ai.allergy_engine import check_allergies
+        ensure_repo_root()
+        from ai.allergy_engine import check_allergies
 
-    flags = check_allergies([], [ingredient_name])
-    if not flags:
+        flags = check_allergies([], [ingredient_name])
+        if not flags:
+            return False
+        return flags[0].get("matched_category") is not None
+    except Exception:
         return False
-    return flags[0].get("matched_category") is not None
 
 
 def _validate_product(mapped: dict) -> None:
-    """
-    Prevents invalid product data from being stored per the Definition of Done.
-    Raises ValueError if required fields are missing.
-    """
-    if not mapped.get("product_name") or mapped["product_name"] == "Unknown product":
-        pass  # allowed to store with a placeholder name — OFF data is often incomplete
     if not mapped.get("barcode"):
         raise ValueError("Cannot store product without a barcode")
-    # Nutrition completeness is checked separately by NutritionScoreService (422 if
-    # insufficient for Nutri-Score) — not a hard block at storage time, since a
-    # product can still be stored and allergy-matched even with incomplete nutrition data
 
 
 def _store_product(db, mapped: dict) -> dict:
@@ -179,19 +260,16 @@ def _store_product(db, mapped: dict) -> dict:
 
     product = Product(
         barcode=mapped["barcode"],
-        product_name=mapped["product_name"],
-        brand=mapped.get("brand"),
-        category=mapped.get("category"),
+        product_name=_clip(mapped.get("product_name"), _MAX_PRODUCT_NAME) or "Unknown product",
+        brand=_clip(mapped.get("brand"), _MAX_BRAND),
+        category=_clip(mapped.get("category"), _MAX_CATEGORY),
         ingredients_raw_text=mapped.get("ingredients_raw_text"),
     )
 
     for ing_data in mapped.get("ingredients", []):
-        name = ing_data["name"]
+        name = _clip(ing_data.get("name"), _MAX_INGREDIENT_NAME)
         if not name:
             continue
-        # Reuse an existing Ingredient row with the same name if one exists,
-        # rather than creating duplicates every time a new product references
-        # a common ingredient (e.g. "salt", "sugar")
         ingredient = db.query(Ingredient).filter(Ingredient.ingredient_name == name).first()
         if not ingredient:
             ingredient = Ingredient(

@@ -128,9 +128,20 @@ def test_image_upload_uses_rapidocr(monkeypatch):
     assert data["verdict"] == "avoid"
 
 
-def test_image_upload_requires_auth():
-    response = unauthenticated_client.post(
+def test_image_upload_returns_text_even_without_ingredients(monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.ocr_router.extract_text_from_image",
+        lambda image_bytes, content_type=None: "Nutrition Facts\nCalories 250",
+    )
+
+    response = client.post(
         "/api/v1/scan/ocr/image",
         files={"file": ("label.jpg", b"fake-image-bytes", "image/jpeg")},
+        data={"user_allergies": ""},
     )
-    assert response.status_code == 401
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "Calories" in data["extracted_text"]
+    assert data["parsed_ingredients"] == []
+    assert data["verdict"] is None

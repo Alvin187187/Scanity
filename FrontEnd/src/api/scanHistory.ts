@@ -56,6 +56,11 @@ export function appendScanHistory(scan: StoredScan) {
   const next = [scan, ...readList().filter((item) => item.id !== scan.id)].slice(0, 50)
   window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
   saveActiveScan(scan)
+  try {
+    window.dispatchEvent(new CustomEvent("scanity-history-updated"))
+  } catch {
+    // ignore
+  }
 }
 
 export function markScanFavorite(id: string, favorite = true) {

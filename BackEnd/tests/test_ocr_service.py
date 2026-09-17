@@ -79,3 +79,22 @@ def test_blank_input_raises_error():
         match="No usable ingredients were found",
     ):
         process_ocr_result(extracted_text="")
+
+
+def test_clean_ingredient_text_without_header():
+    result = clean_ingredient_text("Sugar Milk Salt\nCalories 120")
+    assert result == ["Sugar Milk Salt"]
+
+
+def test_clean_ingredient_text_splits_and():
+    result = clean_ingredient_text("Ingredients: sugar and salt and milk")
+    assert [item.lower() for item in result] == ["sugar", "salt", "milk"]
+
+
+def test_process_ocr_result_can_allow_empty_for_preview():
+    result = process_ocr_result(
+        extracted_text="blurry label noise",
+        require_ingredients=False,
+    )
+    assert result["extracted_text"] == "blurry label noise"
+    assert isinstance(result["parsed_ingredients"], list)
