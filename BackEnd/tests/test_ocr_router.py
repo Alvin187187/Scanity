@@ -49,7 +49,7 @@ def test_confirmed_ingredients_endpoint():
         "Salt",
     ]
     assert data["verdict"] == "avoid"
-    assert "Milk" in data["allergy_flags"]
+    assert data["allergy_flags"] == ["Milk"]
     assert data["explanation"]
 
 

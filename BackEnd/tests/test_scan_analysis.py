@@ -15,6 +15,7 @@ def test_milk_allergy_avoids_casein():
 def test_unmapped_ingredient_is_caution_not_safe():
     result = analyze_ingredients(["mystery flavoring"], user_allergies=["milk"])
     assert result["verdict"] == "caution"
+    assert result["allergy_flags"] == []
 
 
 def test_nutri_score_needs_enough_data():

@@ -33,10 +33,13 @@ def analyze_ingredients(
     }
     explanation = explain_scan(allergy_result, nutrition_result if grade else None, verdict.capitalize())
     return {
+        # Only confirmed allergy hits belong in allergy_flags. Unmapped
+        # ingredients stay "caution" in allergy_matches for review, but must
+        # not be listed as allergens in the UI.
         "allergy_flags": [
             item["ingredient"]
-            for item in flagged
-            if item.get("ingredient")
+            for item in flags
+            if item.get("status") == "avoid" and item.get("ingredient")
         ],
         "allergy_matches": flags,
         "verdict": verdict,

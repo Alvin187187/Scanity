@@ -6776,36 +6776,51 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       let text = ""
       let parsedIngredients: string[] = []
 
+      // Prefer on-device OCR first. RapidOCR on the free Render host is often
+      // cold/unavailable and was making phone label scans feel broken.
       try {
-        const data = await extractOcrImage(await sourceToBlob(source), allergyCategoriesForApi())
-        text = data?.extracted_text || ""
-        parsedIngredients = Array.isArray(data?.parsed_ingredients) ? data.parsed_ingredients : []
-        if (parsedIngredients.length === 0 && text) {
-          parsedIngredients = parseIngredients(text)
-        }
-      } catch (apiError) {
-        console.warn("RapidOCR API unavailable, using on-device text fallback:", apiError)
         const prepared = await preprocessLabelImage(source)
         const worker = await createWorker("eng")
         await worker.setParameters({
           tessedit_pageseg_mode: "6",
           preserve_interword_spaces: "1",
-          tessedit_char_whitelist:
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-()%:/+&' ",
         })
         const result = await worker.recognize(prepared)
         text = result?.data?.text?.trim() || ""
         await worker.terminate()
         parsedIngredients = parseIngredients(text)
+      } catch (localError) {
+        console.warn("On-device OCR failed:", localError)
       }
 
-      if (!text) throw new Error("No text was detected. Please make sure the nutrition label is clear and readable.")
+      if (!text || parsedIngredients.length < 2) {
+        try {
+          const data = await extractOcrImage(
+            await sourceToBlob(source),
+            allergyCategoriesForApi(),
+          )
+          const remoteText = data?.extracted_text || ""
+          const remoteIngredients = Array.isArray(data?.parsed_ingredients)
+            ? data.parsed_ingredients
+            : []
+          if (remoteText && remoteText.length > text.length) text = remoteText
+          if (remoteIngredients.length > parsedIngredients.length) {
+            parsedIngredients = remoteIngredients
+          }
+        } catch (apiError) {
+          console.warn("RapidOCR API unavailable:", apiError)
+        }
+      }
+
+      if (!text) {
+        throw new Error(
+          "No text was detected. Hold the label steady, fill the frame, and try again in good light.",
+        )
+      }
 
       const ingredientsFromText = parseIngredients(text)
       const merged =
-        parsedIngredients.length > 0
-          ? parsedIngredients
-          : ingredientsFromText
+        parsedIngredients.length > 0 ? parsedIngredients : ingredientsFromText
 
       setExtractedText(text)
       setIngredients(merged.length > 0 ? merged : [""])
@@ -6813,17 +6828,26 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       try {
         localStorage.setItem(
           "scanityOCRResult",
-          JSON.stringify({ text, ingredients: parsedIngredients, source: "ocr", scannedAt: new Date().toISOString() })
+          JSON.stringify({
+            text,
+            ingredients: merged,
+            source: "ocr",
+            scannedAt: new Date().toISOString(),
+          }),
         )
       } catch (error) {
         console.warn("Unable to save OCR result:", error)
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 400))
       setScanStatus("textPreview")
     } catch (error) {
       console.error("OCR processing error:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Something went wrong while reading the nutrition label.")
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while reading the nutrition label.",
+      )
       setScanStatus("error")
       stopCamera()
     } finally {
