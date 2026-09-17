@@ -25,11 +25,25 @@ def _map_request_to_service(request: OCRScanRequest) -> dict:
     }
 
 
-def _with_analysis(parsed: dict, user_allergies: list[str], product_name: str | None = None) -> OCRScanResponse:
-    analysis = analyze_ingredients(parsed["parsed_ingredients"], user_allergies)
+def _with_analysis(
+    parsed: dict,
+    user_allergies: list[str],
+    product_name: str | None = None,
+) -> OCRScanResponse:
+    ingredients = parsed.get("parsed_ingredients") or []
+    if ingredients:
+        analysis = analyze_ingredients(ingredients, user_allergies)
+    else:
+        analysis = {
+            "allergy_flags": [],
+            "allergy_matches": [],
+            "verdict": None,
+            "nutri_score_grade": None,
+            "explanation": None,
+        }
     return OCRScanResponse(
         extracted_text=parsed["extracted_text"],
-        parsed_ingredients=parsed["parsed_ingredients"],
+        parsed_ingredients=ingredients,
         allergy_flags=analysis["allergy_flags"],
         allergy_matches=analysis["allergy_matches"],
         score=analysis["nutri_score_grade"],
@@ -64,7 +78,11 @@ async def scan_ocr_image(
     allergies = [part.strip() for part in user_allergies.split(",") if part.strip()]
     try:
         extracted_text = extract_text_from_image(image_bytes, file.content_type)
-        result = process_ocr_result(extracted_text=extracted_text)
+        # Allow empty ingredient lists so the client can show a review/edit step.
+        result = process_ocr_result(
+            extracted_text=extracted_text,
+            require_ingredients=False,
+        )
     except InvalidLabelImageError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except OCREngineUnavailableError as error:

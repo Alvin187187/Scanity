@@ -4483,9 +4483,18 @@ function DashboardIconRail({
 function DashboardScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   const greetingName = firstName(loadSessionUser()?.name || "")
-  const [recentScans, setRecentScans] = useState<ScanRecord[]>([])
+  const [recentScans, setRecentScans] = useState<ScanRecord[]>(() => loadScanRecords())
   useEffect(() => {
     setRecentScans(loadScanRecords())
+    const refresh = () => setRecentScans(loadScanRecords())
+    window.addEventListener("focus", refresh)
+    window.addEventListener("storage", refresh)
+    window.addEventListener("scanity-history-updated", refresh)
+    return () => {
+      window.removeEventListener("focus", refresh)
+      window.removeEventListener("storage", refresh)
+      window.removeEventListener("scanity-history-updated", refresh)
+    }
   }, [])
 
   const actionCards: {
@@ -6638,25 +6647,57 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   }
 
   // ── PARSE INGREDIENTS ──────────────────────────────────────────────────
+  // Mirrors BackEnd clean_ingredient_text: do not require the word
+  // "Ingredients" (OCR often mangles it). Split the whole label if needed.
   const parseIngredients = (text: string) => {
-    const lower = text.toLowerCase()
-    const ingredientIndex = lower.indexOf("ingredients")
-    if (ingredientIndex === -1) return []
+    if (!text?.trim()) return []
 
-    let ingredientText = text.substring(ingredientIndex)
-    ingredientText = ingredientText.replace(/^ingredients?\s*:?\s*/i, "")
+    const headerMatch = text.match(
+      /(?:ingredients?|ingredientes?|mga\s+sangkap|sangkap|composition)\s*:?\s*/i,
+    )
+    let ingredientText = headerMatch
+      ? text.slice(headerMatch.index! + headerMatch[0].length)
+      : text
 
-    const stopWords = ["nutrition facts", "nutrition information", "allergen", "contains", "serving size", "calories"]
+    const stopWords = [
+      "nutrition facts",
+      "nutrition information",
+      "nutritional information",
+      "allergen information",
+      "allergens",
+      "contains:",
+      "may contain",
+      "serving size",
+      "calories",
+      "best before",
+      "net wt",
+      "net weight",
+    ]
+    const lower = ingredientText.toLowerCase()
+    let cut = ingredientText.length
     for (const stopWord of stopWords) {
-      const index = ingredientText.toLowerCase().indexOf(stopWord)
-      if (index > 0) ingredientText = ingredientText.substring(0, index)
+      const index = lower.indexOf(stopWord)
+      if (index >= 0 && index < cut) cut = index
     }
+    ingredientText = ingredientText.slice(0, cut)
+      .replace(/\s+and\s+/gi, ", ")
+      .replace(/[•·|]/g, ",")
 
+    const seen = new Set<string>()
     return ingredientText
-      .split(/[,;\n]/)
-      .map((item) => item.replace(/[•*]/g, "").trim())
-      .filter((item) => item.length > 1 && item.length < 100)
-      .slice(0, 30)
+      .split(/[,;\n/]+/)
+      .map((item) => item.replace(/[•*]/g, "").trim().replace(/^[\d.)\s%-]+/, "").trim())
+      .filter((item) => {
+        if (item.length < 2 || item.length > 80) return false
+        if (/^[\d.,%\s]+$/.test(item)) return false
+        const letters = (item.match(/[a-zA-Z]/g) || []).length
+        if (letters < 2) return false
+        const key = item.toLowerCase()
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      .slice(0, 40)
   }
 
   const preprocessLabelImage = async (
@@ -6739,6 +6780,9 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         const data = await extractOcrImage(await sourceToBlob(source), allergyCategoriesForApi())
         text = data?.extracted_text || ""
         parsedIngredients = Array.isArray(data?.parsed_ingredients) ? data.parsed_ingredients : []
+        if (parsedIngredients.length === 0 && text) {
+          parsedIngredients = parseIngredients(text)
+        }
       } catch (apiError) {
         console.warn("RapidOCR API unavailable, using on-device text fallback:", apiError)
         const prepared = await preprocessLabelImage(source)
@@ -6757,8 +6801,14 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       if (!text) throw new Error("No text was detected. Please make sure the nutrition label is clear and readable.")
 
+      const ingredientsFromText = parseIngredients(text)
+      const merged =
+        parsedIngredients.length > 0
+          ? parsedIngredients
+          : ingredientsFromText
+
       setExtractedText(text)
-      setIngredients(parsedIngredients.length > 0 ? parsedIngredients : parseIngredients(text))
+      setIngredients(merged.length > 0 ? merged : [""])
 
       try {
         localStorage.setItem(
@@ -6839,10 +6889,23 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       setScanStatus("productProcessing")
 
-      const cleanedIngredients = ingredients.map((item) => item.trim()).filter(Boolean)
+      let finalIngredients = ingredients.map((item) => item.trim()).filter(Boolean)
+      if (finalIngredients.length === 0) {
+        finalIngredients = parseIngredients(extractedText)
+        if (finalIngredients.length > 0) {
+          setIngredients(finalIngredients)
+        } else {
+          setErrorMessage(
+            "Add at least one ingredient from the label before continuing. You can edit the list above.",
+          )
+          setScanStatus("textPreview")
+          return
+        }
+      }
+
       const data = await analyzeOcrText({
         extracted_text: extractedText,
-        edited_ingredients: cleanedIngredients,
+        edited_ingredients: finalIngredients,
         user_allergies: allergyCategoriesForApi(),
         product_name: "Label scan",
       })
@@ -6850,7 +6913,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       const stored = storedScanFromAnalysis({
         source: "ocr",
         name: data?.product_name || "Label scan",
-        ingredients: data?.parsed_ingredients || cleanedIngredients,
+        ingredients: data?.parsed_ingredients || finalIngredients,
         ingredientsText: data?.extracted_text || extractedText,
         verdict: data?.verdict,
         grade: data?.nutri_score_grade || data?.score,
@@ -11181,9 +11244,18 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const [query, setQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
-  const [recentScans, setRecentScans] = useState<ScanRecord[]>([])
+  const [recentScans, setRecentScans] = useState<ScanRecord[]>(() => loadScanRecords())
   useEffect(() => {
     setRecentScans(loadScanRecords())
+    const refresh = () => setRecentScans(loadScanRecords())
+    window.addEventListener("focus", refresh)
+    window.addEventListener("storage", refresh)
+    window.addEventListener("scanity-history-updated", refresh)
+    return () => {
+      window.removeEventListener("focus", refresh)
+      window.removeEventListener("storage", refresh)
+      window.removeEventListener("scanity-history-updated", refresh)
+    }
   }, [])
 
   const scans = recentScans.filter((scan) =>
