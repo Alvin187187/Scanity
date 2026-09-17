@@ -12,3 +12,7 @@ supabase
 PyJWT
 cryptography
 alembic
+email-validator
+python-multipart
+rapidocr
+onnxruntime
