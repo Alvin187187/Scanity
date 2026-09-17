@@ -7390,19 +7390,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
 
-<<<<<<< Updated upstream
-  // Nutrition grade (A–E) reflects ingredient/nutrition quality only — it is
-  // calculated from the product itself and is never lowered just because an
-  // ingredient happens to match this user's saved allergy profile. A product
-  // can be Grade A and still be flagged unsafe for a specific person; that
-  // personalized check is the separate Safety verdict below.
-  const grade: NutritionGrade = "a"
-
-  const verdict: CompareVerdict = "avoid"
-  const verdictReason =
-    "Flagged against your saved allergy profile — see allergens below."
-  const allergens = ["wheat", "soy"]
-=======
   const rawGrade = scan?.grade
   const grade: NutritionGrade | null =
     rawGrade === "a" ||
@@ -7429,7 +7416,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     .join(" · ") || "Scan a product to fill this page"
   const imageUrl = scan?.imageUrl
   const [saved, setSaved] = useState(Boolean(scan?.favorite))
->>>>>>> Stashed changes
 
   return (
     <div
@@ -7562,17 +7548,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               marginBottom: 24,
             }}
           >
-<<<<<<< Updated upstream
-            <img
-              src={beefNoodlesImg}
-              alt="Noodles Beef"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-=======
             {imageUrl ? (
               <img
                 src={imageUrl}
@@ -7600,7 +7575,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 No product photo
               </div>
             )}
->>>>>>> Stashed changes
           </div>
 
           {/* ── Product Information ─────────────────────────────────────── */}
@@ -12239,15 +12213,8 @@ function ProfileScreen({
       .join(", ") ||
     "Nothing saved yet"
 
-<<<<<<< Updated upstream
-  const labelsScanned =
-    RECENT_SCANS.length
-
-  const lastScan = RECENT_SCANS[0]
-=======
   const historyRecords = loadScanRecords()
   const lastScan = historyRecords[0]
->>>>>>> Stashed changes
 
   const lastScanLabel = lastScan
     ? `${lastScan.name} · ${lastScan.date}`
@@ -12718,211 +12685,10 @@ function ProfileScreen({
                       flexShrink: 0,
                     }}
                   >
-<<<<<<< Updated upstream
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fit, minmax(150px, 1fr))",
-                        gap: 14,
-                      }}
-                    >
-                      {/* Name */}
-                      <label
-                        style={{
-                          display: "flex",
-                          flexDirection:
-                            "column",
-                          gap: 6,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily:
-                              FONT_BODY,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color:
-                              PALETTE.textMuted,
-                          }}
-                        >
-                          Name
-                        </span>
-
-                        <input
-                          autoFocus
-                          value={
-                            draftName
-                          }
-                          onChange={(e) =>
-                            setDraftName(
-                              e.target
-                                .value
-                            )
-                          }
-                          placeholder="Your name"
-                          style={{
-                            fontFamily:
-                              FONT_HEAD,
-                            fontWeight: 700,
-                            fontSize: 14,
-                            color:
-                              PALETTE.textDark,
-                            background:
-                              PALETTE.page,
-                            border: `1.5px solid ${PALETTE.border}`,
-                            borderRadius: 10,
-                            padding:
-                              "10px 12px",
-                            outline:
-                              "none",
-                            boxSizing:
-                              "border-box",
-                            width:
-                              "100%",
-                          }}
-                        />
-                      </label>
-
-                      {/* Email */}
-                      <label
-                        style={{
-                          display: "flex",
-                          flexDirection:
-                            "column",
-                          gap: 6,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily:
-                              FONT_BODY,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color:
-                              PALETTE.textMuted,
-                          }}
-                        >
-                          Email Address
-                        </span>
-
-                        <input
-                          value={
-                            draftEmail
-                          }
-                          onChange={(e) =>
-                            setDraftEmail(
-                              e.target
-                                .value
-                            )
-                          }
-                          placeholder="you@email.com"
-                          style={{
-                            fontFamily:
-                              FONT_BODY,
-                            fontWeight: 600,
-                            fontSize: 13,
-                            color:
-                              PALETTE.textDark,
-                            background:
-                              PALETTE.page,
-                            border: `1.5px solid ${PALETTE.border}`,
-                            borderRadius: 10,
-                            padding:
-                              "10px 12px",
-                            outline:
-                              "none",
-                            boxSizing:
-                              "border-box",
-                            width:
-                              "100%",
-                          }}
-                        />
-                      </label>
-                    </div>
-
-                    {/* Edit actions */}
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent:
-                          "flex-end",
-                        gap: 8,
-                        marginTop: 16,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setName(
-                            draftName.trim() ||
-                              name
-                          )
-
-                          setEmail(
-                            draftEmail.trim() ||
-                              email
-                          )
-
-                          setEditingIdentity(
-                            false
-                          )
-                        }}
-                        style={{
-                          padding:
-                            "9px 20px",
-                          borderRadius: 10,
-                          border: "none",
-                          background:
-                            PALETTE.green,
-                          color:
-                            "#FFFFFF",
-                          fontFamily:
-                            FONT_HEAD,
-                          fontWeight: 700,
-                          fontSize: 12,
-                          cursor:
-                            "pointer",
-                          boxShadow:
-                            "0 4px 12px rgba(23,107,58,0.22)",
-                        }}
-                      >
-                        Save
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditingIdentity(
-                            false
-                          )
-                        }
-                        style={{
-                          padding:
-                            "9px 20px",
-                          borderRadius: 10,
-                          border: `1px solid ${PALETTE.border}`,
-                          background:
-                            "transparent",
-                          color:
-                            PALETTE.textMuted,
-                          fontFamily:
-                            FONT_HEAD,
-                          fontWeight: 600,
-                          fontSize: 12,
-                          cursor:
-                            "pointer",
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-=======
                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: isDirty ? SOFT_SLATE.caution : SOFT_SLATE.green }} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: isDirty ? SOFT_SLATE.caution : SOFT_SLATE.green }}>
                       {isDirty ? "Unsaved" : "Saved"}
                     </span>
->>>>>>> Stashed changes
                   </div>
                 </div>
 
