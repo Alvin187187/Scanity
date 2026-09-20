@@ -37,22 +37,26 @@ def _with_analysis(
         analysis = {
             "allergy_flags": [],
             "allergy_matches": [],
+            "label_insights": [],
             "verdict": None,
             "safety_score": None,
             "nutri_score_grade": None,
             "explanation": None,
+            "ai_source": None,
         }
     return OCRScanResponse(
         extracted_text=parsed["extracted_text"],
         parsed_ingredients=ingredients,
         allergy_flags=analysis["allergy_flags"],
         allergy_matches=analysis["allergy_matches"],
+        label_insights=analysis.get("label_insights") or [],
         score=analysis["nutri_score_grade"],
         verdict=analysis["verdict"],
         safety_score=analysis.get("safety_score"),
         nutri_score_grade=analysis["nutri_score_grade"],
         explanation=analysis["explanation"],
         product_name=product_name,
+        ai_source=analysis.get("ai_source"),
     )
 
 

@@ -17,7 +17,7 @@ from app.core.repo_path import ensure_repo_root
 ensure_repo_root()
 
 from ai.gemini_client import FALLBACK_TEXT, call_hosted_ai
-from ai.prompt import SYSTEM_INSTRUCTIONS, build_explainer_prompt
+from ai.prompt import COACH_SYSTEM_INSTRUCTIONS, SYSTEM_INSTRUCTIONS, build_explainer_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -32,22 +32,28 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
         for item in (allergy_result.get("flagged_ingredients") or [])
         if str(item.get("status", "")).lower() in {"avoid", "caution"}
     ]
+    lines = [f"**{label}** for this label based on your saved profile."]
     if flagged:
-        names = ", ".join(
-            str(item.get("ingredient") or item.get("matched_kb_entry") or "an ingredient")
-            for item in flagged[:3]
+        why = (
+            "matches your saved allergy"
+            if label == "Avoid"
+            else "needs a quick human check because we could not fully match it"
         )
-        why = "matches your saved allergy profile" if label == "Avoid" else "could not be fully confirmed against your profile"
-        sentence = f"{label}. Flagged for {names}, which {why}."
+        for item in flagged[:4]:
+            name = item.get("ingredient") or item.get("matched_kb_entry") or "an ingredient"
+            lines.append(f"- **{name}** {why}.")
     elif label == "Safe":
-        sentence = "Safe. No ingredients on this label matched your saved allergies."
+        lines.append("- No ingredients matched your saved allergies.")
     else:
-        sentence = f"{label}. Some ingredients could not be matched, so this result is not confirmed safe."
+        lines.append("- Some ingredients could not be matched, so this is not confirmed safe.")
 
     grade = (nutrition_result or {}).get("grade") if nutrition_result else None
     if grade:
-        sentence = f"{sentence} Nutri-Score {str(grade).upper()} is shown separately and does not change that result."
-    return sentence
+        lines.append(
+            f"- Nutri-Score **{str(grade).upper()}** is nutrition quality only and does not change the allergy result."
+        )
+    lines.append("- Confirm the package label if you are unsure. This is not medical advice.")
+    return "\n".join(lines)
 
 
 def _call_ollama(prompt: str) -> str:
@@ -83,7 +89,12 @@ def _call_ollama(prompt: str) -> str:
 
 def explain_scan(allergy_result: dict, nutrition_result: dict | None, verdict: str) -> str:
     prompt = build_explainer_prompt(allergy_result, nutrition_result, verdict)
-    text = call_hosted_ai(prompt)
+    text = call_hosted_ai(
+        prompt,
+        system_instructions=COACH_SYSTEM_INSTRUCTIONS,
+        max_output_tokens=420,
+        temperature=0.35,
+    )
     if text and text != FALLBACK_TEXT:
         return text
 

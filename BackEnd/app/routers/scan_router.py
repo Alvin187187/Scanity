@@ -70,8 +70,10 @@ async def scan_barcode(
         product=product_out,
         allergy_flags=analysis["allergy_flags"],
         allergy_matches=analysis["allergy_matches"],
+        label_insights=analysis.get("label_insights") or [],
         verdict=analysis["verdict"],
         safety_score=analysis["safety_score"],
         nutri_score_grade=analysis["nutri_score_grade"],
         explanation=analysis["explanation"],
+        ai_source=analysis.get("ai_source"),
     )
