@@ -13,6 +13,22 @@ from pathlib import Path
 SEED_FILE_PATH = Path(__file__).parent / "seed_allergens.csv"
 
 
+def _shopper_source(raw: str | None) -> str:
+    text = (raw or "").strip()
+    if not text:
+        return "Scanity allergen guide"
+    low = text.lower()
+    if ".csv" in low or "allergies_10k" in low or "allergen_datasets" in low:
+        return "Scanity allergen guide"
+    if "openfoodfacts" in low or "open food facts" in low:
+        return "Open Food Facts + Scanity allergen guide"
+    if "curated" in low:
+        return "Scanity curated allergen notes"
+    if "ai/ml" in low or "generated" in low:
+        return "Scanity food-safety reference"
+    return text
+
+
 def load_allergen_seed(csv_path: str = None) -> list[dict]:
     """
     Load the allergen seed CSV into a list of plain dicts.
@@ -60,7 +76,7 @@ def load_allergen_seed(csv_path: str = None) -> list[dict]:
                 "affects_allergens": affects_allergens,
                 "affects_diets": affects_diets,
                 "possible_effects": effects,
-                "source": r.get("source") or "",
+                "source": _shopper_source(r.get("source")),
                 "plain_explanation": plain or effects,
                 "verified": str(r.get("verified") or "").strip().lower() == "true",
             })

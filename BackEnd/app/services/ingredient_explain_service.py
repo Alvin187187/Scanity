@@ -8,15 +8,18 @@ from functools import lru_cache
 
 from ai.gemini_client import CHIP_TIMEOUT_SECONDS, FALLBACK_TEXT, call_hosted_ai
 from ai.rag_layer import retrieve_local
-from seed.ingredient_knowledge_loader import lookup_ingredient_knowledge
+from seed.ingredient_knowledge_loader import lookup_ingredient_knowledge, shopper_source
 
-EXPLAIN_SYSTEM = """You are Scanity's ingredient research helper.
+EXPLAIN_SYSTEM = """You are Scanity's ingredient research helper for everyday shoppers.
 Return ONLY a compact JSON object (no markdown fences) with keys:
 title, category, what_it_is, commonly_seen_in, possible_effects,
 affects_allergens (array of strings), affects_diets (array of strings), source
 Rules:
-- Plain words for shoppers. No diagnosis, no treatment advice.
+- Plain words. Short. Friendly. No diagnosis or treatment advice.
 - Never mention CSV, offline mode, databases, or internal tooling.
+- what_it_is: 1–2 short sentences OR bullet-style clauses separated by " • ".
+- possible_effects: what can happen if intake is high / not controlled — keep gentle and concrete.
+- source: a human label like "Scanity ingredient guide" (never a filename).
 - Keep each string under 160 characters.
 """
 
@@ -42,7 +45,7 @@ def _from_knowledge(ingredient: str) -> dict | None:
         "possible_effects": knowledge.get("possible_effects") or "",
         "affects_allergens": knowledge.get("affects_allergens") or [],
         "affects_diets": knowledge.get("affects_diets") or [],
-        "source": knowledge.get("source") or "Scanity ingredient knowledge",
+        "source": shopper_source(knowledge.get("source") or "Scanity ingredient knowledge"),
         "aliases": knowledge.get("aliases") or [],
         "ai_source": "knowledge",
     }
@@ -66,12 +69,12 @@ def _instant_local(ingredient: str) -> dict:
             "ingredient": ingredient,
             "title": best.get("title") or ingredient,
             "category": best.get("category") or "label ingredient",
-            "what_it_is": (what[:220] if what else f"“{ingredient}” appears on this product label."),
+            "what_it_is": (what[:220] if what else f"**{ingredient}** appears on this product label."),
             "commonly_seen_in": "Packaged foods (exact uses vary by brand)",
-            "possible_effects": "Confirm the package label if you are sensitive or unsure.",
+            "possible_effects": "If you are sensitive, higher amounts may bother you — check how you usually react.",
             "affects_allergens": [],
             "affects_diets": [],
-            "source": best.get("source") or "Scanity knowledge",
+            "source": shopper_source(best.get("source") or "Scanity knowledge"),
             "aliases": [],
             "ai_source": "local",
         }
@@ -80,8 +83,8 @@ def _instant_local(ingredient: str) -> dict:
         "title": ingredient,
         "category": "label ingredient",
         "what_it_is": (
-            f"“{ingredient}” is listed on this product. "
-            "Confirm the package wording if you have allergies or dietary limits."
+            f"**{ingredient}** is listed on this product. "
+            "It is a label ingredient Scanity could not fully detail yet."
         ),
         "commonly_seen_in": "Packaged foods (exact uses vary by brand)",
         "possible_effects": "Effects depend on the exact ingredient and your sensitivities.",
@@ -188,7 +191,9 @@ def explain_ingredient(
             or instant["possible_effects"],
             "affects_allergens": _as_flag_list(parsed.get("affects_allergens")),
             "affects_diets": _as_flag_list(parsed.get("affects_diets")),
-            "source": str(parsed.get("source") or "AI research (not medical advice)").strip(),
+            "source": shopper_source(
+                str(parsed.get("source") or "Scanity ingredient guide")
+            ),
             "aliases": [],
             "ai_source": "gemini",
         }
