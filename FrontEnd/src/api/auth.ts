@@ -13,14 +13,20 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/$/, "")
 }
 
+/** Live Render API — used when VITE_API_BASE_URL is missing in a production build. */
+export const PRODUCTION_API_BASE_URL =
+  "https://scanity-api.onrender.com/api/v1"
+
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 
-// Local Vite defaults to the FastAPI server. Production must set VITE_API_BASE_URL
-// at build time (Vercel env vars are inlined during `vite build`).
 const API_BASE_URL = trimTrailingSlash(
   configuredBaseUrl ||
-    (import.meta.env.DEV ? "http://localhost:8000/api/v1" : ""),
+    (import.meta.env.DEV
+      ? "http://localhost:8000/api/v1"
+      : PRODUCTION_API_BASE_URL),
 )
+
+const AUTH_FETCH_TIMEOUT_MS = 45_000
 
 export function requireApiBaseUrl() {
   if (!API_BASE_URL) {
@@ -29,17 +35,51 @@ export function requireApiBaseUrl() {
   return API_BASE_URL
 }
 
+export function apiOriginFromBase(base = requireApiBaseUrl()) {
+  return base.replace(/\/api\/v1\/?$/, "")
+}
+
+/** Ping the API root so a sleeping Render instance can wake before login. */
+export async function wakeApi(timeoutMs = AUTH_FETCH_TIMEOUT_MS): Promise<boolean> {
+  try {
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+    const response = await fetch(`${apiOriginFromBase()}/`, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+    window.clearTimeout(timer)
+    return response.ok || response.status < 500
+  } catch {
+    return false
+  }
+}
+
 function toAuthError(error: unknown) {
-  if (error instanceof Error && error.message === "AUTH_API_NOT_READY") {
+  if (
+    error instanceof Error &&
+    (error.message === "AUTH_API_NOT_READY" ||
+      error.message === "AUTH_API_UNREACHABLE")
+  ) {
     return error
+  }
+
+  if (
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  ) {
+    return new Error("AUTH_API_UNREACHABLE")
   }
 
   if (
     error instanceof TypeError ||
     (error instanceof Error &&
-      /failed to fetch|networkerror|load failed/i.test(error.message))
+      /failed to fetch|networkerror|load failed|aborted|timeout/i.test(
+        error.message,
+      ))
   ) {
-    return new Error("AUTH_API_NOT_READY")
+    return new Error("AUTH_API_UNREACHABLE")
   }
 
   return error instanceof Error ? error : new Error("Request failed")
@@ -55,22 +95,45 @@ function errorMessageFromBody(result: unknown, fallback: string) {
   return fallback
 }
 
+async function authFetch(
+  path: string,
+  body: Record<string, unknown>,
+  attempt = 1,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = window.setTimeout(
+    () => controller.abort(),
+    AUTH_FETCH_TIMEOUT_MS,
+  )
+  try {
+    return await fetch(`${requireApiBaseUrl()}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (attempt < 2) {
+      await wakeApi()
+      return authFetch(path, body, attempt + 1)
+    }
+    throw toAuthError(error)
+  } finally {
+    window.clearTimeout(timer)
+  }
+}
+
 // ─────────────────────────────────────────────
 // REGISTER
 // POST /api/v1/auth/register
 // ─────────────────────────────────────────────
 export async function registerUser(data: RegisterData) {
   try {
-    const response = await fetch(`${requireApiBaseUrl()}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        full_name: data.name,
-        email: data.email,
-        password: data.password,
-      }),
+    await wakeApi(12_000)
+    const response = await authFetch("/auth/register", {
+      full_name: data.name,
+      email: data.email,
+      password: data.password,
     })
 
     const result = await response.json().catch(() => null)
@@ -98,19 +161,12 @@ export async function registerUser(data: RegisterData) {
 // LOGIN
 // POST /api/v1/auth/login
 // ─────────────────────────────────────────────
-export async function loginUser(
-  credentials: LoginCredentials,
-) {
+export async function loginUser(credentials: LoginCredentials) {
   try {
-    const response = await fetch(`${requireApiBaseUrl()}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: credentials.identifier,
-        password: credentials.password,
-      }),
+    await wakeApi(12_000)
+    const response = await authFetch("/auth/login", {
+      email: credentials.identifier,
+      password: credentials.password,
     })
 
     const result = await response.json().catch(() => null)

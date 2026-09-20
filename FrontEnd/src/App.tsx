@@ -15,7 +15,8 @@ import orangeJuiceImg from "@/imports/orange_juice_scanity.jpeg"
 import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
-import { loginUser, registerUser } from "./api/auth"
+import { askAiAboutProduct, requestSafetyReport, type AiChatMessage } from "./api/ai"
+import { loginUser, registerUser, wakeApi } from "./api/auth"
 import { lookupBarcodeProduct } from "./api/scan"
 import { analyzeOcrText, extractOcrImage } from "./api/ocr"
 import {
@@ -30,9 +31,12 @@ import {
   loadActiveScan,
   loadScanHistory,
   markScanFavorite,
+  removeScanFromHistory,
+  restoreScanToHistory,
   saveActiveScan,
   scoreFromVerdict,
   storedScanFromAnalysis,
+  type AllergySignal,
   type StoredScan,
 } from "./api/scanHistory"
 import {
@@ -1619,10 +1623,11 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
     } catch (error) {
       if (
         error instanceof Error &&
-        error.message === "AUTH_API_NOT_READY"
+        (error.message === "AUTH_API_NOT_READY" ||
+          error.message === "AUTH_API_UNREACHABLE")
       ) {
         setLoginError(
-          "Login service is not connected yet. Please try again later.",
+          "Our login server is waking up or temporarily unavailable. Wait a few seconds and try again.",
         )
       } else {
         setLoginError(
@@ -1633,6 +1638,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    void wakeApi(8_000)
+  }, [])
 
   return (
     <div
@@ -1648,7 +1657,7 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
         fontFamily: SOFT_SLATE.fontFamily,
         color: SOFT_SLATE.textPrimary,
         boxSizing: "border-box",
-        padding: isDesktop ? "36px 24px" : "24px 24px",
+        padding: isDesktop ? "44px 28px" : "32px 24px",
       }}
     >
       <div
@@ -2027,21 +2036,20 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
     } catch (error) {
       if (
         error instanceof Error &&
-        error.message === "AUTH_API_NOT_READY"
+        (error.message === "AUTH_API_NOT_READY" ||
+          error.message === "AUTH_API_UNREACHABLE")
       ) {
         setRegisterError(
-          "Registration service is not connected yet. Please try again later.",
+          "Our registration server is waking up or temporarily unavailable. Wait a few seconds and try again.",
         )
-      }
-      else if (
-      error instanceof Error &&
-     /already registered|already exists|duplicate|user_already_exists/i.test(
-      error.message,
-     )
-     ) {
-    setEmailError("An account with this email already exists.")
-     } 
-      else {
+      } else if (
+        error instanceof Error &&
+        /already registered|already exists|duplicate|user_already_exists/i.test(
+          error.message,
+        )
+      ) {
+        setEmailError("An account with this email already exists.")
+      } else {
         setRegisterError(
           "Unable to create your account. Please check your details and try again.",
         )
@@ -3976,130 +3984,175 @@ function groupScans(scans: ScanRecord[]): ScanGroup[] {
 function ScanRow({
   scan,
   onView,
+  onDelete,
   showDate = true,
   isLast = false,
 }: {
   scan: ScanRecord
   onView: () => void
+  onDelete?: () => void
   showDate?: boolean
   isLast?: boolean
 }) {
   const status = scanStatusInfo(scan.score)
   return (
-    <button
-      type="button"
-      onClick={onView}
+    <div
       style={{
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "9px 6px",
-        background: "none",
-        border: "none",
+        gap: 12,
+        padding: "14px 8px",
         borderBottom: isLast ? "none" : "1px solid rgba(198,204,212,0.6)",
         boxSizing: "border-box",
-        cursor: "pointer",
-        textAlign: "left",
       }}
     >
-      <div
+      <button
+        type="button"
+        onClick={onView}
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          background: SOFT_SLATE.thumbBg,
-          boxShadow: SOFT_SLATE.insetSm,
+          flex: 1,
+          minWidth: 0,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          overflow: "hidden",
+          gap: 12,
+          padding: 0,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
         }}
       >
-        {scan.imageUrl ? (
-          <img src={scan.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <i className="fa fa-cube" style={{ fontSize: 15, color: SOFT_SLATE.textMuted }} />
-        )}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <p
-            style={{
-              margin: 0,
-              fontFamily: SOFT_SLATE.fontFamily,
-              fontWeight: 700,
-              fontSize: 12.5,
-              color: SOFT_SLATE.textPrimary,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {scan.name}
-          </p>
-          {scan.favorite && (
-            <i className="fa fa-star" aria-label="Favorite" style={{ fontSize: 9.5, color: SOFT_SLATE.gold, flexShrink: 0 }} />
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 14,
+            background: SOFT_SLATE.thumbBg,
+            boxShadow: SOFT_SLATE.insetSm,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            overflow: "hidden",
+          }}
+        >
+          {scan.imageUrl ? (
+            <img src={scan.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <i className="fa fa-cube" style={{ fontSize: 15, color: SOFT_SLATE.textMuted }} />
           )}
         </div>
-        <p
-          style={{
-            margin: "2px 0 0",
-            fontFamily: SOFT_SLATE.fontFamily,
-            fontSize: 9.5,
-            color: SOFT_SLATE.textMuted,
-          }}
-        >
-          {showDate ? `${scan.date} • ${scan.time} · ${scan.method}` : `${scan.time} · ${scan.method}`}
-        </p>
-      </div>
-      <div style={{ textAlign: "right", flexShrink: 0 }}>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "1px 8px",
-            borderRadius: 999,
-            fontFamily: SOFT_SLATE.fontFamily,
-            fontWeight: 700,
-            fontSize: 8.5,
-            color: status.color,
-            background: status.bg,
-          }}
-        >
-          <span
-            aria-hidden="true"
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontWeight: 700,
+                fontSize: 14,
+                color: SOFT_SLATE.textPrimary,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {scan.name}
+            </p>
+            {scan.favorite && (
+              <i className="fa fa-star" aria-label="Favorite" style={{ fontSize: 10, color: SOFT_SLATE.gold, flexShrink: 0 }} />
+            )}
+          </div>
+          <p
             style={{
-              width: 4,
-              height: 4,
-              borderRadius: "50%",
-              background: status.color,
-              flexShrink: 0,
+              margin: "4px 0 0",
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontSize: 11,
+              color: SOFT_SLATE.textMuted,
             }}
-          />
-          {status.label}
-        </span>
-        <p
+          >
+            {showDate ? `${scan.date} • ${scan.time} · ${scan.method}` : `${scan.time} · ${scan.method}`}
+          </p>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 10px",
+              borderRadius: 999,
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontWeight: 700,
+              fontSize: 10,
+              color: status.color,
+              background: status.bg,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: "50%",
+                background: status.color,
+                flexShrink: 0,
+              }}
+            />
+            {status.label}
+          </span>
+          <p
+            style={{
+              margin: "6px 0 0",
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontWeight: 800,
+              fontSize: 16,
+              color: status.color,
+              lineHeight: 1,
+            }}
+          >
+            {scan.score}
+          </p>
+        </div>
+        <i
+          className="fa fa-angle-right"
+          aria-hidden="true"
+          style={{ fontSize: 14, color: SOFT_SLATE.textMuted, flexShrink: 0, marginLeft: 2 }}
+        />
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          aria-label={`Delete ${scan.name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete()
+          }}
           style={{
-            margin: "4px 0 0",
-            fontFamily: SOFT_SLATE.fontFamily,
-            fontWeight: 800,
-            fontSize: 15,
-            color: status.color,
-            lineHeight: 1,
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            border: "none",
+            background: SOFT_SLATE.bg,
+            boxShadow: SOFT_SLATE.raisedSm,
+            color: SOFT_SLATE.unsafe,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
           }}
         >
-          {scan.score}
-        </p>
-      </div>
-      <i
-        className="fa fa-angle-right"
-        aria-label="View details"
-        style={{ fontSize: 14, color: SOFT_SLATE.textMuted, flexShrink: 0, marginLeft: 2 }}
-      />
-    </button>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+          </svg>
+        </button>
+      )}
+    </div>
   )
 }
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
@@ -5197,6 +5250,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
           grade: result?.nutri_score_grade,
           explanation: result?.explanation,
           allergyFlags: result?.allergy_flags,
+          allergyMatches: result?.allergy_matches,
           nutrition: product.nutrition,
           safetyScore: result?.safety_score,
         })
@@ -6865,6 +6919,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         grade: data?.nutri_score_grade || data?.score,
         explanation: data?.explanation,
         allergyFlags: data?.allergy_flags,
+        allergyMatches: data?.allergy_matches,
         safetyScore: data?.safety_score,
       })
       appendScanHistory(stored)
@@ -7719,11 +7774,154 @@ function nutritionRows(nutrition?: Record<string, number | undefined> | null) {
   return rows
 }
 
+function AllergySignalsCard({
+  signals,
+  allergens,
+  verdict,
+  reason,
+}: {
+  signals: AllergySignal[]
+  allergens: string[]
+  verdict: CompareVerdict
+  reason: string
+}) {
+  const derived: AllergySignal[] =
+    signals.length > 0
+      ? signals
+      : allergens.map((name) => ({ name, status: "avoid" }))
+  const avoidItems = derived.filter((item) => String(item.status).toLowerCase() === "avoid")
+  const cautionItems = derived.filter((item) => {
+    const status = String(item.status).toLowerCase()
+    return status === "caution" || status === "flagged" || status === "review"
+  })
+  // "Flagged" = caution-level reviews; avoid stays its own bucket.
+  const flaggedItems = cautionItems.length ? cautionItems : []
+
+  return (
+    <div
+      style={{
+        background: SOFT_SLATE.bg,
+        borderRadius: 24,
+        padding: "22px 20px",
+        boxShadow: SOFT_SLATE.raisedSm,
+        marginBottom: 24,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+        Allergy signals
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ padding: "14px 14px", borderRadius: 16, boxShadow: SOFT_SLATE.insetSm }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: SOFT_SLATE.caution }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: SOFT_SLATE.textMuted }}>Flagged</span>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.caution, lineHeight: 1 }}>
+            {flaggedItems.length}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 11, color: SOFT_SLATE.textSecondary }}>Review carefully</div>
+        </div>
+        <div style={{ padding: "14px 14px", borderRadius: 16, boxShadow: SOFT_SLATE.insetSm }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: SOFT_SLATE.unsafe }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: SOFT_SLATE.textMuted }}>Avoid</span>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.unsafe, lineHeight: 1 }}>
+            {avoidItems.length}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 11, color: SOFT_SLATE.textSecondary }}>Matches your allergies</div>
+        </div>
+      </div>
+
+      <StatusBadge verdict={verdict} reason={reason} size="lg" />
+
+      {(flaggedItems.length > 0 || avoidItems.length > 0) ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {flaggedItems.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: SOFT_SLATE.caution, marginBottom: 8 }}>Flagged</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {flaggedItems.map((item) => (
+                  <span
+                    key={`flag-${item.name}`}
+                    title={item.reason || "Review this ingredient"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      background: "#F1E3D8",
+                      color: SOFT_SLATE.caution,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                      <path d="M12 9v4" />
+                      <path d="M12 17h.01" />
+                      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                    </svg>
+                    {item.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {avoidItems.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: SOFT_SLATE.unsafe, marginBottom: 8 }}>Avoid</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {avoidItems.map((item) => (
+                  <span
+                    key={`avoid-${item.name}`}
+                    title={item.reason || "Matches your allergy profile"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      background: "#F1DEDA",
+                      color: SOFT_SLATE.unsafe,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M8 8l8 8" />
+                    </svg>
+                    {item.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <AllergenList allergens={allergens} />
+      )}
+    </div>
+  )
+}
+
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   const scan = loadActiveScan()
   const [saved, setSaved] = useState(Boolean(scan?.favorite))
-  const [showAi, setShowAi] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatInput, setChatInput] = useState("")
+  const [chatBusy, setChatBusy] = useState(false)
+  const [chatError, setChatError] = useState("")
+  const [messages, setMessages] = useState<AiChatMessage[]>([])
+  const [reportText, setReportText] = useState("")
+  const [reportBusy, setReportBusy] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
 
   const rawGrade = scan?.grade
   const grade: NutritionGrade | null =
@@ -7744,6 +7942,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const verdict: CompareVerdict = (scan?.verdict as CompareVerdict) || null
   const verdictReason = scan?.explanation || "Scan a barcode or nutrition label to see a safety result."
   const allergens = scan?.allergens || []
+  const allergySignals = scan?.allergySignals || []
   const productName = scan?.name || "No product scanned yet"
   const productBrand = [scan?.brand, scan?.barcode ? `Barcode ${scan.barcode}` : scan?.source === "ocr" ? "OCR label" : null]
     .filter(Boolean)
@@ -7751,6 +7950,72 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const imageUrl = scan?.imageUrl
   const safetyScore = typeof scan?.score === "number" ? scan.score : scoreFromVerdict(verdict)
   const nutrients = nutritionRows(scan?.nutrition)
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, chatOpen])
+
+  const quickPrompts = [
+    "Why was this flagged for me?",
+    "Explain the top risk in simple words",
+    "Anything I should double-check on the label?",
+  ]
+
+  const sendChat = async (raw: string) => {
+    const message = raw.trim()
+    if (!message || chatBusy) return
+    setChatError("")
+    setChatBusy(true)
+    const nextHistory = [...messages, { role: "user" as const, content: message }]
+    setMessages(nextHistory)
+    setChatInput("")
+    try {
+      const reply = await askAiAboutProduct({
+        message,
+        scan,
+        history: nextHistory,
+      })
+      setMessages([...nextHistory, { role: "assistant", content: reply || "I could not answer that just now." }])
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "AI assistant is unavailable right now.")
+      setMessages([
+        ...nextHistory,
+        {
+          role: "assistant",
+          content:
+            scan?.explanation ||
+            "I could not reach the AI coach right now. The safety score and allergy signals above are still your main guide — confirm the package label.",
+        },
+      ])
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const runSafetyReport = async (focus?: string) => {
+    if (reportBusy) return
+    setReportBusy(true)
+    setChatError("")
+    try {
+      const report = await requestSafetyReport({ scan, focus })
+      setReportText(report)
+      setChatOpen(true)
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: report || "Safety report unavailable right now." },
+      ])
+    } catch (error) {
+      const fallback =
+        scan?.explanation ||
+        "Could not build a live safety report. Use the allergy signals and safety score above, and confirm ingredients on the package."
+      setReportText(fallback)
+      setChatOpen(true)
+      setMessages((prev) => [...prev, { role: "assistant", content: fallback }])
+      setChatError(error instanceof Error ? error.message : "Safety report unavailable.")
+    } finally {
+      setReportBusy(false)
+    }
+  }
 
   return (
     <div
@@ -7769,8 +8034,8 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
       <div
         style={{
           flexShrink: 0,
-          padding: isDesktop ? "22px 40px 12px" : "16px 16px 10px",
-          paddingTop: `calc(${SAFE_TOP} + 8px)`,
+          padding: isDesktop ? "28px 48px 16px" : "20px 20px 12px",
+          paddingTop: `calc(${SAFE_TOP} + 10px)`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14, maxWidth: 900, margin: "0 auto" }}>
@@ -7779,8 +8044,8 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             onClick={() => go("dashboard")}
             aria-label="Back"
             style={{
-              width: 44,
-              height: 44,
+              width: 46,
+              height: 46,
               borderRadius: 15,
               border: "none",
               background: SOFT_SLATE.bg,
@@ -7799,10 +8064,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             </svg>
           </button>
           <div style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: isDesktop ? 24 : 20, fontWeight: 800, letterSpacing: "-0.02em" }}>
+            <h1 style={{ margin: 0, fontSize: isDesktop ? 26 : 22, fontWeight: 800, letterSpacing: "-0.02em" }}>
               Product Result
             </h1>
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: SOFT_SLATE.textMuted }}>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted }}>
               Personalized safety + nutrition quality
             </p>
           </div>
@@ -7810,16 +8075,16 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-        <Center maxWidth={isDesktop ? 900 : 640} style={{ padding: isDesktop ? "8px 40px 40px" : "4px 16px 28px" }}>
+        <Center maxWidth={isDesktop ? 900 : 640} style={{ padding: isDesktop ? "12px 48px 56px" : "8px 20px 40px" }}>
           <div
             style={{
               width: "100%",
               aspectRatio: "16 / 9",
-              borderRadius: 24,
+              borderRadius: 26,
               background: SOFT_SLATE.bg,
               overflow: "hidden",
               boxShadow: SOFT_SLATE.raisedLg,
-              marginBottom: 20,
+              marginBottom: 28,
             }}
           >
             {imageUrl ? (
@@ -7831,79 +8096,68 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 18, marginBottom: 26 }}>
             <div style={{ minWidth: 0 }}>
-              <h2 style={{ margin: 0, fontSize: isDesktop ? 22 : 18, fontWeight: 800, letterSpacing: "-0.02em" }}>{productName}</h2>
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted }}>{productBrand}</p>
+              <h2 style={{ margin: 0, fontSize: isDesktop ? 24 : 20, fontWeight: 800, letterSpacing: "-0.02em" }}>{productName}</h2>
+              <p style={{ margin: "6px 0 0", fontSize: 13.5, color: SOFT_SLATE.textMuted }}>{productBrand}</p>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
-              <GradeBadge grade={grade} size={52} />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <GradeBadge grade={grade} size={56} />
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
                 Nutri-Score
               </span>
             </div>
           </div>
 
-          <div style={{ marginBottom: 18 }}>
+          <div style={{ marginBottom: 26 }}>
             <SafetySpeedGauge score={safetyScore} />
           </div>
 
           <div
             style={{
               background: SOFT_SLATE.bg,
-              borderRadius: 22,
-              padding: "16px 16px 14px",
+              borderRadius: 24,
+              padding: "22px 20px 18px",
               boxShadow: SOFT_SLATE.raisedSm,
-              marginBottom: 18,
+              marginBottom: 26,
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted, marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted, marginBottom: 14 }}>
               Nutrition quality
             </div>
             <GradeScale grade={grade} />
-            <p style={{ margin: "12px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
+            <p style={{ margin: "16px 0 0", fontSize: 13, color: SOFT_SLATE.textSecondary, lineHeight: 1.55 }}>
               {grade
                 ? `Grade ${grade.toUpperCase()} — ${gradeLabels[grade]}. Nutri-Score reflects ingredient/nutrition quality only; it is separate from your allergy safety score.`
                 : "Nutrition grade unavailable for this product. Safety score above still applies to your allergy profile."}
             </p>
             {nutrients.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
                 {nutrients.map((row) => (
-                  <div key={row.label} style={{ padding: "10px 12px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
+                  <div key={row.label} style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: SOFT_SLATE.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{row.label}</div>
-                    <div style={{ marginTop: 4, fontSize: 15, fontWeight: 800 }}>{row.value}</div>
+                    <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800 }}>{row.value}</div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div
-            style={{
-              background: SOFT_SLATE.bg,
-              borderRadius: 22,
-              padding: 16,
-              boxShadow: SOFT_SLATE.raisedSm,
-              marginBottom: 18,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
-              Allergy signals
-            </div>
-            <StatusBadge verdict={verdict} reason={verdictReason} size="lg" />
-            <AllergenList allergens={allergens} />
-          </div>
+          <AllergySignalsCard
+            signals={allergySignals}
+            allergens={allergens}
+            verdict={verdict}
+            reason={verdictReason}
+          />
 
-          <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 12, marginBottom: 12 }}>
+          <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 14, marginBottom: 18 }}>
             <button
               type="button"
-              onClick={() => setShowAi(true)}
+              onClick={() => void runSafetyReport("full safety overview for my allergies and health conditions")}
+              disabled={reportBusy}
               style={{
                 flex: 1,
-                minHeight: 52,
+                minHeight: 54,
                 border: "none",
                 borderRadius: 16,
                 background: SOFT_SLATE.bg,
@@ -7911,22 +8165,12 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 fontFamily: SOFT_SLATE.fontFamily,
                 fontSize: 13,
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: reportBusy ? "wait" : "pointer",
                 boxShadow: SOFT_SLATE.raisedBtn,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
+                opacity: reportBusy ? 0.75 : 1,
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round">
-                <path d="M12 3v2" />
-                <path d="M12 19v2" />
-                <path d="M5 12H3" />
-                <path d="M21 12h-2" />
-                <circle cx="12" cy="12" r="5" />
-              </svg>
-              Ask AI about this product
+              {reportBusy ? "Building report..." : "Safety report"}
             </button>
             <button
               type="button"
@@ -7937,7 +8181,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               }}
               style={{
                 flex: 1,
-                minHeight: 52,
+                minHeight: 54,
                 border: "none",
                 borderRadius: 16,
                 background: SOFT_SLATE.bg,
@@ -7956,7 +8200,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               onClick={() => go("productCompare")}
               style={{
                 flex: 1,
-                minHeight: 52,
+                minHeight: 54,
                 border: "none",
                 borderRadius: 16,
                 background: SOFT_SLATE.green,
@@ -7971,93 +8215,209 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               Compare
             </button>
           </div>
+
+          {reportText && !chatOpen && (
+            <div style={{ marginBottom: 20, padding: 16, borderRadius: 18, boxShadow: SOFT_SLATE.insetSm, fontSize: 13.5, lineHeight: 1.55, color: SOFT_SLATE.textPrimary }}>
+              {reportText}
+            </div>
+          )}
         </Center>
       </div>
 
-      {showAi && (
+      {/* Floating AI chat bubble */}
+      <button
+        type="button"
+        aria-label={chatOpen ? "Close AI chat" : "Open AI chat"}
+        onClick={() => setChatOpen((open) => !open)}
+        style={{
+          position: "fixed",
+          right: isDesktop ? 36 : 20,
+          bottom: isDesktop ? 36 : 22,
+          zIndex: 230,
+          width: 58,
+          height: 58,
+          borderRadius: "50%",
+          border: "none",
+          background: SOFT_SLATE.green,
+          color: "#fff",
+          boxShadow: SOFT_SLATE.raisedBtn,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {chatOpen ? (
+          <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>×</span>
+        ) : (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+          </svg>
+        )}
+      </button>
+
+      {chatOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="AI product assistant"
           style={{
             position: "fixed",
-            inset: 0,
+            right: isDesktop ? 36 : 12,
+            bottom: isDesktop ? 108 : 92,
             zIndex: 240,
-            background: "rgba(36,41,47,0.45)",
+            width: "min(420px, calc(100vw - 24px))",
+            maxHeight: "min(72vh, 640px)",
+            background: SOFT_SLATE.bg,
+            borderRadius: 24,
+            boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
             display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-            padding: isDesktop ? 28 : 12,
+            flexDirection: "column",
+            overflow: "hidden",
           }}
-          onClick={() => setShowAi(false)}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 520,
-              background: SOFT_SLATE.bg,
-              borderRadius: 26,
-              padding: 22,
-              boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
-              maxHeight: "78vh",
-              overflowY: "auto",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>AI Assistant</div>
-                <div style={{ marginTop: 3, fontSize: 12, color: SOFT_SLATE.textMuted }}>
-                  Explains the scan — does not change Safe/Caution/Avoid
-                </div>
+          <div style={{ padding: "16px 16px 12px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800 }}>AI Assistant</div>
+              <div style={{ marginTop: 3, fontSize: 11.5, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>
+                Friendly coach · explains only · does not change Safe/Caution/Avoid
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAi(false)}
-                aria-label="Close"
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  border: "none",
-                  background: SOFT_SLATE.bg,
-                  boxShadow: SOFT_SLATE.raisedSm,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
-              >
-                ✕
-              </button>
             </div>
-
-            <div style={{ marginTop: 16, padding: 14, borderRadius: 16, boxShadow: SOFT_SLATE.insetSm, fontSize: 14, lineHeight: 1.55, color: SOFT_SLATE.textPrimary }}>
-              {verdictReason}
-            </div>
-
-            <div style={{ marginTop: 14, fontSize: 12, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
-              Safety score <strong>{safetyScore}/100</strong> comes from the allergy rules engine.
-              Nutri-Score is nutrition quality only. Ask a clinician for medical advice.
-            </div>
-
             <button
               type="button"
-              onClick={() => setShowAi(false)}
+              onClick={() => setChatOpen(false)}
+              aria-label="Close"
               style={{
-                width: "100%",
-                marginTop: 18,
-                minHeight: 48,
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                border: "none",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.raisedSm,
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{ padding: "0 16px 10px", display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <button
+              type="button"
+              disabled={reportBusy}
+              onClick={() => void runSafetyReport("full safety overview for my allergies and health conditions")}
+              style={{
+                border: "none",
+                borderRadius: 999,
+                padding: "8px 12px",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.raisedSm,
+                fontSize: 11.5,
+                fontWeight: 700,
+                color: SOFT_SLATE.green,
+                cursor: "pointer",
+              }}
+            >
+              Safety report
+            </button>
+            {quickPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                disabled={chatBusy}
+                onClick={() => void sendChat(prompt)}
+                style={{
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: SOFT_SLATE.textSecondary,
+                  cursor: "pointer",
+                }}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+            {messages.length === 0 && (
+              <div style={{ padding: 14, borderRadius: 16, boxShadow: SOFT_SLATE.insetSm, fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                Ask anything about this product for your allergies and health notes. I will keep it clear and careful — and I will not override the scan result.
+              </div>
+            )}
+            {messages.map((item, index) => (
+              <div
+                key={`${item.role}-${index}`}
+                style={{
+                  alignSelf: item.role === "user" ? "flex-end" : "flex-start",
+                  maxWidth: "92%",
+                  padding: "11px 13px",
+                  borderRadius: 16,
+                  background: item.role === "user" ? SOFT_SLATE.green : SOFT_SLATE.bg,
+                  color: item.role === "user" ? "#fff" : SOFT_SLATE.textPrimary,
+                  boxShadow: item.role === "user" ? "none" : SOFT_SLATE.insetSm,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                {item.content}
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+
+          {chatError && (
+            <div style={{ padding: "0 16px 8px", fontSize: 11.5, color: SOFT_SLATE.caution }}>{chatError}</div>
+          )}
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void sendChat(chatInput)
+            }}
+            style={{ padding: "10px 12px 14px", display: "flex", gap: 8 }}
+          >
+            <input
+              value={chatInput}
+              onChange={(event) => setChatInput(event.target.value)}
+              placeholder="Ask about ingredients, risks..."
+              aria-label="Ask the AI assistant"
+              disabled={chatBusy}
+              style={{
+                flex: 1,
                 border: "none",
                 borderRadius: 14,
+                padding: "12px 14px",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetSm,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                color: SOFT_SLATE.textPrimary,
+                outline: "none",
+              }}
+            />
+            <button
+              type="submit"
+              disabled={chatBusy || !chatInput.trim()}
+              style={{
+                border: "none",
+                borderRadius: 14,
+                padding: "0 16px",
                 background: SOFT_SLATE.green,
                 color: "#fff",
                 fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: SOFT_SLATE.raisedBtn,
+                cursor: chatBusy ? "wait" : "pointer",
+                opacity: chatBusy || !chatInput.trim() ? 0.6 : 1,
               }}
             >
-              Got it
+              Send
             </button>
-          </div>
+          </form>
         </div>
       )}
     </div>
@@ -11379,6 +11739,12 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
   const [recentScans, setRecentScans] = useState<ScanRecord[]>(() => loadScanRecords())
+  const [undoToast, setUndoToast] = useState<{
+    scan: StoredScan
+    index: number
+  } | null>(null)
+  const undoTimerRef = useRef<number | null>(null)
+
   useEffect(() => {
     setRecentScans(loadScanRecords())
     const refresh = () => setRecentScans(loadScanRecords())
@@ -11389,8 +11755,27 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
       window.removeEventListener("focus", refresh)
       window.removeEventListener("storage", refresh)
       window.removeEventListener("scanity-history-updated", refresh)
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current)
     }
   }, [])
+
+  const handleDelete = (id: string | undefined) => {
+    if (!id) return
+    const fullList = loadScanHistory()
+    const index = fullList.findIndex((item) => item.id === id)
+    const removed = removeScanFromHistory(id)
+    if (!removed) return
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current)
+    setUndoToast({ scan: removed, index: index < 0 ? 0 : index })
+    undoTimerRef.current = window.setTimeout(() => setUndoToast(null), 5000)
+  }
+
+  const handleUndo = () => {
+    if (!undoToast) return
+    restoreScanToHistory(undoToast.scan, undoToast.index)
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current)
+    setUndoToast(null)
+  }
 
   const scans = recentScans.filter((scan) =>
     scan.name.toLowerCase().includes(query.toLowerCase()),
@@ -11516,17 +11901,17 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
             style={{
               width: "100%",
               boxSizing: "border-box",
-              padding: isDesktop ? "40px 32px 32px" : "16px 20px 32px",
+              padding: isDesktop ? "48px 40px 48px" : "24px 22px 40px",
             }}
           >
             {/* HEADER — "1a Grouped activity list" layout, Dashboard's Soft
                 Slate palette. */}
             <h1
               style={{
-                margin: "0 0 4px",
+                margin: "0 0 8px",
                 color: SOFT_SLATE.textPrimary,
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 26,
+                fontSize: 28,
                 fontWeight: 800,
                 lineHeight: 1.2,
               }}
@@ -11535,10 +11920,10 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
             </h1>
             <p
               style={{
-                margin: "0 0 18px",
+                margin: "0 0 28px",
                 color: SOFT_SLATE.textMuted,
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 12.5,
+                fontSize: 13.5,
               }}
             >
               Everything you've scanned, newest first.
@@ -11546,7 +11931,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
 
             {/* SEARCH — inset (pressed-in) like a Soft Slate field, rather
                 than the raised look used for buttons/cards. */}
-            <div style={{ position: "relative", marginBottom: 22 }}>
+            <div style={{ position: "relative", marginBottom: 28 }}>
               <i
                 className="fa fa-search"
                 aria-hidden="true"
@@ -11566,7 +11951,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                 aria-label="Search scans"
                 style={{
                   width: "100%",
-                  padding: "12px 16px 12px 40px",
+                  padding: "14px 18px 14px 42px",
                   boxSizing: "border-box",
                   borderRadius: 999,
                   border: "none",
@@ -11574,7 +11959,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                   color: SOFT_SLATE.textPrimary,
                   outline: "none",
                   fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 12.5,
+                  fontSize: 13.5,
                   boxShadow: SOFT_SLATE.insetMd,
                 }}
               />
@@ -11661,9 +12046,10 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                     >
                       {group.scans.map((scan, index) => (
                         <ScanRow
-                          key={`${scan.name}-${scan.time}`}
+                          key={`${scan.id || scan.name}-${scan.time}`}
                           scan={scan}
                           onView={() => openStoredScan(scan.id, go)}
+                          onDelete={() => handleDelete(scan.id)}
                           showDate={group.showDate}
                           isLast={index === group.scans.length - 1}
                         />
@@ -11676,6 +12062,64 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
           </Center>
         </div>
       </div>
+
+      {undoToast && (
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: isDesktop ? 28 : 20,
+            transform: "translateX(-50%)",
+            zIndex: 260,
+            width: "min(420px, calc(100% - 28px))",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "14px 16px",
+            borderRadius: 16,
+            background: SOFT_SLATE.bg,
+            boxShadow: SOFT_SLATE.raisedMd,
+            fontFamily: SOFT_SLATE.fontFamily,
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>
+              Scan removed
+            </div>
+            <div
+              style={{
+                marginTop: 2,
+                fontSize: 12,
+                color: SOFT_SLATE.textMuted,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {undoToast.scan.name}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleUndo}
+            style={{
+              border: "none",
+              borderRadius: 12,
+              padding: "10px 14px",
+              background: SOFT_SLATE.green,
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+              boxShadow: SOFT_SLATE.raisedBtn,
+              flexShrink: 0,
+            }}
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   )
 }

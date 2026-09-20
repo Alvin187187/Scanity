@@ -3,6 +3,12 @@ const ACTIVE_RESULT_KEY = "scanityProductResult"
 
 export type ScanMethod = "Barcode" | "OCR"
 
+export type AllergySignal = {
+  name: string
+  status: "avoid" | "caution" | "safe" | string
+  reason?: string
+}
+
 export type StoredScan = {
   id: string
   name: string
@@ -16,6 +22,7 @@ export type StoredScan = {
   grade: "a" | "b" | "c" | "d" | "e" | null
   explanation?: string
   allergens: string[]
+  allergySignals?: AllergySignal[]
   ingredients: string[]
   ingredientsText?: string
   nutrition?: Record<string, number | undefined>
@@ -56,6 +63,16 @@ export function appendScanHistory(scan: StoredScan) {
   const next = [scan, ...readList().filter((item) => item.id !== scan.id)].slice(0, 50)
   window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
   saveActiveScan(scan)
+  notifyHistoryUpdated()
+}
+
+export function markScanFavorite(id: string, favorite = true) {
+  const next = readList().map((item) => (item.id === id ? { ...item, favorite } : item))
+  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+  notifyHistoryUpdated()
+}
+
+function notifyHistoryUpdated() {
   try {
     window.dispatchEvent(new CustomEvent("scanity-history-updated"))
   } catch {
@@ -63,9 +80,33 @@ export function appendScanHistory(scan: StoredScan) {
   }
 }
 
-export function markScanFavorite(id: string, favorite = true) {
-  const next = readList().map((item) => (item.id === id ? { ...item, favorite } : item))
-  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+export function removeScanFromHistory(id: string): StoredScan | null {
+  const list = readList()
+  const removed = list.find((item) => item.id === id) || null
+  if (!removed) return null
+  window.localStorage.setItem(
+    HISTORY_KEY,
+    JSON.stringify(list.filter((item) => item.id !== id)),
+  )
+  try {
+    const active = loadActiveScan()
+    if (active?.id === id) {
+      window.localStorage.removeItem(ACTIVE_RESULT_KEY)
+    }
+  } catch {
+    // ignore
+  }
+  notifyHistoryUpdated()
+  return removed
+}
+
+export function restoreScanToHistory(scan: StoredScan, index = 0) {
+  const list = readList().filter((item) => item.id !== scan.id)
+  const next = [...list]
+  const insertAt = Math.max(0, Math.min(index, next.length))
+  next.splice(insertAt, 0, scan)
+  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next.slice(0, 50)))
+  notifyHistoryUpdated()
 }
 
 export function scoreFromVerdict(verdict: StoredScan["verdict"]): number {
@@ -108,6 +149,34 @@ function asStringList(value: unknown): string[] {
     .filter(Boolean)
 }
 
+function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        if (typeof item === "string" && item.trim()) {
+          return { name: item.trim(), status: "avoid" as const }
+        }
+        return null
+      }
+      const record = item as {
+        name?: string
+        ingredient?: string
+        status?: string
+        reason?: string
+      }
+      const name = (record.name || record.ingredient || "").trim()
+      if (!name) return null
+      const status = String(record.status || "caution").toLowerCase()
+      return {
+        name,
+        status,
+        reason: record.reason,
+      }
+    })
+    .filter(Boolean) as AllergySignal[]
+}
+
 export function storedScanFromAnalysis(input: {
   source: "barcode" | "ocr"
   name?: string
@@ -121,6 +190,7 @@ export function storedScanFromAnalysis(input: {
   grade?: string | null
   explanation?: string
   allergyFlags?: unknown
+  allergyMatches?: unknown
   nutrition?: Record<string, number | undefined>
   safetyScore?: number | null
   id?: string
@@ -136,6 +206,13 @@ export function storedScanFromAnalysis(input: {
       : null
   ) as StoredScan["grade"]
   const ingredients = asStringList(input.ingredients)
+  const allergySignals = allergySignalsFromUnknown(input.allergyMatches)
+  const allergens =
+    asStringList(input.allergyFlags).length > 0
+      ? asStringList(input.allergyFlags)
+      : allergySignals
+          .filter((item) => item.status === "avoid")
+          .map((item) => item.name)
   const score =
     typeof input.safetyScore === "number" && Number.isFinite(input.safetyScore)
       ? Math.max(0, Math.min(100, Math.round(input.safetyScore)))
@@ -152,7 +229,8 @@ export function storedScanFromAnalysis(input: {
     verdict,
     grade,
     explanation: input.explanation,
-    allergens: asStringList(input.allergyFlags),
+    allergens,
+    allergySignals: allergySignals.length ? allergySignals : undefined,
     ingredients,
     ingredientsText: input.ingredientsText || ingredients.join(", "),
     nutrition: input.nutrition,
