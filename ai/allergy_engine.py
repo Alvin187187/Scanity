@@ -280,21 +280,33 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
             continue
 
         if _is_benign_pantry_ingredient(ingredient):
+            try:
+                from seed.ingredient_knowledge_loader import lookup_ingredient_knowledge
+
+                knowledge = lookup_ingredient_knowledge(ingredient)
+            except Exception:
+                knowledge = None
             flags.append({
                 "ingredient": ingredient,
                 "status": "safe",
                 "matched_category": None,
-                "matched_kb_entry": None,
+                "matched_kb_entry": (knowledge or {}).get("ingredient_name"),
+                "affects_allergens": list((knowledge or {}).get("affects_allergens") or []),
+                "affects_diets": list((knowledge or {}).get("affects_diets") or []),
+                "possible_effects": (knowledge or {}).get("possible_effects") or "",
                 "reason": "Common pantry ingredient - not an allergy match for your profile.",
-                "plain_explanation": "Everyday ingredient. Tap the chip for what it is and when to be careful.",
+                "plain_explanation": (knowledge or {}).get("possible_effects")
+                or (knowledge or {}).get("what_it_is")
+                or "Everyday ingredient. Tap the chip for what it is and when to be careful.",
             })
             continue
 
         kb_entry, match_type = _match_ingredient(ingredient, name_lookup, alias_lookup)
 
         if kb_entry is None:
-            # Known additives / pantry items from ingredient_knowledge.csv are
-            # explained via clickable chips - they are not allergy "Flagged".
+            # Known additives / pantry items from ingredient knowledge are
+            # explained via clickable chips - they are not allergy "Flagged"
+            # unless their feature flags hit the shopper profile.
             try:
                 from seed.ingredient_knowledge_loader import lookup_ingredient_knowledge
 
@@ -302,13 +314,41 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
             except Exception:
                 knowledge = None
             if knowledge:
+                affects_allergens = list(knowledge.get("affects_allergens") or [])
+                affects_diets = list(knowledge.get("affects_diets") or [])
+                hit_allergens = [
+                    item for item in affects_allergens
+                    if _normalize_allergy_category(item) in user_allergies_normalized
+                ]
+                if hit_allergens:
+                    flags.append({
+                        "ingredient": ingredient,
+                        "status": "avoid",
+                        "matched_category": hit_allergens[0],
+                        "matched_kb_entry": knowledge.get("ingredient_name"),
+                        "affects_allergens": affects_allergens,
+                        "affects_diets": affects_diets,
+                        "possible_effects": knowledge.get("possible_effects") or "",
+                        "reason": (
+                            f"Feature flag match: {hit_allergens[0]} overlaps your saved allergies."
+                        ),
+                        "plain_explanation": knowledge.get("possible_effects")
+                        or knowledge.get("what_it_is")
+                        or "Tap the chip for details.",
+                    })
+                    continue
+
                 flags.append({
                     "ingredient": ingredient,
                     "status": "safe",
                     "matched_category": None,
                     "matched_kb_entry": knowledge.get("ingredient_name"),
+                    "affects_allergens": affects_allergens,
+                    "affects_diets": affects_diets,
+                    "possible_effects": knowledge.get("possible_effects") or "",
                     "reason": "Identified in Scanity ingredient knowledge - not an allergy match for your profile.",
                     "plain_explanation": knowledge.get("what_it_is")
+                    or knowledge.get("possible_effects")
                     or "Tap the chip for what this is and when to be careful.",
                 })
                 continue
@@ -319,6 +359,9 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "status": "caution",
                 "matched_category": None,
                 "matched_kb_entry": None,
+                "affects_allergens": [],
+                "affects_diets": [],
+                "possible_effects": "",
                 "reason": "Could not confirm this against your allergy profile yet - flagged for a quick check.",
                 "plain_explanation": (
                     "We could not fully match this ingredient to your saved allergies, "
@@ -328,15 +371,25 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
             continue
 
         category_normalized = _normalize(kb_entry["allergen_category"])
-        plain = kb_entry.get("plain_explanation") or ""
-        if category_normalized in user_allergies_normalized:
+        affects_allergens = list(kb_entry.get("affects_allergens") or ([kb_entry["allergen_category"]] if kb_entry.get("allergen_category") else []))
+        affects_diets = list(kb_entry.get("affects_diets") or [])
+        plain = kb_entry.get("possible_effects") or kb_entry.get("plain_explanation") or ""
+        profile_hits = [
+            item for item in affects_allergens
+            if _normalize_allergy_category(item) in user_allergies_normalized
+        ]
+        if category_normalized in user_allergies_normalized or profile_hits:
+            matched = profile_hits[0] if profile_hits else kb_entry["allergen_category"]
             flags.append({
                 "ingredient": ingredient,
                 "status": "avoid",
-                "matched_category": kb_entry["allergen_category"],
+                "matched_category": matched,
                 "matched_kb_entry": kb_entry["ingredient_name"],
+                "affects_allergens": affects_allergens,
+                "affects_diets": affects_diets,
+                "possible_effects": plain,
                 "reason": (
-                    f"Matches your declared {kb_entry['allergen_category']} allergy "
+                    f"Matches your declared {matched} allergy "
                     f"(matched via {match_type} to '{kb_entry['ingredient_name']}')."
                 ),
                 "plain_explanation": plain,
@@ -347,6 +400,9 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "status": "safe",
                 "matched_category": kb_entry["allergen_category"],
                 "matched_kb_entry": kb_entry["ingredient_name"],
+                "affects_allergens": affects_allergens,
+                "affects_diets": affects_diets,
+                "possible_effects": plain,
                 "reason": (
                     f"Identified as {kb_entry['allergen_category']}, which is not in your "
                     "declared allergies."

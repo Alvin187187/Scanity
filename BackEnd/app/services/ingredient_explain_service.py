@@ -11,14 +11,25 @@ from seed.ingredient_knowledge_loader import lookup_ingredient_knowledge
 
 EXPLAIN_SYSTEM = """You are Scanity's ingredient research helper.
 Return ONLY a compact JSON object (no markdown fences) with keys:
-title, category, what_it_is, commonly_seen_in, possible_effects, source
+title, category, what_it_is, commonly_seen_in, possible_effects,
+affects_allergens (array of strings), affects_diets (array of strings), source
 Rules:
 - Ground claims in retrieved knowledge + general food-label / additive knowledge.
 - Plain words for shoppers. No diagnosis, no treatment advice.
 - Never mention CSV files, databases, or internal tooling.
-- If unsure, say so in possible_effects.
+- affects_allergens examples: milk, egg, peanut, tree_nuts, soy, wheat, fish, shellfish, sesame
+- affects_diets examples: diabetes, lactose, celiac, hypertension, heart, kidney, ibs
+- If unsure, say so in possible_effects and use empty arrays for flags.
 - Keep each string under 220 characters.
 """
+
+
+def _as_flag_list(value) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [part.strip() for part in value.replace(",", "|").split("|") if part.strip()]
+    return []
 
 
 def _from_knowledge(ingredient: str) -> dict | None:
@@ -32,6 +43,8 @@ def _from_knowledge(ingredient: str) -> dict | None:
         "what_it_is": knowledge.get("what_it_is") or "",
         "commonly_seen_in": knowledge.get("commonly_seen_in") or "",
         "possible_effects": knowledge.get("possible_effects") or "",
+        "affects_allergens": knowledge.get("affects_allergens") or [],
+        "affects_diets": knowledge.get("affects_diets") or [],
         "source": knowledge.get("source") or "Scanity ingredient knowledge",
         "aliases": knowledge.get("aliases") or [],
         "ai_source": "knowledge",
@@ -74,6 +87,8 @@ def _from_rag_snippets(ingredient: str) -> dict | None:
         "what_it_is": text[:220],
         "commonly_seen_in": "Packaged foods (exact uses vary)",
         "possible_effects": "Confirm the package label if you are sensitive or unsure.",
+        "affects_allergens": [],
+        "affects_diets": [],
         "source": best.get("source") or "Scanity knowledge",
         "aliases": [],
         "ai_source": "rag",
@@ -96,6 +111,8 @@ def explain_ingredient(
             "what_it_is": "No ingredient name was provided.",
             "commonly_seen_in": "",
             "possible_effects": "",
+            "affects_allergens": [],
+            "affects_diets": [],
             "source": "",
             "aliases": [],
             "ai_source": "none",
@@ -116,7 +133,7 @@ def explain_ingredient(
     text = call_hosted_ai(
         prompt,
         system_instructions=EXPLAIN_SYSTEM,
-        max_output_tokens=320,
+        max_output_tokens=360,
         temperature=0.2,
     )
     parsed = None if (not text or text == FALLBACK_TEXT) else _parse_json_object(text)
@@ -128,6 +145,8 @@ def explain_ingredient(
             "what_it_is": str(parsed.get("what_it_is") or "").strip(),
             "commonly_seen_in": str(parsed.get("commonly_seen_in") or "").strip(),
             "possible_effects": str(parsed.get("possible_effects") or "").strip(),
+            "affects_allergens": _as_flag_list(parsed.get("affects_allergens")),
+            "affects_diets": _as_flag_list(parsed.get("affects_diets")),
             "source": str(parsed.get("source") or "AI research (not medical advice)").strip(),
             "aliases": [],
             "ai_source": "gemini",
@@ -147,6 +166,8 @@ def explain_ingredient(
         ),
         "commonly_seen_in": "Packaged foods (exact uses vary)",
         "possible_effects": "Unknown without a reliable source - verify on the label if you are sensitive.",
+        "affects_allergens": [],
+        "affects_diets": [],
         "source": "Scanity careful fallback",
         "aliases": [],
         "ai_source": "template",

@@ -7945,7 +7945,40 @@ type IngredientSheetPayload = {
   status?: string
   reason?: string
   plainExplanation?: string
+  possibleEffects?: string
+  affectsAllergens?: string[]
+  affectsDiets?: string[]
   knowledge?: IngredientKnowledge | null
+}
+
+function FeatureFlagRow({ label, values }: { label: string; values: string[] }) {
+  if (!values.length) return null
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 8 }}>{label}</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {values.map((value) => (
+          <span
+            key={`${label}-${value}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "6px 10px",
+              borderRadius: 10,
+              background: SOFT_SLATE.bg,
+              boxShadow: SOFT_SLATE.insetSm,
+              fontSize: 12,
+              fontWeight: 700,
+              color: SOFT_SLATE.textPrimary,
+              textTransform: "capitalize",
+            }}
+          >
+            {value.replaceAll("_", " ")}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function IngredientExplainSheet({
@@ -7996,6 +8029,8 @@ function IngredientExplainSheet({
           what_it_is: researched.what_it_is,
           commonly_seen_in: researched.commonly_seen_in,
           possible_effects: researched.possible_effects,
+          affects_allergens: researched.affects_allergens,
+          affects_diets: researched.affects_diets,
           source: researched.source,
           aliases: researched.aliases,
         })
@@ -8117,12 +8152,20 @@ function IngredientExplainSheet({
                 <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved.commonly_seen_in}</p>
               </div>
             )}
-            {resolved?.possible_effects && (
+            {(resolved?.possible_effects || item.possibleEffects) && (
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>If not controlled / watch-outs</div>
-                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved.possible_effects}</p>
+                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved?.possible_effects || item.possibleEffects}</p>
               </div>
             )}
+            <FeatureFlagRow
+              label="May affect allergens"
+              values={resolved?.affects_allergens || item.affectsAllergens || []}
+            />
+            <FeatureFlagRow
+              label="May affect dietary needs"
+              values={resolved?.affects_diets || item.affectsDiets || []}
+            />
             {item.reason && (
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Why Scanity showed this</div>
@@ -8288,6 +8331,9 @@ function AllergySignalsCard({
                         status: item.status,
                         reason: item.reason,
                         plainExplanation: item.plainExplanation,
+                        possibleEffects: item.possibleEffects,
+                        affectsAllergens: item.affectsAllergens,
+                        affectsDiets: item.affectsDiets,
                         knowledge: item.knowledge,
                       })
                     }
@@ -8311,6 +8357,9 @@ function AllergySignalsCard({
                         status: item.status,
                         reason: item.reason,
                         plainExplanation: item.plainExplanation,
+                        possibleEffects: item.possibleEffects,
+                        affectsAllergens: item.affectsAllergens,
+                        affectsDiets: item.affectsDiets,
                         knowledge: item.knowledge,
                       })
                     }
@@ -8342,12 +8391,17 @@ function AllergySignalsCard({
                   onOpenIngredient({
                     name: insight.ingredient || insight.title,
                     status: "info",
+                    possibleEffects: insight.possible_effects,
+                    affectsAllergens: insight.affects_allergens,
+                    affectsDiets: insight.affects_diets,
                     knowledge: {
                       title: insight.title,
                       category: insight.category,
                       what_it_is: insight.what_it_is,
                       commonly_seen_in: insight.commonly_seen_in,
                       possible_effects: insight.possible_effects,
+                      affects_allergens: insight.affects_allergens,
+                      affects_diets: insight.affects_diets,
                       source: insight.source,
                       aliases: insight.aliases,
                     },

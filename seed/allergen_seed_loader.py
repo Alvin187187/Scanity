@@ -25,9 +25,11 @@ def load_allergen_seed(csv_path: str = None) -> list[dict]:
         list[dict], one dict per ingredient row:
         {
             "ingredient_name": str,
-            "aliases": list[str],       # split from the ' | ' delimited column
-            "allergen_category": str,   # one of: milk, egg, peanut, tree_nuts,
-                                         # soy, wheat, fish, shellfish
+            "aliases": list[str],
+            "allergen_category": str,
+            "affects_allergens": list[str],
+            "affects_diets": list[str],
+            "possible_effects": str,
             "source": str,
             "plain_explanation": str,
             "verified": bool,
@@ -38,13 +40,29 @@ def load_allergen_seed(csv_path: str = None) -> list[dict]:
     with open(path, encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         for r in reader:
+            category = (r.get("allergen_category") or "").strip()
+            affects_allergens = [
+                part.strip()
+                for part in str(r.get("affects_allergens") or category).split("|")
+                if part.strip()
+            ]
+            affects_diets = [
+                part.strip()
+                for part in str(r.get("affects_diets") or "").split("|")
+                if part.strip()
+            ]
+            plain = (r.get("plain_explanation") or "").strip()
+            effects = (r.get("possible_effects") or "").strip() or plain
             rows.append({
                 "ingredient_name": r["ingredient_name"],
-                "aliases": [a.strip() for a in r["aliases"].split("|") if a.strip()],
-                "allergen_category": r["allergen_category"],
-                "source": r["source"],
-                "plain_explanation": r["plain_explanation"],
-                "verified": r["verified"].strip().lower() == "true",
+                "aliases": [a.strip() for a in str(r.get("aliases") or "").split("|") if a.strip()],
+                "allergen_category": category,
+                "affects_allergens": affects_allergens,
+                "affects_diets": affects_diets,
+                "possible_effects": effects,
+                "source": r.get("source") or "",
+                "plain_explanation": plain or effects,
+                "verified": str(r.get("verified") or "").strip().lower() == "true",
             })
     return rows
 
