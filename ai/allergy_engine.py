@@ -197,7 +197,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "status": "safe",
                 "matched_category": None,
                 "matched_kb_entry": None,
-                "reason": "Inert carrier (e.g. water/gas) — not a major allergen risk.",
+                "reason": "Inert carrier (e.g. water/gas) - not a major allergen risk.",
             })
             continue
 
@@ -262,7 +262,7 @@ def overall_verdict(flags: list) -> str:
 
 def compute_safety_score(flags: list) -> int:
     """
-    Personalized allergy safety score on a 0–100 scale (separate from Nutri-Score).
+    Personalized allergy safety score on a 0-100 scale (separate from Nutri-Score).
 
     Formula (deterministic, no LLM):
     - No ingredient evidence → 50 (unknown mid-band).
@@ -272,7 +272,7 @@ def compute_safety_score(flags: list) -> int:
         score = max(40, 72 - 8 * caution_count)
     - Else all Safe → 100.
 
-    Bands for UI: 0–39 Avoid, 40–69 Caution, 70–100 Safe.
+    Bands for UI: 0-39 Avoid, 40-69 Caution, 70-100 Safe.
     """
     if not flags:
         return 50

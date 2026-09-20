@@ -213,7 +213,7 @@ export async function lookupBarcodeProduct(
       const data = await response.json().catch(() => null)
 
       if (response.status === 401) {
-        // Session expired — still try public Open Food Facts so the scan is not lost.
+        // Session expired - still try public Open Food Facts so the scan is not lost.
         console.warn("Barcode API unauthorized; using Open Food Facts fallback.")
         return await lookupViaOpenFoodFacts(barcode, userAllergies)
       }
@@ -259,6 +259,6 @@ export async function lookupBarcodeProduct(
     }
   }
 
-  // No session token — Open Food Facts still works for product lookup.
+  // No session token - Open Food Facts still works for product lookup.
   return await lookupViaOpenFoodFacts(barcode, userAllergies)
 }

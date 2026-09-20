@@ -13,7 +13,7 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/$/, "")
 }
 
-/** Live Render API — used when VITE_API_BASE_URL is missing in a production build. */
+/** Live Render API - used when VITE_API_BASE_URL is missing in a production build. */
 export const PRODUCTION_API_BASE_URL =
   "https://scanity-api.onrender.com/api/v1"
 

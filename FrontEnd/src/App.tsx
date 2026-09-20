@@ -22,7 +22,9 @@ import { analyzeOcrText, extractOcrImage } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   loadHealthProfile,
+  persistHealthProfile,
   saveHealthProfile,
+  syncHealthProfileFromServer,
 } from "./api/healthProfile"
 import {
   appendScanHistory,
@@ -1617,6 +1619,25 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
       saveSessionUser(
         sessionUserFromLogin(result?.access_token, email.trim()),
       )
+      try {
+        const remote = await syncHealthProfileFromServer()
+        const hasRemote =
+          remote.allergies.length > 0 ||
+          remote.conditions.length > 0 ||
+          Boolean(remote.otherAllergy?.trim()) ||
+          Boolean(remote.otherCondition?.trim())
+        if (!hasRemote) {
+          const local = loadHealthProfile()
+          const hasLocal =
+            local.allergies.length > 0 ||
+            local.conditions.length > 0 ||
+            Boolean(local.otherAllergy?.trim()) ||
+            Boolean(local.otherCondition?.trim())
+          if (hasLocal) await persistHealthProfile(local)
+        }
+      } catch (profileError) {
+        console.warn("Health profile sync skipped:", profileError)
+      }
 
       // Only navigate after the API confirms successful login.
       go("dashboard")
@@ -2910,10 +2931,14 @@ function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
           <button
             onClick={() => {
               const profile = loadHealthProfile()
-              saveHealthProfile({
+              const next = {
                 ...profile,
                 allergies: Array.from(selected),
                 otherAllergy: otherText.trim(),
+              }
+              saveHealthProfile(next)
+              void persistHealthProfile(next).catch((error) => {
+                console.warn("Could not sync allergies yet:", error)
               })
               go("health")
             }}
@@ -3264,10 +3289,14 @@ function HealthScreen({ go }: { go: (s: Screen) => void }) {
           <button
             onClick={() => {
               const profile = loadHealthProfile()
-              saveHealthProfile({
+              const next = {
                 ...profile,
                 conditions: Array.from(selected),
                 otherCondition: otherText.trim(),
+              }
+              saveHealthProfile(next)
+              void persistHealthProfile(next).catch((error) => {
+                console.warn("Could not sync health conditions yet:", error)
               })
               go("loading")
             }}
@@ -3903,7 +3932,7 @@ function AllSetScreen({ go }: { go: (s: Screen) => void }) {
 // Single source of truth for every scan record shown on the Dashboard panel
 // and the full Scan History page. Fields are kept to what the SCAN_HISTORIES
 // table actually tracks (product, scan_date, scan_method) plus a local
-// `favorite` flag for the Favourite filter and an `imageUrl` for the thumb —
+// `favorite` flag for the Favourite filter and an `imageUrl` for the thumb - 
 // nothing invented beyond that.
 type ScanMethod = "Barcode" | "OCR"
 type ScanRecord = {
@@ -3943,7 +3972,7 @@ function openStoredScan(id: string | undefined, go: (s: Screen) => void) {
 // and the Dashboard's own Scan History panel use (SOFT_SLATE.green/caution/
 // unsafe), so a score reads the same way on both screens.
 function scanStatusInfo(score: number): { label: string; color: string; bg: string } {
-  // Matches backend safety_score bands: 0–39 Avoid, 40–69 Caution, 70–100 Safe.
+  // Matches backend safety_score bands: 0-39 Avoid, 40-69 Caution, 70-100 Safe.
   if (score >= 70) return { label: "Safe", color: SOFT_SLATE.green, bg: "#E1EBE5" }
   if (score >= 40) return { label: "Caution", color: SOFT_SLATE.caution, bg: "#F1E3D8" }
   return { label: "Avoid", color: SOFT_SLATE.unsafe, bg: "#F1DEDA" }
@@ -3977,7 +4006,7 @@ function groupScans(scans: ScanRecord[]): ScanGroup[] {
 // Row used by the "1a Grouped activity list" Scan History page. The whole
 // row is the tap target; the trailing chevron is the visible "view detail"
 // affordance. `showDate` is turned off inside a "Today"/"Yesterday" group,
-// where the section header already says which day it is — the "Earlier"
+// where the section header already says which day it is - the "Earlier"
 // group keeps the default of showing it. `isLast` drops the hairline
 // divider for the final row in a group panel, so the panel's own bottom
 // edge stays clean instead of doubling up with a divider.
@@ -4156,11 +4185,11 @@ function ScanRow({
   )
 }
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
-// ── Soft Slate (neumorphic) design tokens — DASHBOARD ONLY ─────────────────────
-// Originally scoped to the Dashboard screen only, per the "1a Soft Slate —
+// ── Soft Slate (neumorphic) design tokens - DASHBOARD ONLY ─────────────────────
+// Originally scoped to the Dashboard screen only, per the "1a Soft Slate - 
 // extruded rail, raised cards" direction from the design exploration. Scan
 // History now opts into the same tokens too (by request, to match Dashboard's
-// shading) — every other screen still keeps the app's normal PALETTE/theme,
+// shading) - every other screen still keeps the app's normal PALETTE/theme,
 // so don't reach for these elsewhere without a similar explicit reason.
 const SOFT_SLATE = {
   bg: "#e9edf2",
@@ -4185,12 +4214,12 @@ const SOFT_SLATE = {
   fontFamily: `Archivo, ${FONT_BODY}`,
 }
 
-// ── Dashboard icon rail — 80px, icon-only, own palette ──────────────────────────
+// ── Dashboard icon rail - 80px, icon-only, own palette ──────────────────────────
 // Replaces AppSidebar on the Dashboard only (per user's "dashboard only" scope
-// decision). Always visible — no mobile drawer/overlay, it's slim enough to
+// decision). Always visible - no mobile drawer/overlay, it's slim enough to
 // stay put at any width. The Scanity wordmark/tagline live in the greeting
 // header instead of the rail.
-// Default nav set for DashboardIconRail — Dashboard's own four links. Scan
+// Default nav set for DashboardIconRail - Dashboard's own four links. Scan
 // History passes its own SCAN_HISTORY_RAIL_ITEMS (below) instead, via the
 // `navItems` prop, so this default and Dashboard's call sites are untouched.
 const DASHBOARD_RAIL_ITEMS: {
@@ -4380,7 +4409,7 @@ function DashboardIconRail({
         })}
       </div>
 
-      {/* Divider — sits right above logout; the auto top-margin here (not on
+      {/* Divider - sits right above logout; the auto top-margin here (not on
           logout) is what pushes this whole bottom group down to the bottom
           of the rail, so the divider and the logout icon stay right next to
           each other instead of drifting apart. */}
@@ -4396,7 +4425,7 @@ function DashboardIconRail({
         />
       )}
 
-      {/* Logout — pinned to the bottom of the rail, right under the divider */}
+      {/* Logout - pinned to the bottom of the rail, right under the divider */}
       <Tooltip label="Log out">
         <button
           type="button"
@@ -4501,7 +4530,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
     >
       {/* ── Icon rail ───────────────────────────────────────────────────── */}
       {/* Pinned to the viewport (position: fixed), not inside the scrolling
-          content — same trick AppSidebar uses elsewhere in the app — so it
+          content - same trick AppSidebar uses elsewhere in the app - so it
           stays put in place while the content next to it scrolls, instead of
           scrolling away with it. Stretches to the bottom of the viewport
           (top:26 to bottom:26) so it reaches all the way down, with the nav
@@ -4640,7 +4669,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                   flexDirection: isDesktop ? "row" : "column",
                 }}
               >
-                {/* ── Left column — scan actions ─────────────────────────── */}
+                {/* ── Left column - scan actions ─────────────────────────── */}
                 <div
                   style={{
                     flex: 1,
@@ -4698,7 +4727,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                           Scan Barcode
                         </div>
                         <div style={{ fontSize: 13, color: SOFT_SLATE.textSecondary, marginTop: 2 }}>
-                          Faster live detect — hold steady over the code.
+                          Faster live detect - hold steady over the code.
                         </div>
                       </div>
                     </div>
@@ -4857,7 +4886,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                   </div>
                 </div>
 
-                {/* ── Right column — scan history ────────────────────────── */}
+                {/* ── Right column - scan history ────────────────────────── */}
                 <div
                   style={{
                     width: isDesktop ? 384 : "100%",
@@ -4990,12 +5019,12 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
     </div>
   )
 }
-// ── Barcode Scanner Screen — Soft Slate ─────────────────────────────────────
+// ── Barcode Scanner Screen - Soft Slate ─────────────────────────────────────
 // Reskinned to match DashboardScreen's neumorphic "Soft Slate" direction:
 // same SOFT_SLATE token set, same DashboardIconRail nav shell, raised/inset
 // shadows instead of flat borders, and the same green/gold/caution/unsafe
 // status vocabulary the Dashboard's scan history already uses. All scanning
-// logic (camera, ZXing, backend lookup, validation) is untouched — only the
+// logic (camera, ZXing, backend lookup, validation) is untouched - only the
 // render layer changed.
 //
 // Assumes this file lives alongside dashboard.tsx and can import: SOFT_SLATE,
@@ -5060,7 +5089,7 @@ const BARCODE_ICON_PATH: ReactNode = (
 )
 
 // Barcode Scanner's own rail set: Dashboard, this screen, then the usual
-// Settings/Help/About — same pattern SCAN_HISTORY_RAIL_ITEMS uses on the
+// Settings/Help/About - same pattern SCAN_HISTORY_RAIL_ITEMS uses on the
 // Scan History screen.
 const BARCODE_RAIL_ITEMS: { screen: Screen; label: string; path: ReactNode }[] = [
   DASHBOARD_RAIL_ITEMS[0],
@@ -5070,7 +5099,7 @@ const BARCODE_RAIL_ITEMS: { screen: Screen; label: string; path: ReactNode }[] =
   DASHBOARD_RAIL_ITEMS[3],
 ]
 
-// Soft-tinted status backgrounds — the exact pairs scanStatusInfo() uses on
+// Soft-tinted status backgrounds - the exact pairs scanStatusInfo() uses on
 // the Dashboard, so a "Safe/Caution/Avoid" reads the same everywhere.
 const STATUS_TINTS = {
   green: { fg: SOFT_SLATE.green, bg: "#E1EBE5" },
@@ -5319,7 +5348,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
         BarcodeFormat.CODE_128,
         BarcodeFormat.ITF,
       ])
-      // Prefer speed over exhaustive decode — TRY_HARDER made phone scans sluggish.
+      // Prefer speed over exhaustive decode - TRY_HARDER made phone scans sluggish.
       hints.set(DecodeHintType.TRY_HARDER, false)
       const reader = new BrowserMultiFormatReader(hints, {
         delayBetweenScanAttempts: 80,
@@ -5578,7 +5607,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   }
 
   // "not-found" reads as informational (gold), everything else that's a
-  // problem reads as unsafe (red) — same two-tier vocabulary the Dashboard
+  // problem reads as unsafe (red) - same two-tier vocabulary the Dashboard
   // uses for Caution vs Avoid.
   const errorTint = scanStatus === "not-found" ? STATUS_TINTS.caution : STATUS_TINTS.unsafe
 
@@ -5631,7 +5660,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
         `}
       </style>
 
-      {/* ── Icon rail — same shell as Dashboard/Scan History ───────────────── */}
+      {/* ── Icon rail - same shell as Dashboard/Scan History ───────────────── */}
       {isDesktop && (
         <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
            <DashboardIconRail go={go} isDesktop />
@@ -6469,11 +6498,11 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   )
 }
 
-// ── OCR Scanner Screen — Soft Slate (neumorphic) ────────────────────────────
+// ── OCR Scanner Screen - Soft Slate (neumorphic) ────────────────────────────
 // Restyled to match DashboardScreen's neumorphism: same SOFT_SLATE tokens,
 // same DashboardIconRail nav (instead of AppSidebar), raised panels/buttons,
 // inset wells for camera + inputs. All state, handlers, camera/OCR/product
-// logic are unchanged from the original — only the render layer changed.
+// logic are unchanged from the original - only the render layer changed.
 //
 // Depends on things already defined in the Dashboard section of this file:
 // SOFT_SLATE, DashboardIconRail, DASHBOARD_RAIL_ITEMS. Drop this in wherever
@@ -7228,7 +7257,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   boxSizing: "border-box",
                 }}
               >
-                {/* Camera well — inset like the barcode reader on Dashboard */}
+                {/* Camera well - inset like the barcode reader on Dashboard */}
                 <div
                   style={{
                     position: "relative",
@@ -7449,7 +7478,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   </p>
                 </div>
 
-                {/* Controls — raised neumorphic squares, like the rail icons */}
+                {/* Controls - raised neumorphic squares, like the rail icons */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
                   <button
                     type="button"
@@ -7715,7 +7744,7 @@ function SafetySpeedGauge({ score }: { score: number }) {
             Safety score
           </div>
           <div style={{ marginTop: 4, fontSize: 13, color: SOFT_SLATE.textSecondary }}>
-            Allergy fit for your profile · 0–100
+            Allergy fit for your profile · 0-100
           </div>
         </div>
         <div style={{ fontSize: 34, fontWeight: 800, color: band.color, letterSpacing: "-0.03em", lineHeight: 1 }}>
@@ -7739,9 +7768,9 @@ function SafetySpeedGauge({ score }: { score: number }) {
 
       <div style={{ textAlign: "center", fontSize: 14, fontWeight: 700, color: band.color }}>{band.label}</div>
       <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: SOFT_SLATE.textMuted }}>
-        <span>0–39 Avoid</span>
-        <span>40–69 Caution</span>
-        <span>70–100 Safe</span>
+        <span>0-39 Avoid</span>
+        <span>40-69 Caution</span>
+        <span>70-100 Safe</span>
       </div>
     </div>
   )
@@ -7984,7 +8013,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           role: "assistant",
           content:
             scan?.explanation ||
-            "I could not reach the AI coach right now. The safety score and allergy signals above are still your main guide — confirm the package label.",
+            "I could not reach the AI coach right now. The safety score and allergy signals above are still your main guide - confirm the package label.",
         },
       ])
     } finally {
@@ -8128,7 +8157,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             <GradeScale grade={grade} />
             <p style={{ margin: "16px 0 0", fontSize: 13, color: SOFT_SLATE.textSecondary, lineHeight: 1.55 }}>
               {grade
-                ? `Grade ${grade.toUpperCase()} — ${gradeLabels[grade]}. Nutri-Score reflects ingredient/nutrition quality only; it is separate from your allergy safety score.`
+                ? `Grade ${grade.toUpperCase()} - ${gradeLabels[grade]}. Nutri-Score reflects ingredient/nutrition quality only; it is separate from your allergy safety score.`
                 : "Nutrition grade unavailable for this product. Safety score above still applies to your allergy profile."}
             </p>
             {nutrients.length > 0 && (
@@ -8347,7 +8376,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
             {messages.length === 0 && (
               <div style={{ padding: 14, borderRadius: 16, boxShadow: SOFT_SLATE.insetSm, fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
-                Ask anything about this product for your allergies and health notes. I will keep it clear and careful — and I will not override the scan result.
+                Ask anything about this product for your allergies and health notes. I will keep it clear and careful - and I will not override the scan result.
               </div>
             )}
             {messages.map((item, index) => (
@@ -8426,10 +8455,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
 
 // ── Product Comparison ───────────────────────────────────────────────────────
 
-// Nutrition Grade — a Nutri-Score-style A (best) to E (worst) letter grade
+// Nutrition Grade - a Nutri-Score-style A (best) to E (worst) letter grade
 // for a product's overall ingredient/nutrition quality. It is computed from
 // the product alone (nutrients, ingredients, processing) and is intentionally
-// independent of any one user's saved allergies or health conditions — a
+// independent of any one user's saved allergies or health conditions - a
 // product can be Grade A and still be unsafe for a specific person. Personal
 // safety against that user's profile is the separate `CompareVerdict` below.
 //
@@ -8558,7 +8587,7 @@ type CompareProduct = {
   brand?: string
   quantity?: string
   imageUrl?: string
-  // Nutrition grade (A–E) — quality only, never affected by this user's
+  // Nutrition grade (A-E) - quality only, never affected by this user's
   // saved allergies. See `verdict` for the personalized safety check.
   grade: NutritionGrade | null
   verdict: CompareVerdict
@@ -9283,7 +9312,7 @@ function NutritionTable({
           color: "rgba(26,18,9,0.62)",
         }}
       >
-        Nutrition Comparison — per 100g
+        Nutrition Comparison - per 100g
       </p>
 
       <div style={{ overflowX: "auto" }}>
@@ -9368,7 +9397,7 @@ function NutritionTable({
                     }}
                   >
                     {av === undefined
-                      ? "—"
+                      ? " - "
                       : `${av}${row.unit}`}
                   </td>
 
@@ -9394,7 +9423,7 @@ function NutritionTable({
                     }}
                   >
                     {bv === undefined
-                      ? "—"
+                      ? " - "
                       : `${bv}${row.unit}`}
                   </td>
                 </tr>
@@ -10060,7 +10089,7 @@ function ComparePanel({
     </div>
   )
 }
-// ── Product Compare Screen — Soft Slate Neumorphic ────────────────────────────
+// ── Product Compare Screen - Soft Slate Neumorphic ────────────────────────────
 
 type CompareScenario =
   | "initial"
@@ -10961,7 +10990,7 @@ function ProductCompareScreen({
                 >
                   {isError
                     ? "We couldn't load this comparison. Check your connection and try again."
-                    : "We couldn't find a match for the second barcode. It may not be in the database yet — try scanning again or search by name."}
+                    : "We couldn't find a match for the second barcode. It may not be in the database yet - try scanning again or search by name."}
                 </p>
 
                 <button
@@ -11361,7 +11390,7 @@ function ProductCompareScreen({
                     color: SOFT_SLATE.textMuted,
                   }}
                 >
-                  Nutrition Comparison — per 100g
+                  Nutrition Comparison - per 100g
                 </p>
 
                 <div
@@ -11487,7 +11516,7 @@ function ProductCompareScreen({
                               }}
                             >
                               {av === undefined
-                                ? "—"
+                                ? " - "
                                 : `${av}${row.unit}`}
                             </td>
 
@@ -11520,7 +11549,7 @@ function ProductCompareScreen({
                               }}
                             >
                               {bv === undefined
-                                ? "—"
+                                ? " - "
                                 : `${bv}${row.unit}`}
                             </td>
                           </tr>
@@ -11593,7 +11622,7 @@ function ProductCompareScreen({
                     }}
                   >
                     {recommendation === "none"
-                      ? "—"
+                      ? " - "
                       : "✓"}
                   </div>
 
@@ -11733,7 +11762,7 @@ function ProductCompareScreen({
   )
 }
 
-// Same data the Dashboard panel reads from — no separate placeholder set.
+// Same data the Dashboard panel reads from - no separate placeholder set.
 function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const [query, setQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -11800,7 +11829,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
         fontFamily: SOFT_SLATE.fontFamily,
       }}
     >
-      {/* SIDEBAR — mobile drawer only; desktop uses the Soft Slate rail below,
+      {/* SIDEBAR - mobile drawer only; desktop uses the Soft Slate rail below,
           same component and shading as the Dashboard. */}
       {!isDesktop && (
         <AppSidebar
@@ -11812,7 +11841,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
         />
       )}
 
-      {/* ICON RAIL — Dashboard's own rail component, reused as-is: same
+      {/* ICON RAIL - Dashboard's own rail component, reused as-is: same
           Soft Slate raised/inset shading, just its own "Scan History" nav
           set with History highlighted instead of Dashboard. */}
       {isDesktop && (
@@ -11842,7 +11871,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
           marginLeft: isDesktop ? RAIL_W + RAIL_SIDE + RAIL_SIDE : 0,
         }}
       >
-        {/* MOBILE MENU BUTTON — the rail stands in for this on desktop */}
+        {/* MOBILE MENU BUTTON - the rail stands in for this on desktop */}
         {!isDesktop && (
           <div
             style={{
@@ -11904,7 +11933,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
               padding: isDesktop ? "48px 40px 48px" : "24px 22px 40px",
             }}
           >
-            {/* HEADER — "1a Grouped activity list" layout, Dashboard's Soft
+            {/* HEADER - "1a Grouped activity list" layout, Dashboard's Soft
                 Slate palette. */}
             <h1
               style={{
@@ -11929,7 +11958,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
               Everything you've scanned, newest first.
             </p>
 
-            {/* SEARCH — inset (pressed-in) like a Soft Slate field, rather
+            {/* SEARCH - inset (pressed-in) like a Soft Slate field, rather
                 than the raised look used for buttons/cards. */}
             <div style={{ position: "relative", marginBottom: 28 }}>
               <i
@@ -11965,7 +11994,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
               />
             </div>
 
-            {/* SCAN HISTORY — a date-section header (label + count) sits on
+            {/* SCAN HISTORY - a date-section header (label + count) sits on
                 the page background above its own panel, and each panel
                 holds only that day's rows. */}
             <div style={{ width: "100%", minHeight: 500, boxSizing: "border-box" }}>
@@ -12033,7 +12062,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                       </span>
                     </div>
 
-                    {/* GROUP PANEL — raised, borderless, same shading as the
+                    {/* GROUP PANEL - raised, borderless, same shading as the
                         Dashboard's own "Scan History" card. */}
                     <div
                       style={{
@@ -12594,10 +12623,39 @@ function ProfileScreen({
     )
 
   const [otherAllergy, setOtherAllergy] =
-    useState("")
+    useState(loadHealthProfile().otherAllergy || "")
 
   const [otherHealth, setOtherHealth] =
-    useState("")
+    useState(loadHealthProfile().otherCondition || "")
+
+  const [savedOtherAllergy, setSavedOtherAllergy] = useState(otherAllergy)
+  const [savedOtherHealth, setSavedOtherHealth] = useState(otherHealth)
+
+  const [profileSaveError, setProfileSaveError] = useState("")
+  const [profileSaving, setProfileSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const remote = await syncHealthProfileFromServer()
+        if (cancelled) return
+        setSavedAllergies(new Set(remote.allergies))
+        setAllergies(new Set(remote.allergies))
+        setSavedHealth(new Set(remote.conditions))
+        setHealth(new Set(remote.conditions))
+        setOtherAllergy(remote.otherAllergy || "")
+        setOtherHealth(remote.otherCondition || "")
+        setSavedOtherAllergy(remote.otherAllergy || "")
+        setSavedOtherHealth(remote.otherCondition || "")
+      } catch {
+        // Keep local cache if the API is waking up.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // ── Toggle allergy ───────────────────────────────────────────────────────
   const toggleAllergy = (id: string) => {
@@ -12643,18 +12701,44 @@ function ProfileScreen({
   // ── Check if there are unsaved changes ───────────────────────────────────
   const isDirty =
     !setsEqual(allergies, savedAllergies) ||
-    !setsEqual(health, savedHealth)
+    !setsEqual(health, savedHealth) ||
+    otherAllergy !== savedOtherAllergy ||
+    otherHealth !== savedOtherHealth
 
   // ── Save preferences ────────────────────────────────────────────────────
-  const handleSave = () => {
-    setSavedAllergies(new Set(allergies))
-    setSavedHealth(new Set(health))
-    const profile = loadHealthProfile()
-    saveHealthProfile({
-      ...profile,
+  const handleSave = async () => {
+    setProfileSaveError("")
+    setProfileSaving(true)
+    const next = {
       allergies: Array.from(allergies),
       conditions: Array.from(health),
-    })
+      otherAllergy: otherAllergy.trim(),
+      otherCondition: otherHealth.trim(),
+    }
+    try {
+      const saved = await persistHealthProfile(next)
+      setSavedAllergies(new Set(saved.allergies))
+      setAllergies(new Set(saved.allergies))
+      setSavedHealth(new Set(saved.conditions))
+      setHealth(new Set(saved.conditions))
+      setOtherAllergy(saved.otherAllergy || "")
+      setOtherHealth(saved.otherCondition || "")
+      setSavedOtherAllergy(saved.otherAllergy || "")
+      setSavedOtherHealth(saved.otherCondition || "")
+    } catch (error) {
+      saveHealthProfile(next)
+      setSavedAllergies(new Set(allergies))
+      setSavedHealth(new Set(health))
+      setSavedOtherAllergy(otherAllergy.trim())
+      setSavedOtherHealth(otherHealth.trim())
+      setProfileSaveError(
+        error instanceof Error
+          ? error.message
+          : "Saved on this device, but cloud sync failed. Try again when online.",
+      )
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
   // ── Start editing identity ───────────────────────────────────────────────
@@ -12667,7 +12751,7 @@ function ProfileScreen({
   // ── Profile information ──────────────────────────────────────────────────
   const joinedLabel = storedUser?.joinedAt
     ? formatJoinedLabel(storedUser.joinedAt)
-    : "—"
+    : " - "
 
   const profileBadge =
     savedAllergies.size > 0 ||
@@ -12711,7 +12795,7 @@ function ProfileScreen({
         background: SOFT_SLATE.bg,
       }}
     >
-      {/* SIDEBAR — mobile drawer only; desktop uses the Soft Slate rail below,
+      {/* SIDEBAR - mobile drawer only; desktop uses the Soft Slate rail below,
           same component and shading as the Dashboard. */}
       {!isDesktop && (
         <AppSidebar
@@ -12723,7 +12807,7 @@ function ProfileScreen({
         />
       )}
 
-      {/* ICON RAIL — Dashboard's own rail component, reused as-is. Profile
+      {/* ICON RAIL - Dashboard's own rail component, reused as-is. Profile
           isn't one of its four destinations, so nothing shows active. */}
       {isDesktop && (
         <div
@@ -12858,7 +12942,7 @@ function ProfileScreen({
                 flexDirection: isDesktop ? "row" : "column",
               }}
             >
-              {/* ── LEFT — identity + stats ─────────────────────────────── */}
+              {/* ── LEFT - identity + stats ─────────────────────────────── */}
               <div
                 style={{
                   flex: 1,
@@ -13126,7 +13210,7 @@ function ProfileScreen({
                   )}
                 </div>
 
-                {/* Stat row — Avoids / Watching / Last Scan */}
+                {/* Stat row - Avoids / Watching / Last Scan */}
                 <div
                   style={{
                     display: "grid",
@@ -13149,7 +13233,7 @@ function ProfileScreen({
                 </div>
               </div>
 
-              {/* ── RIGHT — preferences ─────────────────────────────────── */}
+              {/* ── RIGHT - preferences ─────────────────────────────────── */}
               <div
                 style={{
                   width: isDesktop ? 420 : "100%",
@@ -13238,10 +13322,16 @@ function ProfileScreen({
                   </div>
                 </div>
 
+                {profileSaveError && (
+                  <p style={{ margin: "0 0 10px", fontSize: 12, color: SOFT_SLATE.caution, lineHeight: 1.45 }}>
+                    {profileSaveError}
+                  </p>
+                )}
+
                 <button
                   type="button"
-                  onClick={handleSave}
-                  disabled={!isDirty}
+                  onClick={() => void handleSave()}
+                  disabled={!isDirty || profileSaving}
                   style={{
                     border: "none",
                     borderRadius: 16,
@@ -13252,11 +13342,16 @@ function ProfileScreen({
                     fontWeight: 700,
                     padding: "15px 26px",
                     boxShadow: isDirty ? SOFT_SLATE.raisedBtn : SOFT_SLATE.insetSm,
-                    cursor: isDirty ? "pointer" : "not-allowed",
+                    cursor: isDirty && !profileSaving ? "pointer" : "not-allowed",
                     transition: "background 0.15s ease, box-shadow 0.15s ease",
+                    opacity: profileSaving ? 0.75 : 1,
                   }}
                 >
-                  {isDirty ? "Save changes" : "No changes to save"}
+                  {profileSaving
+                    ? "Saving..."
+                    : isDirty
+                      ? "Save changes"
+                      : "No changes to save"}
                 </button>
               </div>
             </div>
@@ -13286,7 +13381,7 @@ const FAQ_ITEMS = [
   {
     question: "What does the nutrition grade mean?",
     answer:
-      "The A–E grade summarizes a product's ingredient and nutrition quality on its own — it isn't affected by your personal allergies or health conditions. A product can be Grade A and still be flagged unsafe for you; check the Allergy & Safety result for that.",
+      "The A-E grade summarizes a product's ingredient and nutrition quality on its own - it isn't affected by your personal allergies or health conditions. A product can be Grade A and still be flagged unsafe for you; check the Allergy & Safety result for that.",
   },
 ]
 
@@ -16870,7 +16965,7 @@ function readStoredScreen(): Screen {
       return saved as Screen
     }
   } catch {
-    // sessionStorage unavailable (private browsing, etc.) — just start fresh
+    // sessionStorage unavailable (private browsing, etc.) - just start fresh
   }
   return "splash"
 }

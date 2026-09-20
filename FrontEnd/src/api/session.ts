@@ -60,7 +60,7 @@ export function firstName(name: string) {
 
 export function formatJoinedLabel(iso: string) {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return "—"
+  if (Number.isNaN(date.getTime())) return " - "
   return date.toLocaleString("en-US", { month: "long", year: "numeric" })
 }
 

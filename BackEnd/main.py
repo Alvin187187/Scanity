@@ -21,6 +21,7 @@ from app.routers.example import router as example_router
 from app.routers.scan_router import router as scan_router
 from app.routers.ocr_router import router as ocr_router
 from app.routers.ai_router import router as ai_router
+from app.routers.users import router as users_router
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ app.include_router(scan_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(ocr_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
 
 
 @app.get("/")
