@@ -8,7 +8,7 @@ import httpx
 from typing import Optional
 
 OPENFOODFACTS_BASE_URL = "https://world.openfoodfacts.org/api/v2/product"
-REQUEST_TIMEOUT_SECONDS = 8
+REQUEST_TIMEOUT_SECONDS = 5
 OPENFOODFACTS_HEADERS = {
     "User-Agent": "Scanity/1.0 (https://scanity-eta.vercel.app)",
 }

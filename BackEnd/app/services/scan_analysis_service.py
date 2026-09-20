@@ -8,7 +8,7 @@ from app.services.nutriscore_service import nutri_score_grade
 
 ensure_repo_root()
 
-from ai.allergy_engine import check_allergies, overall_verdict
+from ai.allergy_engine import check_allergies, compute_safety_score, overall_verdict
 
 
 def analyze_ingredients(
@@ -18,6 +18,7 @@ def analyze_ingredients(
 ) -> dict:
     flags = check_allergies(user_allergies or [], ingredients)
     verdict = overall_verdict(flags)
+    safety_score = compute_safety_score(flags)
     flagged = [item for item in flags if item.get("status") in {"avoid", "caution"}]
     grade = nutri_score_grade(nutrition)
     nutrition_result = (
@@ -30,6 +31,7 @@ def analyze_ingredients(
         "match_occurred": any(item.get("status") == "avoid" for item in flags),
         "incomplete": any(item.get("status") == "caution" for item in flags),
         "severity": verdict,
+        "safety_score": safety_score,
     }
     explanation = explain_scan(allergy_result, nutrition_result if grade else None, verdict.capitalize())
     return {
@@ -43,6 +45,7 @@ def analyze_ingredients(
         ],
         "allergy_matches": flags,
         "verdict": verdict,
+        "safety_score": safety_score,
         "nutri_score_grade": grade,
         "explanation": explanation,
     }
