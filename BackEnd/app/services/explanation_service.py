@@ -33,27 +33,32 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
         for item in (allergy_result.get("flagged_ingredients") or [])
         if str(item.get("status", "")).lower() in {"avoid", "caution"}
     ]
-    lines = [f"**{label}** for this label based on your saved profile."]
+    if label == "Avoid":
+        lines = [f"**Avoid** — something on this label lines up with allergies you asked Scanity to watch for."]
+    elif label == "Safe":
+        lines = [f"**Safe** for your saved allergies based on this label check."]
+    else:
+        lines = [f"**Flagged** — worth a closer look before you buy."]
+
     if flagged:
-        why = (
-            "matches your saved allergy"
-            if label == "Avoid"
-            else "needs a quick check because we could not fully confirm it"
-        )
         for item in flagged[:4]:
             name = item.get("ingredient") or item.get("matched_kb_entry") or "an ingredient"
-            lines.append(f"- **{name}** {why}.")
+            status = str(item.get("status") or "").lower()
+            if status == "avoid":
+                lines.append(f"- **{name}** looks linked to an allergy you saved.")
+            else:
+                lines.append(f"- **{name}** could not be fully confirmed yet.")
     elif label == "Safe":
-        lines.append("- No ingredients matched your saved allergies.")
+        lines.append("- Nothing on this label matched your saved allergies.")
     else:
-        lines.append("- Some ingredients could not be fully confirmed, so this is not treated as safe yet.")
+        lines.append("- Some ingredients still need a quick human check.")
 
     grade = (nutrition_result or {}).get("grade") if nutrition_result else None
     if grade:
         lines.append(
-            f"- Nutri-Score **{str(grade).upper()}** is nutrition quality only and does not change the allergy result."
+            f"- Nutri-Score **{str(grade).upper()}** is about nutrition quality only — it does not change the allergy result."
         )
-    lines.append("- Confirm the package label if you are unsure. This is not medical advice.")
+    lines.append("- This is consumer guidance, not medical advice.")
     return "\n".join(lines)
 
 

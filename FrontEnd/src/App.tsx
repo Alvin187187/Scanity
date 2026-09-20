@@ -1073,11 +1073,7 @@ function AppSidebar({
             padding: 20,
 
             background:
-              "rgba(20,20,20,0.55)",
-
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter:
-              "blur(6px)",
+              "rgba(20,20,20,0.45)",
           }}
         >
           <div
@@ -1092,7 +1088,7 @@ function AppSidebar({
               background: PALETTE.panel,
 
               boxShadow:
-                "0 20px 60px rgba(0,0,0,0.35)",
+                "0 12px 28px rgba(0,0,0,0.16)",
 
               textAlign: "center",
 
@@ -4503,9 +4499,7 @@ function DashboardIconRail({
           alignItems: "center",
           justifyContent: "center",
           padding: 20,
-          background: "rgba(20,20,20,0.55)",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)",
+          background: "rgba(20,20,20,0.45)",
         }}
       >
         <div
@@ -4515,7 +4509,7 @@ function DashboardIconRail({
             background: SOFT_SLATE.bg,
             borderRadius: 18,
             padding: "24px 22px",
-            boxShadow: SOFT_SLATE.raisedLg,
+            boxShadow: "0 12px 28px rgba(36,41,47,0.14)",
             fontFamily: SOFT_SLATE.fontFamily,
             color: SOFT_SLATE.textPrimary,
           }}
@@ -5053,7 +5047,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                         No scans yet. Scan a barcode or nutrition label to start your history.
                       </div>
                     ) : (
-                    recentScans.map((scan) => {
+                    recentScans.slice(0, 5).map((scan) => {
                       const status = scanStatusInfo(scan.score)
                       const statusColor =
                         status.label === "Safe"
@@ -6508,7 +6502,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               borderRadius: 26,
               padding: 26,
               textAlign: "center",
-              boxShadow: SOFT_SLATE.raisedLg,
+              boxShadow: "0 12px 28px rgba(36,41,47,0.14)",
               boxSizing: "border-box",
             }}
           >
@@ -6550,7 +6544,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                   fontWeight: 700,
                   fontSize: 11,
                   cursor: "pointer",
-                  boxShadow: SOFT_SLATE.raisedBtnAlt,
+                  boxShadow: "0 1px 2px rgba(36,41,47,0.08)",
                 }}
               >
                 Cancel
@@ -6569,7 +6563,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                   fontWeight: 700,
                   fontSize: 11,
                   cursor: "pointer",
-                  boxShadow: SOFT_SLATE.raisedBtn,
+                  boxShadow: "none",
                 }}
               >
                 Logout
@@ -7762,7 +7756,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           <div
             style={{
               width: "100%", maxWidth: 390, background: SOFT_SLATE.bg, borderRadius: 26, padding: 26,
-              textAlign: "center", boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+              textAlign: "center", boxShadow: "0 12px 28px rgba(36,41,47,0.14)",
             }}
           >
             <div
@@ -7788,7 +7782,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                 onClick={() => setShowLogoutConfirm(false)}
                 style={{
                   flex: 1, padding: 14, border: "none", borderRadius: 14,
-                  background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.raisedBtnAlt,
+                  background: SOFT_SLATE.bg, boxShadow: "0 1px 2px rgba(36,41,47,0.08)",
                   color: SOFT_SLATE.textPrimary, fontWeight: 700, cursor: "pointer",
                 }}
               >
@@ -7800,7 +7794,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                 onClick={handleLogout}
                 style={{
                   flex: 1, padding: 14, border: "none", borderRadius: 14,
-                  background: SOFT_SLATE.unsafe, boxShadow: SOFT_SLATE.raisedBtn,
+                  background: SOFT_SLATE.unsafe, boxShadow: "none",
                   color: "#ffffff", fontWeight: 700, cursor: "pointer",
                 }}
               >
@@ -7983,6 +7977,74 @@ function ExplainThisButton({
   )
 }
 
+function toShopperSource(raw?: string | null): string {
+  const text = String(raw || "").trim()
+  if (!text) return "Scanity ingredient guide"
+  const low = text.toLowerCase()
+  if (low.includes(".csv") || low.includes("allergies_10k") || low.includes("allergen_datasets")) {
+    return "Scanity allergen guide"
+  }
+  if (low.includes("openfoodfacts") || low.includes("open food facts")) {
+    return "Open Food Facts + Scanity allergen guide"
+  }
+  return text
+}
+
+function toExplainBullets(text: string, { boldLead = true }: { boldLead?: boolean } = {}): string {
+  const cleaned = String(text || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*•\s*/g, ". ")
+    .trim()
+  if (!cleaned) return ""
+  const parts = cleaned
+    .split(/(?<=[.!;])\s+|\s+[–—]\s+/)
+    .map((part) => part.replace(/^[-*•]\s+/, "").trim())
+    .filter((part) => part.length > 8)
+  const items = (parts.length >= 2 ? parts : [cleaned]).slice(0, 4)
+  return items
+    .map((item) => {
+      let line = item.replace(/\.\s*$/, "")
+      if (boldLead) {
+        const splitAt = line.search(/[,:—]/)
+        if (splitAt > 3 && splitAt < 42) {
+          line = `**${line.slice(0, splitAt)}**${line.slice(splitAt)}`
+        } else {
+          const words = line.split(" ")
+          if (words.length > 3) {
+            line = `**${words.slice(0, 3).join(" ")}** ${words.slice(3).join(" ")}`
+          } else {
+            line = `**${line}**`
+          }
+        }
+      }
+      return `- ${line}`
+    })
+    .join("\n")
+}
+
+function friendlyWhyFlagged(reason?: string, status?: string): string {
+  const raw = String(reason || "").trim()
+  const low = raw.toLowerCase()
+  if (!raw) {
+    return status === "avoid"
+      ? "This lined up with an allergy you asked Scanity to watch for."
+      : "Scanity could not fully confirm this ingredient yet — worth a closer look."
+  }
+  if (low.includes("matches your") && low.includes("profile")) {
+    const needle = raw.match(/matches your\s+(.+?)\s+profile/i)?.[1]
+    if (needle) {
+      return `This looks like **${needle.replace(/_/g, " ")}**, which you asked Scanity to watch for.`
+    }
+  }
+  if (low.includes("confirm on the") || low.includes("confirm the package")) {
+    return raw
+      .replace(/\s*confirm on the packages?\.?/gi, "")
+      .replace(/\s*confirm the package\.?/gi, "")
+      .trim()
+  }
+  return raw
+}
+
 function renderCoachMarkdown(text: string): ReactNode {
   const blocks = String(text || "").trim().split(/\n{2,}/)
   if (!blocks.length) return null
@@ -8060,7 +8122,18 @@ function FeatureFlagRow({ label, values }: { label: string; values: string[] }) 
   if (!values.length) return null
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 8 }}>{label}</div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: SOFT_SLATE.textMuted,
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {values.map((value) => (
           <span
@@ -8184,6 +8257,18 @@ function IngredientExplainSheet({
   const status = String(item.status || "").toLowerCase()
   const statusColor =
     status === "avoid" ? SOFT_SLATE.unsafe : status === "caution" ? SOFT_SLATE.caution : SOFT_SLATE.green
+  const whatText = resolved?.what_it_is || item.plainExplanation || ""
+  const effectsText = resolved?.possible_effects || item.possibleEffects || ""
+  const whyText = friendlyWhyFlagged(item.reason, status)
+  const sectionLabel: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: SOFT_SLATE.textMuted,
+    marginBottom: 8,
+    fontFamily: SOFT_SLATE.fontFamily,
+  }
 
   return (
     <div
@@ -8209,18 +8294,39 @@ function IngredientExplainSheet({
           maxHeight: "78vh",
           overflowY: "auto",
           background: SOFT_SLATE.bg,
-          borderRadius: 18,
-          boxShadow: SOFT_SLATE.raisedLg,
-          padding: "22px 20px 24px",
+          borderRadius: 22,
+          boxShadow: "0 18px 40px rgba(36,41,47,0.14)",
+          padding: "26px 22px 28px",
           fontFamily: SOFT_SLATE.fontFamily,
           color: SOFT_SLATE.textPrimary,
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>{title}</h2>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.15,
+              }}
+            >
+              {title}
+            </h2>
             {resolved?.category ? (
-              <p style={{ margin: "6px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted }}>{resolved.category}</p>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: SOFT_SLATE.textMuted,
+                }}
+              >
+                {resolved.category}
+              </p>
             ) : null}
           </div>
           <button
@@ -8247,50 +8353,48 @@ function IngredientExplainSheet({
         {status && status !== "info" ? (
           <div
             style={{
-              marginTop: 14,
+              marginTop: 16,
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
               padding: "8px 12px",
-              borderRadius: 10,
-              background: SOFT_SLATE.bg,
-              boxShadow: SOFT_SLATE.insetSm,
+              borderRadius: 999,
+              background: status === "avoid" ? "#F1DEDA" : "#F1E3D8",
               color: statusColor,
-              fontSize: 13,
-              fontWeight: 700,
-              textTransform: "capitalize",
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
             }}
           >
-            {status === "caution" ? "Flagged for review" : status}
+            {status === "caution" ? "Flagged" : status}
           </div>
         ) : null}
 
-        {loading && !(resolved?.what_it_is || item.plainExplanation || item.reason) ? (
-          <p style={{ margin: "18px 0 0", fontSize: 15, color: SOFT_SLATE.textSecondary }}>
+        {loading && !(whatText || whyText) ? (
+          <p style={{ margin: "20px 0 0", fontSize: 15, color: SOFT_SLATE.textSecondary }}>
             Looking this up...
           </p>
         ) : (
-          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-            {(resolved?.what_it_is || item.plainExplanation || item.reason) && (
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 18 }}>
+            {whatText ? (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>What it is</div>
-                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>
-                  {resolved?.what_it_is || item.plainExplanation || item.reason}
-                </p>
+                <div style={sectionLabel}>What it is</div>
+                {renderCoachMarkdown(toExplainBullets(whatText))}
               </div>
-            )}
-            {resolved?.commonly_seen_in && (
+            ) : null}
+            {resolved?.commonly_seen_in ? (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Commonly seen in</div>
-                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved.commonly_seen_in}</p>
+                <div style={sectionLabel}>Commonly seen in</div>
+                {renderCoachMarkdown(toExplainBullets(resolved.commonly_seen_in, { boldLead: false }))}
               </div>
-            )}
-            {(resolved?.possible_effects || item.possibleEffects) && (
+            ) : null}
+            {effectsText ? (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>If not controlled / watch-outs</div>
-                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved?.possible_effects || item.possibleEffects}</p>
+                <div style={sectionLabel}>If not controlled / watch-outs</div>
+                {renderCoachMarkdown(toExplainBullets(effectsText))}
               </div>
-            )}
+            ) : null}
             <FeatureFlagRow
               label="May affect allergens"
               values={resolved?.affects_allergens || item.affectsAllergens || []}
@@ -8299,18 +8403,27 @@ function IngredientExplainSheet({
               label="May affect dietary needs"
               values={resolved?.affects_diets || item.affectsDiets || []}
             />
-            {item.reason && item.reason !== (resolved?.what_it_is || item.plainExplanation) && (
+            {whyText && whyText !== whatText ? (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Why Scanity showed this</div>
-                <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>{item.reason}</p>
+                <div style={sectionLabel}>Why this was flagged</div>
+                {renderCoachMarkdown(whyText.startsWith("-") || whyText.includes("**") ? whyText : `- ${whyText}`)}
               </div>
-            )}
-            {resolved?.source && (
-              <p style={{ margin: 0, fontSize: 12, color: SOFT_SLATE.textMuted }}>Source: {resolved.source}</p>
-            )}
-            {error && (
+            ) : null}
+            {resolved?.source ? (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 12,
+                  letterSpacing: "0.01em",
+                  color: SOFT_SLATE.textMuted,
+                }}
+              >
+                Source: {toShopperSource(resolved.source)}
+              </p>
+            ) : null}
+            {error ? (
               <p style={{ margin: 0, fontSize: 13, color: SOFT_SLATE.caution }}>{error}</p>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -8418,7 +8531,7 @@ function AllergySignalsCard({
       <div>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>Allergy signals</h3>
         <p style={{ margin: "6px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
-          Flagged means we could not fully confirm an ingredient against your allergies yet. Avoid means it matches your saved allergies. Tap a chip for details.
+          Flagged means Scanity could not fully confirm an ingredient yet. Avoid means it lined up with allergies you asked Scanity to watch for.
         </p>
       </div>
 
@@ -8431,7 +8544,7 @@ function AllergySignalsCard({
           <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.caution, lineHeight: 1 }}>
             {flaggedItems.length}
           </div>
-          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Needs a quick check</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Needs a closer look</div>
         </div>
         <div style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -8441,7 +8554,7 @@ function AllergySignalsCard({
           <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.unsafe, lineHeight: 1 }}>
             {avoidItems.length}
           </div>
-          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Matches your allergies</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Linked to your allergies</div>
         </div>
       </div>
 
@@ -8512,7 +8625,7 @@ function AllergySignalsCard({
             On this label
           </div>
           <p style={{ margin: "0 0 10px", fontSize: 13, color: SOFT_SLATE.textSecondary, lineHeight: 1.4 }}>
-            Sugar, E-numbers, and other known additives — tap for plain-language details.
+            Sugar, E-numbers, and other known additives — open a chip for a short plain-language note.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {labelInsights.slice(0, 10).map((insight) => (
@@ -8770,7 +8883,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>AI explanation</h3>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2 }}>AI explanation</h3>
                 <span
                   style={{
                     fontSize: 12,
@@ -8804,7 +8917,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             </div>
             <SafetySpeedGauge score={safetyScore} />
             <p style={{ margin: "12px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
-              Starts high when nothing in this product hits your saved allergies. It only drops a lot when an ingredient matches your profile.
+              Starts high when nothing on this product hits allergies you asked Scanity to watch for. It drops when an ingredient is linked to your notes.
             </p>
           </div>
 
@@ -12454,6 +12567,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
   const [recentScans, setRecentScans] = useState<ScanRecord[]>(() => loadScanRecords())
+  const [showAllScans, setShowAllScans] = useState(false)
   const [undoToast, setUndoToast] = useState<{
     scan: StoredScan
     index: number
@@ -12495,6 +12609,8 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const scans = recentScans.filter((scan) =>
     scan.name.toLowerCase().includes(query.toLowerCase()),
   )
+  const visibleScans = showAllScans || query.trim() ? scans : scans.slice(0, 5)
+  const hiddenCount = Math.max(0, scans.length - visibleScans.length)
 
   // Rail geometry mirrors DashboardScreen's own fixed positioning exactly
   // (top/left/bottom 22/26/22, width 80) so the two screens line up pixel
@@ -12641,7 +12757,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                 fontSize: 13.5,
               }}
             >
-              Everything you've scanned, newest first.
+              Your 5 most recent scans. Open View all for the full list.
             </p>
 
             {/* SEARCH - inset (pressed-in) like a Soft Slate field, rather
@@ -12711,7 +12827,8 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                   </p>
                 </div>
               ) : (
-                groupScans(scans).map((group) => (
+                <>
+                  {groupScans(visibleScans).map((group) => (
                   <div
                     key={`${group.label}-${group.scans[0].name}-${group.scans[0].time}`}
                     style={{ marginBottom: 20 }}
@@ -12771,7 +12888,31 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                       ))}
                     </div>
                   </div>
-                ))
+                  ))}
+                  {!query.trim() && scans.length > 5 ? (
+                    <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowAllScans((open) => !open)}
+                        style={{
+                          border: "none",
+                          background: SOFT_SLATE.bg,
+                          boxShadow: SOFT_SLATE.raisedSm,
+                          borderRadius: 999,
+                          padding: "12px 20px",
+                          fontFamily: SOFT_SLATE.fontFamily,
+                          fontSize: 13,
+                          fontWeight: 800,
+                          color: SOFT_SLATE.green,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {showAllScans ? "Show less" : `View all (${scans.length})`}
+                        {!showAllScans && hiddenCount > 0 ? ` · ${hiddenCount} more` : ""}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               )}
             </div>
           </Center>

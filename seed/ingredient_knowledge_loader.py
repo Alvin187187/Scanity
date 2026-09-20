@@ -48,6 +48,23 @@ def _split_flags(raw: str | None) -> list[str]:
     return [part.strip() for part in str(raw or "").split("|") if part.strip()]
 
 
+def shopper_source(raw: str | None) -> str:
+    """Never expose CSV filenames or internal dataset labels to shoppers."""
+    text = (raw or "").strip()
+    if not text:
+        return "Scanity ingredient guide"
+    low = text.lower()
+    if ".csv" in low or "allergies_10k" in low or "allergen_datasets" in low:
+        return "Scanity allergen guide"
+    if "openfoodfacts" in low or "open food facts" in low:
+        return "Open Food Facts + Scanity allergen guide"
+    if "curated" in low:
+        return "Scanity curated allergen notes"
+    if "ai/ml" in low or "generated" in low:
+        return "Scanity food-safety reference"
+    return text
+
+
 @lru_cache(maxsize=1)
 def load_ingredient_knowledge(csv_path: str | None = None) -> list[dict]:
     path = Path(csv_path) if csv_path else SEED_FILE_PATH
@@ -75,7 +92,7 @@ def load_ingredient_knowledge(csv_path: str | None = None) -> list[dict]:
                     "possible_effects": (raw.get("possible_effects") or "").strip(),
                     "affects_allergens": _split_flags(raw.get("affects_allergens")),
                     "affects_diets": _split_flags(raw.get("affects_diets")),
-                    "source": (raw.get("source") or "").strip(),
+                    "source": shopper_source(raw.get("source")),
                 }
             )
     return rows
