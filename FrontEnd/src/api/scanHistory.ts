@@ -3,10 +3,34 @@ const ACTIVE_RESULT_KEY = "scanityProductResult"
 
 export type ScanMethod = "Barcode" | "OCR"
 
+export type IngredientKnowledge = {
+  title: string
+  category?: string
+  what_it_is?: string
+  commonly_seen_in?: string
+  possible_effects?: string
+  source?: string
+  aliases?: string[]
+}
+
 export type AllergySignal = {
   name: string
   status: "avoid" | "caution" | "safe" | string
   reason?: string
+  plainExplanation?: string
+  matchedCategory?: string
+  knowledge?: IngredientKnowledge | null
+}
+
+export type LabelInsight = {
+  ingredient: string
+  title: string
+  category?: string
+  what_it_is?: string
+  commonly_seen_in?: string
+  possible_effects?: string
+  source?: string
+  aliases?: string[]
 }
 
 export type StoredScan = {
@@ -23,11 +47,13 @@ export type StoredScan = {
   explanation?: string
   allergens: string[]
   allergySignals?: AllergySignal[]
+  labelInsights?: LabelInsight[]
   ingredients: string[]
   ingredientsText?: string
   nutrition?: Record<string, number | undefined>
   score: number
   favorite?: boolean
+  aiSource?: string
 }
 
 function readList(): StoredScan[] {
@@ -149,6 +175,24 @@ function asStringList(value: unknown): string[] {
     .filter(Boolean)
 }
 
+function knowledgeFromUnknown(value: unknown): IngredientKnowledge | null {
+  if (!value || typeof value !== "object") return null
+  const record = value as Record<string, unknown>
+  const title = String(record.title || record.ingredient_name || "").trim()
+  if (!title) return null
+  return {
+    title,
+    category: String(record.category || "").trim() || undefined,
+    what_it_is: String(record.what_it_is || "").trim() || undefined,
+    commonly_seen_in: String(record.commonly_seen_in || "").trim() || undefined,
+    possible_effects: String(record.possible_effects || "").trim() || undefined,
+    source: String(record.source || "").trim() || undefined,
+    aliases: Array.isArray(record.aliases)
+      ? record.aliases.map((item) => String(item).trim()).filter(Boolean)
+      : undefined,
+  }
+}
+
 function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
   if (!Array.isArray(value)) return []
   return value
@@ -164,6 +208,10 @@ function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
         ingredient?: string
         status?: string
         reason?: string
+        plain_explanation?: string
+        plainExplanation?: string
+        matched_category?: string
+        knowledge?: unknown
       }
       const name = (record.name || record.ingredient || "").trim()
       if (!name) return null
@@ -172,9 +220,37 @@ function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
         name,
         status,
         reason: record.reason,
+        plainExplanation: record.plainExplanation || record.plain_explanation,
+        matchedCategory: record.matched_category,
+        knowledge: knowledgeFromUnknown(record.knowledge),
       }
     })
     .filter(Boolean) as AllergySignal[]
+}
+
+function labelInsightsFromUnknown(value: unknown): LabelInsight[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null
+      const record = item as Record<string, unknown>
+      const title = String(record.title || record.ingredient_name || "").trim()
+      const ingredient = String(record.ingredient || title).trim()
+      if (!title && !ingredient) return null
+      return {
+        ingredient: ingredient || title,
+        title: title || ingredient,
+        category: String(record.category || "").trim() || undefined,
+        what_it_is: String(record.what_it_is || "").trim() || undefined,
+        commonly_seen_in: String(record.commonly_seen_in || "").trim() || undefined,
+        possible_effects: String(record.possible_effects || "").trim() || undefined,
+        source: String(record.source || "").trim() || undefined,
+        aliases: Array.isArray(record.aliases)
+          ? record.aliases.map((part) => String(part).trim()).filter(Boolean)
+          : undefined,
+      }
+    })
+    .filter(Boolean) as LabelInsight[]
 }
 
 export function storedScanFromAnalysis(input: {
@@ -191,8 +267,10 @@ export function storedScanFromAnalysis(input: {
   explanation?: string
   allergyFlags?: unknown
   allergyMatches?: unknown
+  labelInsights?: unknown
   nutrition?: Record<string, number | undefined>
   safetyScore?: number | null
+  aiSource?: string | null
   id?: string
 }): StoredScan {
   const verdict = (
@@ -207,6 +285,7 @@ export function storedScanFromAnalysis(input: {
   ) as StoredScan["grade"]
   const ingredients = asStringList(input.ingredients)
   const allergySignals = allergySignalsFromUnknown(input.allergyMatches)
+  const labelInsights = labelInsightsFromUnknown(input.labelInsights)
   const allergens =
     asStringList(input.allergyFlags).length > 0
       ? asStringList(input.allergyFlags)
@@ -231,9 +310,11 @@ export function storedScanFromAnalysis(input: {
     explanation: input.explanation,
     allergens,
     allergySignals: allergySignals.length ? allergySignals : undefined,
+    labelInsights: labelInsights.length ? labelInsights : undefined,
     ingredients,
     ingredientsText: input.ingredientsText || ingredients.join(", "),
     nutrition: input.nutrition,
     score,
+    aiSource: input.aiSource || undefined,
   }
 }

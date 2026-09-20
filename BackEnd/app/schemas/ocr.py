@@ -8,6 +8,19 @@ class AllergyMatchOut(BaseModel):
     matched_category: Optional[str] = None
     matched_kb_entry: Optional[str] = None
     reason: str = ""
+    plain_explanation: Optional[str] = None
+    knowledge: Optional[dict] = None
+
+
+class LabelInsightOut(BaseModel):
+    ingredient: str
+    title: str
+    category: str = ""
+    what_it_is: str = ""
+    commonly_seen_in: str = ""
+    possible_effects: str = ""
+    source: str = ""
+    aliases: list[str] = Field(default_factory=list)
 
 
 class OCRScanRequest(BaseModel):
@@ -25,9 +38,11 @@ class OCRScanResponse(BaseModel):
     parsed_ingredients: list[str] = Field(default_factory=list)
     allergy_flags: list[str] = Field(default_factory=list)
     allergy_matches: list[AllergyMatchOut] = Field(default_factory=list)
+    label_insights: list[LabelInsightOut] = Field(default_factory=list)
     score: Optional[str] = None
     verdict: Optional[str] = None
     safety_score: Optional[int] = None
     nutri_score_grade: Optional[str] = None
     explanation: Optional[str] = None
     product_name: Optional[str] = None
+    ai_source: Optional[str] = None

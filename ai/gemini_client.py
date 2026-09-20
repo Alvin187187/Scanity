@@ -1,36 +1,13 @@
 """
 ai/gemini_client.py
 
-Ticket: #168
-
-call_hosted_ai(prompt) -> str
-
 Hosted Gemini explanation wrapper. Gemini never decides avoid/caution/safe.
 This function never raises. It returns model text or FALLBACK_TEXT.
-
-Backend handoff
----------------
-Function: call_hosted_ai
-Path:     ai/gemini_client.py
-Input:    prompt: str  (build it with ai.prompt.build_prompt)
-Output:   str          (1-2 sentences, or FALLBACK_TEXT)
-
-Copy-paste example (from the repository root, with GEMINI_API_KEY set
-in BackEnd/.env or the process environment):
-
-    from ai.prompt import build_prompt
-    from ai.gemini_client import call_hosted_ai
-
-    prompt = build_prompt(
-        "sodium caseinate",
-        "Matches Milk allergen category (Avoid)",
-        "Milk allergy",
-    )
-    print(call_hosted_ai(prompt))
 """
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -42,12 +19,25 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_ENV_PATH = REPO_ROOT / "BackEnd" / ".env"
 ROOT_ENV_PATH = REPO_ROOT / ".env"
 
-DEFAULT_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_MODEL = "gemini-2.0-flash"
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-TIMEOUT_SECONDS = 15
+TIMEOUT_SECONDS = 20
 FALLBACK_TEXT = (
-    "We couldn't generate an explanation right now, but the safety result above is accurate."
+    "We couldn't generate a live AI explanation right now, but the safety score "
+    "and CSV ingredient checks above are still valid."
 )
+
+logger = logging.getLogger(__name__)
+_LAST_STATUS: dict[str, str] = {"source": "unset", "detail": ""}
+
+
+def last_ai_status() -> dict[str, str]:
+    return dict(_LAST_STATUS)
+
+
+def _set_status(source: str, detail: str = "") -> None:
+    _LAST_STATUS["source"] = source
+    _LAST_STATUS["detail"] = detail
 
 
 def _apply_env_file(path: Path) -> None:
@@ -61,7 +51,7 @@ def _apply_env_file(path: Path) -> None:
             continue
         key, _, value = line.partition("=")
         key = key.strip()
-        if not key or key.startswith("export "):
+        if key.startswith("export "):
             key = key.removeprefix("export ").strip()
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
@@ -69,9 +59,18 @@ def _apply_env_file(path: Path) -> None:
 
 
 def _load_local_env() -> None:
-    # App keys live in BackEnd/.env. A root .env is accepted for local AI scripts.
     _apply_env_file(BACKEND_ENV_PATH)
     _apply_env_file(ROOT_ENV_PATH)
+    # FastAPI settings may already have loaded the key.
+    try:
+        from app.core.config import settings
+
+        if getattr(settings, "GEMINI_API_KEY", None) and "GEMINI_API_KEY" not in os.environ:
+            os.environ["GEMINI_API_KEY"] = str(settings.GEMINI_API_KEY)
+        if getattr(settings, "GEMINI_MODEL", None) and not os.environ.get("GEMINI_MODEL"):
+            os.environ["GEMINI_MODEL"] = str(settings.GEMINI_MODEL)
+    except Exception:
+        pass
 
 
 def _gemini_settings() -> tuple[str, str]:
@@ -79,7 +78,7 @@ def _gemini_settings() -> tuple[str, str]:
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if api_key.startswith("YOUR_"):
         api_key = ""
-    model = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    model = (os.environ.get("GEMINI_MODEL") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
     return api_key, model
 
 
@@ -105,20 +104,22 @@ def call_hosted_ai(
     prompt: str,
     *,
     system_instructions: str | None = None,
-    max_output_tokens: int = 160,
-    temperature: float = 0.2,
+    max_output_tokens: int = 512,
+    temperature: float = 0.35,
 ) -> str:
     """
     Send a prompt to hosted Gemini and return plain text.
 
-    Reads GEMINI_API_KEY / GEMINI_MODEL on every call so Backend can load
-    dotenv before or after importing this module. The API key is never logged.
+    Reads GEMINI_API_KEY / GEMINI_MODEL on every call. The API key is never logged.
     """
     if not isinstance(prompt, str) or not prompt.strip():
+        _set_status("template", "empty_prompt")
         return FALLBACK_TEXT
 
     api_key, model = _gemini_settings()
     if not api_key or api_key.startswith("YOUR_"):
+        _set_status("template", "missing_api_key")
+        logger.warning("Gemini skipped: GEMINI_API_KEY is missing on this server.")
         return FALLBACK_TEXT
 
     url = GEMINI_ENDPOINT.format(model=model)
@@ -144,20 +145,29 @@ def call_hosted_ai(
             json=payload,
             timeout=TIMEOUT_SECONDS,
         )
-    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, requests.exceptions.RequestException):
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, requests.exceptions.RequestException) as exc:
+        _set_status("template", f"network:{type(exc).__name__}")
+        logger.warning("Gemini network error: %s", type(exc).__name__)
         return FALLBACK_TEXT
 
     if response.status_code != 200:
+        _set_status("template", f"http_{response.status_code}")
+        logger.warning("Gemini HTTP %s", response.status_code)
         return FALLBACK_TEXT
 
     try:
         text = _extract_text(response.json())
     except (TypeError, ValueError, AttributeError):
+        _set_status("template", "bad_json")
         return FALLBACK_TEXT
 
-    return text or FALLBACK_TEXT
+    if not text:
+        _set_status("template", "empty_model_text")
+        return FALLBACK_TEXT
+
+    _set_status("gemini", model)
+    return text
 
 
 if __name__ == "__main__":
-    # Manual sanity check: python -m ai.gemini_client
-    print(call_hosted_ai("Say hello in one sentence."))
+    print(call_hosted_ai("Say hello in one short sentence with **bold** and one bullet list."))

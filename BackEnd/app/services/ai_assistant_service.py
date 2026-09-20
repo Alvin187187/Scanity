@@ -15,38 +15,37 @@ def _template_chat(message: str, product: dict, profile: dict) -> str:
     verdict = (product.get("verdict") or "caution").capitalize()
     allergies = ", ".join(profile.get("allergies") or []) or "your saved allergies"
     flags = product.get("allergy_flags") or []
+    lines = [
+        f"**{verdict}** for **{name}**, checked against {allergies}.",
+    ]
     if flags:
-        flagged = ", ".join(str(item) for item in flags[:4])
-        return (
-            f"{verdict} for {name} based on the scan. Flagged items include {flagged}, "
-            f"checked against {allergies}. I can explain ingredients, but I am not a doctor - "
-            f"double-check the package if you are unsure."
-        )
-    return (
-        f"For {name}, the scan says {verdict}. I did not see a clear allergy flag in the "
-        f"saved result for {allergies}. Ask me about a specific ingredient if you want more detail. "
-        f"This is guidance only - confirm the label yourself."
-    )
+        for item in flags[:4]:
+            lines.append(f"- Flagged item: **{item}** (from the scan result).")
+    else:
+        lines.append("- No avoid-level allergy flags were recorded for this scan.")
+    lines.append("- I can explain ingredients in plain words, but I am not a doctor - confirm the package.")
+    return "\n".join(lines)
 
 
 def _template_report(product: dict, profile: dict) -> str:
     name = product.get("product_name") or "This product"
     verdict = (product.get("verdict") or "caution").capitalize()
     score = product.get("safety_score")
-    score_bit = f" Safety score: {score}/100." if score is not None else ""
     allergies = ", ".join(profile.get("allergies") or []) or "no saved allergies"
     conditions = ", ".join(profile.get("conditions") or []) or "none saved"
     flags = product.get("allergy_flags") or []
-    flag_bit = (
-        f" Flagged: {', '.join(str(item) for item in flags[:5])}."
-        if flags
-        else " No avoid-level allergy flags were recorded for this scan."
-    )
-    return (
-        f"{verdict}. {name} was checked against your profile ({allergies}; health notes: {conditions})."
-        f"{score_bit}{flag_bit} Nutri-Score is nutrition quality only and does not change the allergy result. "
-        f"This is a careful consumer summary, not medical advice - confirm ingredients on the package."
-    )
+    lines = [
+        f"**{verdict}**. **{name}** was checked against your profile ({allergies}; health notes: {conditions}).",
+    ]
+    if score is not None:
+        lines.append(f"- Safety score: **{score}/100**.")
+    if flags:
+        lines.append(f"- Avoid / flagged: **{', '.join(str(item) for item in flags[:5])}**.")
+    else:
+        lines.append("- No avoid-level allergy flags were recorded for this scan.")
+    lines.append("- Nutri-Score is nutrition quality only and does not change the allergy result.")
+    lines.append("- This is a careful consumer summary, not medical advice - confirm ingredients on the package.")
+    return "\n".join(lines)
 
 
 def answer_product_question(

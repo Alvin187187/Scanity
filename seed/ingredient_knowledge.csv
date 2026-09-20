@@ -1,0 +1,101 @@
+﻿ingredient_name,aliases,category,what_it_is,commonly_seen_in,possible_effects,source
+Sugar,Sucrose | White sugar | Cane sugar | Beet sugar,sweetener,A common sweetener from sugar cane or sugar beet.,"Drinks, snacks, sauces, desserts",High intake can raise calorie load and blood sugar; not a classic allergen by itself.,Codex / general nutrition references
+Glucose,Dextrose | Glucose syrup,sweetener,A simple sugar used for sweetness and browning.,"Candy, baked goods, processed foods",Raises blood sugar quickly; watch if you manage diabetes.,General nutrition references
+Fructose,Fruit sugar,sweetener,A simple sugar naturally in fruit and honey; also added as sweetener.,"Soft drinks, sweets, fruit products",Adds calories and can raise blood sugar load.,General nutrition references
+High fructose corn syrup,HFCS | Corn syrup,sweetener,A sweet syrup made from corn starch.,"Sodas, sauces, packaged sweets",Adds sugars and calories; not an allergen for most people.,General nutrition references
+Salt,Sodium chloride | Sea salt | Table salt,seasoning,A mineral seasoning that adds sodium.,Almost all savory packaged foods,Too much sodium can raise blood pressure over time.,WHO sodium guidance (general)
+Citric acid,E330,acidulant,A sour acid from citrus or fermentation; used for tartness and preservation.,"Soft drinks, candies, canned foods",Usually fine; can irritate mouth or stomach in sensitive people.,EFSA additive summaries (general)
+Ascorbic acid,Vitamin C | E300,antioxidant,Vitamin C used as a nutrient and to slow browning/oxidation.,"Juices, cured meats, fortified foods",Generally safe; high doses can upset stomach.,EFSA / nutrition references
+Lecithin,E322 | Soy lecithin | Sunflower lecithin,emulsifier,Helps mix oil and water in foods.,"Chocolate, margarine, baked goods",Soy lecithin may matter for soy allergy if protein remains.,Open Food Facts additives + allergen notes
+Mono- and diglycerides,E471,emulsifier,Fat-based emulsifiers that improve texture.,"Bread, ice cream, margarine",Usually low allergy risk; check source fat if avoiding certain oils.,EFSA additive summaries (general)
+Xanthan gum,E415,thickener,A fermented gum that thickens and stabilizes.,"Sauces, gluten-free baking, dressings",Can cause bloating in some people at higher amounts.,EFSA additive summaries (general)
+Carrageenan,E407,thickener,A seaweed-derived thickener.,"Plant milks, desserts, deli meats",Usually tolerated; some people report digestive sensitivity.,EFSA additive summaries (general)
+Guar gum,E412,thickener,A plant fiber gum used to thicken.,"Ice cream, sauces, gluten-free foods",May cause gas or bloating for sensitive guts.,EFSA additive summaries (general)
+Pectin,E440,thickener,A fruit fiber used to gel jams and thicken.,"Jams, jellies, gummies",Generally gentle; mostly fiber.,EFSA additive summaries (general)
+Sodium benzoate,E211,preservative,A preservative that slows yeast and bacteria.,"Soft drinks, sauces, pickles",Safe within limits; combine with vitamin C can form trace benzene in some drinks.,EFSA additive summaries (general)
+Potassium sorbate,E202,preservative,A preservative against mold and yeast.,"Cheese, drinks, baked goods",Usually well tolerated.,EFSA additive summaries (general)
+Sodium nitrite,E250,preservative,Used in cured meats for color and botulism control.,"Bacon, ham, hot dogs",Linked to processed-meat concerns when eaten often; not a typical allergen.,IARC / nutrition guidance (general)
+BHA,E320 | Butylated hydroxyanisole,antioxidant,Synthetic antioxidant that protects fats from going rancid.,"Chips, cereals, chewing gum",Allowed in limits; some people prefer to minimize.,EFSA additive summaries (general)
+BHT,E321 | Butylated hydroxytoluene,antioxidant,Synthetic antioxidant for fats and packaging.,"Cereals, snacks, packaging",Allowed in limits; minimize if you prefer cleaner labels.,EFSA additive summaries (general)
+Tartrazine,E102 | FD&C Yellow 5,color,A yellow synthetic color.,"Candies, drinks, desserts",Can trigger sensitivity in some people; watch if dye-sensitive.,EFSA color guidance (general)
+Sunset yellow,E110 | FD&C Yellow 6,color,An orange-yellow synthetic color.,"Snacks, drinks, desserts",Possible hyperactivity link in sensitive children when combined with other colors.,EFSA color guidance (general)
+Carmoisine,E122 | Azorubine,color,A red synthetic azo color.,"Sweets, drinks",Some people report sensitivity; not a major allergen for most.,EFSA color guidance (general)
+Ponceau 4R,E124,color,A red synthetic color.,"Desserts, drinks, candies",Sensitivity possible in dye-reactive people.,EFSA color guidance (general)
+Allura red,E129 | Red 40,color,A common red synthetic color.,"Candies, drinks, toppings",Often discussed with child hyperactivity sensitivity.,EFSA color guidance (general)
+Brilliant blue,E133 | Blue 1,color,A blue synthetic color.,"Candies, ice pops, drinks",Usually fine; rare dye sensitivity possible.,EFSA color guidance (general)
+Caramel color,E150a | E150c | E150d | E150,color,Browned sugar color used for brown tint.,"Colas, sauces, baked goods",Generally accepted; type varies by process.,EFSA additive summaries (general)
+Annatto,E160b,color,A natural orange color from achiote seeds.,"Cheese, snacks",Can cause sensitivity in a small number of people.,Allergy case reports (general)
+Titanium dioxide,E171,color,A whitening pigment formerly common in foods.,"Candies, coatings (region-dependent)",Restricted or banned in some regions; check local rules.,EU additive policy notes
+MSG,E621 | Monosodium glutamate,flavor enhancer,A savoriness booster related to glutamate in foods.,"Chips, broths, seasoning mixes",Safe for most; some people report short-lived sensitivity symptoms.,FDA / EFSA glutamate notes
+Disodium inosinate,E631,flavor enhancer,A savory enhancer often paired with MSG.,"Instant noodles, chips",Usually fine; often from fish or meat sources - relevant for some diets.,EFSA additive summaries (general)
+Disodium guanylate,E627,flavor enhancer,A savory enhancer used with MSG-type flavors.,"Snacks, soups",Source can be microbial or animal; check if you avoid certain foods.,EFSA additive summaries (general)
+Caffeine,,stimulant,"A natural stimulant from coffee, tea, cacao, or added.","Energy drinks, cola, chocolate",Can raise heart rate or disrupt sleep; not an allergen for most.,General nutrition references
+Alcohol,Ethanol,processing aid,Ethyl alcohol used in flavors or remaining from fermentation.,"Extracts, some sauces, fermented foods",Avoid if you must stay alcohol-free; evaporates partly when cooked.,General food labeling notes
+Palm oil,Palm fat,fat,A tropical vegetable oil high in saturated fat.,"Cookies, instant noodles, spreads",Raises saturated fat intake; environmental concerns are separate from allergy.,Nutrition references
+Hydrogenated oil,Partially hydrogenated oil,fat,Oils processed for firmness; may contain trans fat if partially hydrogenated.,"Older packaged baked goods, frosting",Trans fats raise heart-risk markers; many regions limit them.,WHO trans-fat guidance
+Natural flavors,Natural flavour,flavor,A catch-all for flavorings from natural sources.,Almost all packaged foods,Safe for many; hard to verify hidden allergens - ask maker if severe allergy.,FDA flavor labeling notes
+Artificial flavors,Artificial flavour,flavor,Lab-made flavor compounds.,"Candy, drinks, snacks",Usually tiny amounts; still opaque for allergen tracing.,General food labeling notes
+Modified starch,Modified food starch | E1400-E1450,thickener,Starch treated for better cooking/stability.,"Sauces, soups, desserts",Often corn/potato/tapioca; wheat-based versions matter for wheat allergy.,Allergen labeling notes
+Maltodextrin,,bulking agent,A processed starch carbohydrate used for bulk/texture.,"Powders, snacks, drinks",Usually corn-based; can affect blood sugar.,General nutrition references
+Corn syrup,Glucose-fructose syrup,sweetener,Sweet syrup from corn starch.,"Candy, granola bars, sauces",Adds sugars; not a milk/egg allergen by itself.,General nutrition references
+Honey,,sweetener,Natural sweet syrup from bees.,"Cereals, sauces, snacks",Not for infants under 1 year; pollen traces rare issue for highly sensitive people.,Pediatric nutrition guidance
+Stevia,Steviol glycosides | E960,sweetener,A non-sugar sweetener from stevia leaf.,"Diet drinks, yogurts",Generally recognized as safe; taste aftertaste varies.,EFSA sweetener notes
+Aspartame,E951,sweetener,A low-calorie artificial sweetener.,"Diet sodas, gum",Avoid if you have PKU; otherwise widely used within limits.,EFSA / FDA sweetener notes
+Sucralose,E955,sweetener,A chlorinated sugar molecule used as intense sweetener.,"Diet foods, drinks",Usually well tolerated.,EFSA sweetener notes
+Acesulfame K,E950 | Ace-K,sweetener,A calorie-free sweetener often blended with others.,"Diet drinks, desserts",Usually fine within limits.,EFSA sweetener notes
+Sorbitol,E420,sweetener,A sugar alcohol that sweetens with fewer calories.,"Sugar-free gum, candies",Can cause diarrhea or gas if you eat a lot.,EFSA polyol notes
+Mannitol,E421,sweetener,A sugar alcohol used in sugar-free products.,"Chewing gum, candies",Laxative effect at higher intakes.,EFSA polyol notes
+Xylitol,E967,sweetener,A sugar alcohol popular in sugar-free gum.,"Gum, mints",Digestive upset possible; toxic to dogs.,EFSA polyol notes / pet safety notes
+Calcium carbonate,E170,additive,A mineral salt used as calcium source or whitener.,"Fortified foods, chewing gum",Generally safe; excess calcium supplements are a separate issue.,EFSA mineral notes
+Silicon dioxide,E551,anti-caking,An anti-caking agent that keeps powders free-flowing.,"Spice mixes, powdered drinks",Inert at food-use levels for most people.,EFSA additive summaries (general)
+Sodium bicarbonate,Baking soda | E500,leavening,A leavening and pH control salt.,"Baked goods, effervescent drinks",Safe in normal food amounts.,General food chemistry
+Yeast extract,Autolyzed yeast,flavor,A savory flavor from yeast cells; contains natural glutamates.,"Soups, chips, sauces",Not the same as baker yeast allergy for most; can be savory-sensitive.,Food labeling notes
+Hydrolyzed vegetable protein,HVP,flavor,Protein broken into savory amino acids.,"Bouillon, snacks",May be soy/wheat based - check if you have those allergies.,Allergen labeling notes
+Gelatin,Gelatine,protein,Protein from animal collagen used to gel foods.,"Gummies, desserts, capsules",Not vegetarian; allergy is uncommon but possible.,General food references
+Casein,Caseinate | Sodium caseinate,milk protein,Main milk protein used for texture and protein boost.,"Creamers, processed meats, bars",Avoid if you have milk allergy.,Allergen seed + Open Food Facts
+Whey,Whey protein,milk protein,Milk protein left after cheese making.,"Protein bars, baked goods",Avoid if you have milk allergy.,Allergen seed + Open Food Facts
+Soy lecithin,E322 (soy),emulsifier,Lecithin extracted from soybeans.,"Chocolate, baked goods",Usually low protein but still relevant for highly soy-sensitive people.,Allergen seed notes
+Gluten,Wheat gluten | Vital wheat gluten,wheat protein,The stretchy protein network in wheat.,"Bread, pasta, seitan",Avoid for celiac disease or wheat allergy.,Allergen / celiac guidance
+Sulphites,Sulfites | E220-E228 | Sodium metabisulfite,preservative,Preservatives that protect color and stop spoilage.,"Dried fruit, wine, some juices",Can trigger asthma-like reactions in sensitive people.,Allergen labeling (sulphites)
+Mustard,Mustard seed | Mustard flour,allergen,A pungent seed spice and EU priority allergen.,"Sauces, dressings, deli foods",Can cause true allergic reactions.,EU allergen list
+Celery,Celery seed | Celeriac,allergen,A vegetable and EU priority allergen.,"Soups, seasonings, salads","Can cause allergic reactions, sometimes severe.",EU allergen list
+Lupin,Lupine | Lupin flour,allergen,A legume flour with cross-reactivity risk to peanut for some.,"Gluten-free baking, pasta",Important for peanut-allergic shoppers in some regions.,EU allergen list
+Sesame,Sesame seed | Tahini | Sesamum,allergen,Tiny seeds used whole or as paste/oil.,"Bread, hummus, snacks",A major allergen in many countries.,Allergen seed + labeling laws
+E100,Curcumin | Turmeric extract,color,Yellow color from turmeric (curcumin).,"Mustards, snacks, dairy desserts",Usually natural and well tolerated.,Open Food Facts additives taxonomy
+E101,Riboflavin | Vitamin B2,color,Yellow color that is also vitamin B2.,"Cereals, sauces",Nutrient color; generally safe.,Open Food Facts additives taxonomy
+E120,Carmine | Cochineal,color,Red color from cochineal insects.,"Yogurts, candies, drinks",Not vegan; rare allergy possible.,Open Food Facts additives taxonomy
+E160a,Beta-carotene,color,Orange color related to vitamin A precursors.,"Drinks, cheese, snacks",Usually fine; excess carotenoids can tint skin temporarily.,Open Food Facts additives taxonomy
+E200,Sorbic acid,preservative,A preservative against molds and yeasts.,"Cheese, drinks, baked goods",Generally well tolerated.,Open Food Facts additives taxonomy
+E202,Potassium sorbate,preservative,Mold and yeast preservative (same family as sorbic acid).,"Cheese, drinks, baked goods",Usually well tolerated.,Open Food Facts additives taxonomy
+E211,Sodium benzoate,preservative,Benzoate preservative used in acidic foods and drinks.,"Soft drinks, sauces",Safe within limits; watch if benzoate-sensitive.,Open Food Facts additives taxonomy
+E220,Sulphur dioxide,preservative,A sulphite preservative and bleaching agent.,"Dried fruit, wine",Can trigger breathing issues in sulphite-sensitive people.,Allergen labeling (sulphites)
+E250,Sodium nitrite,preservative,Curing salt for meats.,"Bacon, sausages",Limit frequent processed-meat intake.,Open Food Facts additives taxonomy
+E300,Ascorbic acid,antioxidant,Vitamin C used as antioxidant.,"Meats, juices, bread",Generally safe.,Open Food Facts additives taxonomy
+E322,Lecithins,emulsifier,Emulsifier group including soy/sunflower lecithin.,"Chocolate, margarine",Check source if you avoid soy.,Open Food Facts additives taxonomy
+E330,Citric acid,acidulant,Sour acid for taste and preservation.,"Drinks, candy, canned fruit",Usually fine; tartness can bother reflux.,Open Food Facts additives taxonomy
+E407,Carrageenan,thickener,Seaweed thickener.,"Plant milks, desserts",Digestive sensitivity reported by some.,Open Food Facts additives taxonomy
+E412,Guar gum,thickener,Plant gum thickener.,"Ice cream, sauces",May cause gas or bloating.,Open Food Facts additives taxonomy
+E415,Xanthan gum,thickener,Fermentation gum thickener.,"Sauces, dressings",May cause bloating for some.,Open Food Facts additives taxonomy
+E440,Pectins,thickener,Fruit fiber gelling agent.,"Jam, jelly",Generally gentle.,Open Food Facts additives taxonomy
+E450,Diphosphates | Sodium acid pyrophosphate,emulsifier,Phosphate salts used for texture and leavening.,"Baked goods, processed meats",Adds phosphorus; usually fine in food amounts.,Open Food Facts additives taxonomy
+E451,Triphosphates,emulsifier,Phosphate salts that hold water and improve texture.,"Processed meats, cheese",Usually fine; high phosphate diets are a separate health topic.,Open Food Facts additives taxonomy
+E460,Cellulose | Microcrystalline cellulose,bulking agent,Plant fiber used as a bulking or anti-caking agent.,"Supplements, grated cheese, baked goods",Mostly inert fiber for most people.,Open Food Facts additives taxonomy
+E466,Carboxymethyl cellulose | CMC,thickener,A cellulose gum thickener and stabilizer.,"Ice cream, sauces, gluten-free foods",Can cause bloating for some at higher intakes.,Open Food Facts additives taxonomy
+E471,Mono- and diglycerides of fatty acids,emulsifier,Common texture emulsifier from fats.,"Bread, ice cream",Low typical allergy risk.,Open Food Facts additives taxonomy
+E500,Sodium carbonates,leavening,Baking soda / soda ash family.,Baked goods,Safe in food amounts.,Open Food Facts additives taxonomy
+E621,Monosodium glutamate,flavor enhancer,Savory flavor enhancer.,"Snacks, instant noodles",Safe for most; some report short sensitivity.,Open Food Facts additives taxonomy
+E953,Isomalt,sweetener,A sugar alcohol used in sugar-free sweets.,"Hard candies, chocolates",Can cause digestive upset in larger amounts.,Open Food Facts additives taxonomy
+E965,Maltitol,sweetener,A sugar alcohol used for bulk sweetening.,"Sugar-free chocolate, candies",Laxative effect possible at higher intakes.,Open Food Facts additives taxonomy
+Water,Aqua | Purified water,carrier,The main liquid in drinks and many foods.,Almost all foods and drinks,Not an allergen.,General food labeling
+Carbon dioxide,CO2 | E290,gas,Gas that makes drinks fizzy.,"Sodas, sparkling water",Usually fine; can cause burping or bloating.,Open Food Facts additives taxonomy
+Sunflower oil,,fat,Vegetable oil from sunflower seeds.,"Chips, dressings, cooking oils",Usually well tolerated; rare seed allergy possible.,General nutrition references
+Olive oil,,fat,Oil pressed from olives.,"Dressings, Mediterranean foods",Generally gentle for most people.,General nutrition references
+Canola oil,Rapeseed oil,fat,Oil from canola/rapeseed.,"Mayonnaise, fried foods, baking",Usually fine for most shoppers.,General nutrition references
+Cocoa,Cocoa powder | Cacao,flavor,Ground cacao used for chocolate flavor.,"Chocolate, desserts, drinks",Usually fine; caffeine/theobromine can affect sleep.,General nutrition references
+Vanilla extract,Vanilla,flavor,Flavoring from vanilla beans or vanillin.,"Baked goods, ice cream",Usually fine; alcohol may remain in extracts.,General food labeling notes
+Baking powder,,leavening,A mix of baking soda and acid salts that helps dough rise.,"Cakes, biscuits",Safe in normal food amounts.,General food chemistry
+Corn starch,Cornstarch | Maize starch,thickener,Starch from corn used to thicken.,"Sauces, puddings, coatings",Usually fine unless you avoid corn.,General nutrition references
+Vinegar,Acetic acid | E260,acidulant,Sour liquid from fermentation used for tang and preservation.,"Pickles, sauces, dressings",Usually fine; acidity can bother reflux.,General food chemistry
+Garlic,,seasoning,Pungent bulb used for savory flavor.,"Sauces, snacks, ready meals",Usually fine; FODMAP-sensitive people may react.,General nutrition references
+Onion,,seasoning,Common vegetable seasoning and base flavor.,"Soups, snacks, sauces",Usually fine; FODMAP-sensitive people may react.,General nutrition references
+Black pepper,Pepper,seasoning,Dried peppercorn spice.,Savory packaged foods,Usually fine in food amounts.,General nutrition references

@@ -64,6 +64,56 @@ INERT_INGREDIENTS = {
     "n2",
 }
 
+# Everyday pantry items that are not allergens by themselves. Without this,
+# unmapped sugar/salt flooded the UI "Flagged" list and crushed the score.
+BENIGN_PANTRY_INGREDIENTS = {
+    "sugar",
+    "white sugar",
+    "brown sugar",
+    "cane sugar",
+    "beet sugar",
+    "sucrose",
+    "glucose",
+    "dextrose",
+    "fructose",
+    "salt",
+    "sea salt",
+    "table salt",
+    "kosher salt",
+    "citric acid",
+    "ascorbic acid",
+    "vitamin c",
+    "vinegar",
+    "apple cider vinegar",
+    "baking soda",
+    "sodium bicarbonate",
+    "baking powder",
+    "corn starch",
+    "cornstarch",
+    "tapioca starch",
+    "sunflower oil",
+    "olive oil",
+    "canola oil",
+    "vegetable oil",
+    "coconut oil",
+    "black pepper",
+    "pepper",
+    "garlic",
+    "onion",
+    "onion powder",
+    "garlic powder",
+    "paprika",
+    "turmeric",
+    "cinnamon",
+    "vanilla",
+    "vanilla extract",
+    "cocoa",
+    "cocoa powder",
+    "coffee",
+    "tea",
+}
+
+
 # "… water" phrases that are beverages/ingredients, not plain water.
 _NON_INERT_WATER_MARKERS = (
     "coconut",
@@ -106,6 +156,19 @@ def _normalize_allergy_category(raw_category) -> str:
     text if no synonym is found, so seed-native slugs still work unchanged."""
     normalized = _normalize(raw_category)
     return CATEGORY_SYNONYMS.get(normalized, normalized)
+
+
+def _is_benign_pantry_ingredient(ingredient_text) -> bool:
+    normalized = _normalize(ingredient_text)
+    if not normalized:
+        return False
+    if normalized in BENIGN_PANTRY_INGREDIENTS:
+        return True
+    # Short "sugar" / "salt" phrases inside longer tokens.
+    for item in BENIGN_PANTRY_INGREDIENTS:
+        if len(item) >= 4 and (normalized == item or normalized.endswith(f" {item}") or normalized.startswith(f"{item} ")):
+            return True
+    return False
 
 
 def _is_inert_ingredient(ingredient_text) -> bool:
@@ -198,12 +261,44 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "matched_category": None,
                 "matched_kb_entry": None,
                 "reason": "Inert carrier (e.g. water/gas) - not a major allergen risk.",
+                "plain_explanation": "A carrier ingredient that is not a major allergen by itself.",
+            })
+            continue
+
+        if _is_benign_pantry_ingredient(ingredient):
+            flags.append({
+                "ingredient": ingredient,
+                "status": "safe",
+                "matched_category": None,
+                "matched_kb_entry": None,
+                "reason": "Common pantry ingredient - not an allergy match for your profile.",
+                "plain_explanation": "Everyday ingredient. Tap the chip for what it is and when to be careful.",
             })
             continue
 
         kb_entry, match_type = _match_ingredient(ingredient, name_lookup, alias_lookup)
 
         if kb_entry is None:
+            # Known additives / pantry items from ingredient_knowledge.csv are
+            # explained via clickable chips - they are not allergy "Flagged".
+            try:
+                from seed.ingredient_knowledge_loader import lookup_ingredient_knowledge
+
+                knowledge = lookup_ingredient_knowledge(ingredient)
+            except Exception:
+                knowledge = None
+            if knowledge:
+                flags.append({
+                    "ingredient": ingredient,
+                    "status": "safe",
+                    "matched_category": None,
+                    "matched_kb_entry": knowledge.get("ingredient_name"),
+                    "reason": "Identified in Scanity ingredient knowledge CSV - not an allergy match for your profile.",
+                    "plain_explanation": knowledge.get("what_it_is")
+                    or "Tap the chip for what this is and when to be careful.",
+                })
+                continue
+
             logger.warning("Unmapped ingredient (not in seed): %r", ingredient)
             flags.append({
                 "ingredient": ingredient,
@@ -211,10 +306,12 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "matched_category": None,
                 "matched_kb_entry": None,
                 "reason": "Ingredient could not be matched to a known allergen - flagged for review.",
+                "plain_explanation": "We could not match this to our allergen CSV yet, so it is marked for a quick human check.",
             })
             continue
 
         category_normalized = _normalize(kb_entry["allergen_category"])
+        plain = kb_entry.get("plain_explanation") or ""
         if category_normalized in user_allergies_normalized:
             flags.append({
                 "ingredient": ingredient,
@@ -225,6 +322,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                     f"Matches your declared {kb_entry['allergen_category']} allergy "
                     f"(matched via {match_type} to '{kb_entry['ingredient_name']}')."
                 ),
+                "plain_explanation": plain,
             })
         else:
             flags.append({
@@ -236,6 +334,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                     f"Identified as {kb_entry['allergen_category']}, which is not in your "
                     "declared allergies."
                 ),
+                "plain_explanation": plain,
             })
 
     return flags
