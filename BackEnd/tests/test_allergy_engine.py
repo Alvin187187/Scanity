@@ -38,6 +38,17 @@ def test_safety_score_bands():
 
     caution_flags = check_allergies(["milk"], ["mystery extract"])
     score = compute_safety_score(caution_flags)
-    assert 40 <= score <= 69
+    # Unmapped ingredients alone stay in the Safe band for the shopper.
+    assert 70 <= score <= 100
 
-    assert compute_safety_score([]) == 50
+    assert compute_safety_score([]) == 82
+
+
+def test_many_unmapped_ingredients_do_not_crash_to_fifty():
+    flags = check_allergies(
+        ["milk"],
+        ["mystery a", "mystery b", "mystery c", "mystery d", "mystery e", "mystery f"],
+    )
+    score = compute_safety_score(flags)
+    assert score >= 78
+    assert overall_verdict(flags) == "caution"

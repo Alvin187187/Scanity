@@ -4,8 +4,8 @@ import { getAccessToken } from "./session"
 
 type AllergyList = string[]
 
-const OFF_TIMEOUT_MS = 10_000
-const API_TIMEOUT_MS = 20_000
+const OFF_TIMEOUT_MS = 20_000
+const API_TIMEOUT_MS = 18_000
 
 function readError(data: any, fallback: string) {
   const detail = data?.detail
@@ -29,15 +29,37 @@ function ingredientsFromOff(product: any): string[] {
     .slice(0, 40)
 }
 
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value.trim() && !Number.isNaN(Number(value))) {
+    return Number(value)
+  }
+  return null
+}
+
 function nutritionFromOff(product: any) {
   const n = product?.nutriments || {}
+  const energyKcal =
+    asNumber(n["energy-kcal_100g"]) ??
+    asNumber(n["energy-kcal"]) ??
+    asNumber(n.energy_value)
+  const energyKj =
+    asNumber(n["energy-kj_100g"]) ??
+    asNumber(n["energy-kj"]) ??
+    asNumber(n.energy_100g)
   return {
-    energy_kj: n["energy-kj_100g"] ?? n.energy_100g ?? null,
-    sugars_g: n.sugars_100g ?? null,
-    sat_fat_g: n["saturated-fat_100g"] ?? null,
-    sodium_mg: n.sodium_100g != null ? Number(n.sodium_100g) * 1000 : null,
-    fiber_g: n.fiber_100g ?? null,
-    protein_g: n.proteins_100g ?? null,
+    energy_kj: energyKj,
+    energy_kcal: energyKcal,
+    sugars_g: asNumber(n.sugars_100g),
+    sat_fat_g: asNumber(n["saturated-fat_100g"]),
+    sodium_mg:
+      asNumber(n.sodium_100g) != null
+        ? Number(n.sodium_100g) * 1000
+        : asNumber(n.salt_100g) != null
+          ? Number(n.salt_100g) * 400
+          : null,
+    fiber_g: asNumber(n.fiber_100g),
+    protein_g: asNumber(n.proteins_100g),
   }
 }
 
@@ -75,8 +97,13 @@ function localAllergyAnalysis(ingredientNames: string[], userAllergies: AllergyL
   const allergy_flags = allergy_matches
     .filter((item) => item.status === "avoid")
     .map((item) => item.ingredient)
-  const verdict = allergy_flags.length ? "avoid" : ingredientNames.length ? "caution" : "caution"
-  const safety_score = allergy_flags.length ? 22 : 55
+  const avoidCount = allergy_flags.length
+  const verdict = avoidCount ? "avoid" : ingredientNames.length ? "safe" : "caution"
+  const safety_score = avoidCount
+    ? Math.max(0, 28 - 8 * (avoidCount - 1))
+    : ingredientNames.length
+      ? 96
+      : 82
 
   return {
     allergy_flags,
@@ -84,9 +111,11 @@ function localAllergyAnalysis(ingredientNames: string[], userAllergies: AllergyL
     verdict,
     safety_score,
     nutri_score_grade: null as string | null,
-    explanation: allergy_flags.length
+    explanation: avoidCount
       ? `Avoid. Offline check flagged ${allergy_flags.slice(0, 3).join(", ")} against your saved allergies. Confirm ingredients on the package.`
-      : "Caution. Product details came from Open Food Facts. Confirm ingredients if this looks incomplete.",
+      : ingredientNames.length
+        ? "Safe for your saved allergies based on an offline check. Confirm the package if anything looks incomplete."
+        : "Caution. Product details came from Open Food Facts, but ingredients were incomplete.",
   }
 }
 
@@ -104,25 +133,43 @@ async function fetchWithTimeout(
   }
 }
 
-async function lookupViaOpenFoodFacts(barcode: string, userAllergies: AllergyList) {
-  const response = await fetchWithTimeout(
+async function fetchOffProduct(barcode: string): Promise<any> {
+  const headers = {
+    Accept: "application/json",
+    "User-Agent": "Scanity/1.0 (https://scanity-eta.vercel.app)",
+  }
+  const urls = [
     `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
-    {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Scanity/1.0 (https://scanity-eta.vercel.app)",
-      },
-    },
-    OFF_TIMEOUT_MS,
-  )
-  if (!response.ok) {
-    throw new Error("Unable to reach the product database. Please try again.")
-  }
-  const data = await response.json().catch(() => null)
-  if (!data || data.status !== 1 || !data.product) {
-    throw new Error("__PRODUCT_NOT_FOUND__")
-  }
+    `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
+  ]
 
+  let lastError: Error | null = null
+  for (const url of urls) {
+    try {
+      const response = await fetchWithTimeout(url, { headers, mode: "cors" }, OFF_TIMEOUT_MS)
+      if (!response.ok) {
+        lastError = new Error("Unable to reach the product database. Please try again.")
+        continue
+      }
+      const data = await response.json().catch(() => null)
+      if (data && data.status === 1 && data.product) return data
+      if (data && data.status === 0) {
+        throw new Error("__PRODUCT_NOT_FOUND__")
+      }
+      lastError = new Error("__PRODUCT_NOT_FOUND__")
+    } catch (error) {
+      if (error instanceof Error && error.message === "__PRODUCT_NOT_FOUND__") throw error
+      lastError =
+        error instanceof Error
+          ? error
+          : new Error("Unable to reach the product database. Please try again.")
+    }
+  }
+  throw lastError || new Error("Unable to reach the product database. Please try again.")
+}
+
+async function lookupViaOpenFoodFacts(barcode: string, userAllergies: AllergyList) {
+  const data = await fetchOffProduct(barcode)
   const product = data.product
   const ingredientNames = ingredientsFromOff(product)
   const offGrade = String(product.nutriscore_grade || product.nutrition_grades || "")
@@ -192,73 +239,101 @@ export async function lookupBarcodeProduct(
   userAllergies: AllergyList = [],
 ) {
   const token = getAccessToken()
+  const clean = barcode.trim()
 
-  // Prefer Scanity API when signed in, but never block scanning if it is down.
-  if (token) {
-    try {
-      const response = await fetchWithTimeout(
-        `${requireApiBaseUrl()}/scan/barcode`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ barcode, user_allergies: userAllergies }),
-        },
-        API_TIMEOUT_MS,
-      )
+  // Race: try Scanity API when signed in, but always keep OFF available.
+  // Many phones lose scans when Render is cold; OFF is the reliable path.
+  const offPromise = lookupViaOpenFoodFacts(clean, userAllergies)
 
-      const data = await response.json().catch(() => null)
-
-      if (response.status === 401) {
-        // Session expired - still try public Open Food Facts so the scan is not lost.
-        console.warn("Barcode API unauthorized; using Open Food Facts fallback.")
-        return await lookupViaOpenFoodFacts(barcode, userAllergies)
-      }
-
-      if (
-        response.status === 404 ||
-        data?.found === false ||
-        data?.productFound === false ||
-        data?.product_found === false ||
-        data?.status === "not_found"
-      ) {
-        return await lookupViaOpenFoodFacts(barcode, userAllergies)
-      }
-
-      if (response.status === 400 || response.status === 422) {
-        throw new Error(readError(data, "The barcode sent to the server is invalid."))
-      }
-
-      if (!response.ok) {
-        console.warn(
-          "Barcode API failed, using Open Food Facts fallback:",
-          readError(data, response.statusText),
-        )
-        return await lookupViaOpenFoodFacts(barcode, userAllergies)
-      }
-
-      if (!data) throw new Error("The server returned an empty response.")
-      if (data?.product === null || data?.productInformation === null || data?.data === null) {
-        return await lookupViaOpenFoodFacts(barcode, userAllergies)
-      }
-
-      return data
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.startsWith("The barcode") ||
-          error.message === "__PRODUCT_NOT_FOUND__")
-      ) {
-        throw error
-      }
-      console.warn("Barcode API unreachable; using Open Food Facts fallback.", error)
-      return await lookupViaOpenFoodFacts(barcode, userAllergies)
-    }
+  if (!token) {
+    return await offPromise
   }
 
-  // No session token - Open Food Facts still works for product lookup.
-  return await lookupViaOpenFoodFacts(barcode, userAllergies)
+  try {
+    const response = await fetchWithTimeout(
+      `${requireApiBaseUrl()}/scan/barcode`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ barcode: clean, user_allergies: userAllergies }),
+      },
+      API_TIMEOUT_MS,
+    )
+
+    const data = await response.json().catch(() => null)
+
+    if (response.status === 401) {
+      console.warn("Barcode API unauthorized; using Open Food Facts fallback.")
+      return await offPromise
+    }
+
+    if (
+      response.status === 404 ||
+      data?.found === false ||
+      data?.productFound === false ||
+      data?.product_found === false ||
+      data?.status === "not_found"
+    ) {
+      return await offPromise
+    }
+
+    if (response.status === 400 || response.status === 422) {
+      throw new Error(readError(data, "The barcode sent to the server is invalid."))
+    }
+
+    if (!response.ok) {
+      console.warn(
+        "Barcode API failed, using Open Food Facts fallback:",
+        readError(data, response.statusText),
+      )
+      return await offPromise
+    }
+
+    if (!data) throw new Error("The server returned an empty response.")
+    if (data?.product === null || data?.productInformation === null || data?.data === null) {
+      return await offPromise
+    }
+
+    // Prefer API payload, but fill missing nutrition/image from OFF when useful.
+    try {
+      const off = await Promise.race([
+        offPromise.catch(() => null),
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 2500)),
+      ])
+      if (off?.product) {
+        data.product = {
+          ...off.product,
+          ...data.product,
+          image_url: data.product?.image_url || off.product.image_url,
+          nutrition: {
+            ...(off.product.nutrition || {}),
+            ...(data.product?.nutrition || {}),
+          },
+          ingredients_raw_text:
+            data.product?.ingredients_raw_text || off.product.ingredients_raw_text,
+        }
+        if (!data.nutri_score_grade && off.nutri_score_grade) {
+          data.nutri_score_grade = off.nutri_score_grade
+        }
+      }
+    } catch {
+      // ignore enrichment failures
+    }
+
+    return data
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message.startsWith("The barcode") ||
+        error.message === "__PRODUCT_NOT_FOUND__")
+    ) {
+      throw error
+    }
+    console.warn("Barcode API unreachable; using Open Food Facts fallback.", error)
+    return await offPromise
+  }
 }
