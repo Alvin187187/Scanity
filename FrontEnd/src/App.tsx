@@ -8101,7 +8101,7 @@ function IngredientExplainSheet({
 
         {loading ? (
           <p style={{ margin: "18px 0 0", fontSize: 15, color: SOFT_SLATE.textSecondary }}>
-            Looking this up (CSV first, then AI research)...
+            Looking this up...
           </p>
         ) : (
           <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -8242,7 +8242,7 @@ function AllergySignalsCard({
       <div>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>Allergy signals</h3>
         <p style={{ margin: "6px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
-          Flagged comes from unmapped ingredients in our allergen CSV. Avoid means a match to your saved allergies. Tap a chip for CSV details.
+          Flagged means we could not fully confirm an ingredient against your allergies yet. Avoid means it matches your saved allergies. Tap a chip for details.
         </p>
       </div>
 
@@ -8327,10 +8327,10 @@ function AllergySignalsCard({
       {labelInsights.length > 0 && (
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>
-            On this label (from our CSV)
+            On this label
           </div>
           <p style={{ margin: "0 0 10px", fontSize: 13, color: SOFT_SLATE.textSecondary, lineHeight: 1.4 }}>
-            Sugar, E-numbers, and other known additives explained without calling AI.
+            Sugar, E-numbers, and other known additives — tap for plain-language details.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {labelInsights.slice(0, 10).map((insight) => (

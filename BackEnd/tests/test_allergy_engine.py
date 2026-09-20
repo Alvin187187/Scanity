@@ -9,7 +9,7 @@ def test_dairy_synonym_avoids_casein():
 
 
 def test_unmapped_is_caution():
-    flags = check_allergies(["milk"], ["rice"])
+    flags = check_allergies(["milk"], ["zxq-unknown-extract-99"])
     assert overall_verdict(flags) == "caution"
 
 
@@ -36,7 +36,7 @@ def test_safety_score_bands():
     avoid_flags = check_allergies(["dairy"], ["sodium caseinate"])
     assert 0 <= compute_safety_score(avoid_flags) <= 39
 
-    caution_flags = check_allergies(["milk"], ["mystery extract"])
+    caution_flags = check_allergies(["milk"], ["zxq-mystery-extract-99"])
     score = compute_safety_score(caution_flags)
     # Unmapped ingredients alone land in the Caution band ceiling.
     assert 40 <= score <= 69
@@ -47,7 +47,14 @@ def test_safety_score_bands():
 def test_many_unmapped_ingredients_do_not_crash_to_fifty():
     flags = check_allergies(
         ["milk"],
-        ["mystery a", "mystery b", "mystery c", "mystery d", "mystery e", "mystery f"],
+        [
+            "zxq-mystery-a-99",
+            "zxq-mystery-b-99",
+            "zxq-mystery-c-99",
+            "zxq-mystery-d-99",
+            "zxq-mystery-e-99",
+            "zxq-mystery-f-99",
+        ],
     )
     score = compute_safety_score(flags)
     assert 40 <= score <= 69

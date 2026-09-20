@@ -72,7 +72,7 @@ class IngredientExplainResponse(BaseModel):
     possible_effects: str = ""
     source: str = ""
     aliases: list[str] = Field(default_factory=list)
-    ai_source: str = "csv"
+    ai_source: str = "knowledge"
 
 
 @router.post("/scan/ai/chat", response_model=AiChatResponse)

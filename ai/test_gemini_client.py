@@ -29,6 +29,7 @@ def _ok_body(text: str) -> dict:
 
 def run() -> None:
     os.environ["GEMINI_API_KEY"] = "test-only-gemini-key"
+    os.environ["AI_PROVIDER"] = "google"
 
     print("Test 1: successful response")
     with patch("ai.gemini_client.requests.post") as mock_post:
@@ -122,7 +123,7 @@ def run() -> None:
     assert names == ["casein", "unknown_additive", "api_fail_fallback"]
     sample = build_prompt("sodium caseinate", "Matches Milk (Avoid)", "Milk allergy")
     assert "sodium caseinate" in sample
-    assert "not a doctor" in SYSTEM_INSTRUCTIONS
+    assert "not a doctor" in SYSTEM_INSTRUCTIONS.lower()
     print("  PASS: casein / unknown_additive / api_fail_fallback")
 
     print("\nAll wrapper tests passed.")

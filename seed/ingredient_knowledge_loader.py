@@ -1,8 +1,8 @@
 """Load curated ingredient knowledge for clickable chip explain panels.
 
 This sits beside the allergen seed. Allergy matching still comes from
-seed_allergens.csv. This file explains what an ingredient / E-number is
-without calling Gemini.
+seed_allergens. This file explains what an ingredient / E-number is
+without requiring a live AI call when a local note exists.
 """
 
 from __future__ import annotations
@@ -69,24 +69,31 @@ def lookup_ingredient_knowledge(ingredient: str) -> dict | None:
     if not isinstance(ingredient, str) or not ingredient.strip():
         return None
     index = _build_index(load_ingredient_knowledge())
-    direct = index.get(_normalize(ingredient))
+    normalized = _normalize(ingredient)
+    direct = index.get(normalized)
     if direct:
         return dict(direct)
 
     # Labels often say "colour: e100" or "e330 (citric acid)".
-    compact = _normalize(ingredient).replace(" ", "")
-    e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", _normalize(ingredient))
+    compact = normalized.replace(" ", "")
+    e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", normalized)
     if e_match:
         code = f"e{e_match.group(1)}"
         hit = index.get(code)
         if hit:
             return dict(hit)
 
-    # Contained alias (longer keys first).
+    # Contained alias with word boundaries (longer keys first).
     for key, row in sorted(index.items(), key=lambda item: len(item[0]), reverse=True):
-        if len(key) >= 3 and key in _normalize(ingredient):
+        if len(key) < 4:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
             return dict(row)
-        if len(key) >= 3 and key.replace(" ", "") in compact:
+        compact_key = key.replace(" ", "")
+        if len(compact_key) >= 4 and re.search(
+            rf"(?<![a-z0-9]){re.escape(compact_key)}(?![a-z0-9])",
+            compact,
+        ):
             return dict(row)
     return None
 

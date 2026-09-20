@@ -22,6 +22,7 @@ _SEED_CACHE = None
 CATEGORY_SYNONYMS = {
     "dairy": "milk",
     "milk": "milk",
+    "lactose": "milk",
     "tree nuts": "tree_nuts",
     "tree nut": "tree_nuts",
     "treenuts": "tree_nuts",
@@ -30,6 +31,7 @@ CATEGORY_SYNONYMS = {
     "soybeans": "soy",
     "soybean": "soy",
     "soy": "soy",
+    "soya": "soy",
     "shell fish": "shellfish",
     "shellfish": "shellfish",
     "peanuts": "peanut",
@@ -41,6 +43,12 @@ CATEGORY_SYNONYMS = {
     "gluten": "wheat",
     "fish": "fish",
     "sesame": "sesame",
+    "mustard": "mustard",
+    "celery": "celery",
+    "sulphites": "sulphites",
+    "sulfites": "sulphites",
+    "sulphur dioxide": "sulphites",
+    "sulfur dioxide": "sulphites",
 }
 
 # Carriers / processing aids that are not major allergens. Treating these as
@@ -206,11 +214,17 @@ def _match_ingredient(ingredient_text, name_lookup, alias_lookup):
     if normalized in alias_lookup:
         return alias_lookup[normalized], "alias"
     # Labels often bury an allergen inside a longer phrase ("contains milk solids").
-    for key, row in name_lookup.items():
-        if key and key in normalized:
+    # Prefer longer keys and require word-boundary style matches to avoid
+    # "rice" hitting inside unrelated tokens.
+    for key, row in sorted(name_lookup.items(), key=lambda item: len(item[0]), reverse=True):
+        if len(key) < 4:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
             return row, "contains_name"
-    for key, row in alias_lookup.items():
-        if key and len(key) > 3 and key in normalized:
+    for key, row in sorted(alias_lookup.items(), key=lambda item: len(item[0]), reverse=True):
+        if len(key) <= 3:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
             return row, "contains_alias"
     return None, "unmapped"
 
@@ -293,7 +307,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                     "status": "safe",
                     "matched_category": None,
                     "matched_kb_entry": knowledge.get("ingredient_name"),
-                    "reason": "Identified in Scanity ingredient knowledge CSV - not an allergy match for your profile.",
+                    "reason": "Identified in Scanity ingredient knowledge - not an allergy match for your profile.",
                     "plain_explanation": knowledge.get("what_it_is")
                     or "Tap the chip for what this is and when to be careful.",
                 })
@@ -305,8 +319,11 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "status": "caution",
                 "matched_category": None,
                 "matched_kb_entry": None,
-                "reason": "Ingredient could not be matched to a known allergen - flagged for review.",
-                "plain_explanation": "We could not match this to our allergen CSV yet, so it is marked for a quick human check.",
+                "reason": "Could not confirm this against your allergy profile yet - flagged for a quick check.",
+                "plain_explanation": (
+                    "We could not fully match this ingredient to your saved allergies, "
+                    "so it is flagged. Tap for details and confirm the package."
+                ),
             })
             continue
 

@@ -18,6 +18,7 @@ ensure_repo_root()
 
 from ai.gemini_client import FALLBACK_TEXT, call_hosted_ai
 from ai.prompt import COACH_SYSTEM_INSTRUCTIONS, SYSTEM_INSTRUCTIONS, build_explainer_prompt
+from ai.rag_layer import enrich_prompt_with_rag
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,15 @@ def _call_ollama(prompt: str) -> str:
 
 def explain_scan(allergy_result: dict, nutrition_result: dict | None, verdict: str) -> str:
     prompt = build_explainer_prompt(allergy_result, nutrition_result, verdict)
+    flagged_names = [
+        str(item.get("ingredient") or "")
+        for item in (allergy_result.get("flagged_ingredients") or [])[:8]
+    ]
+    prompt = enrich_prompt_with_rag(
+        prompt,
+        " ".join([verdict, *flagged_names]),
+        limit=5,
+    )
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
