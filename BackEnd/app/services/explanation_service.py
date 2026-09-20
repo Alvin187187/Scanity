@@ -38,7 +38,7 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
         why = (
             "matches your saved allergy"
             if label == "Avoid"
-            else "needs a quick human check because we could not fully match it"
+            else "needs a quick check because we could not fully confirm it"
         )
         for item in flagged[:4]:
             name = item.get("ingredient") or item.get("matched_kb_entry") or "an ingredient"
@@ -46,7 +46,7 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
     elif label == "Safe":
         lines.append("- No ingredients matched your saved allergies.")
     else:
-        lines.append("- Some ingredients could not be matched, so this is not confirmed safe.")
+        lines.append("- Some ingredients could not be fully confirmed, so this is not treated as safe yet.")
 
     grade = (nutrition_result or {}).get("grade") if nutrition_result else None
     if grade:

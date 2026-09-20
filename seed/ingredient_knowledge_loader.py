@@ -1,12 +1,7 @@
 """Load curated ingredient knowledge for clickable chip explain panels.
 
-This sits beside the allergen seed. Allergy matching still comes from
-seed_allergens. This file explains what an ingredient / E-number is
-without requiring a live AI call when a local note exists.
-
-Feature flags (pipe-delimited):
-  affects_allergens  e.g. milk|soy
-  affects_diets      e.g. diabetes|hypertension
+Fast path: exact / E-number / token inverted-index lookup.
+Contains-scan is limited to pre-sorted longer keys only after exact miss.
 """
 
 from __future__ import annotations
@@ -17,6 +12,29 @@ from functools import lru_cache
 from pathlib import Path
 
 SEED_FILE_PATH = Path(__file__).parent / "ingredient_knowledge.csv"
+
+SKIP_CONTAINS = {
+    "flavor",
+    "flavour",
+    "flavoring",
+    "flavouring",
+    "seasoning",
+    "extract",
+    "powder",
+    "natural",
+    "artificial",
+    "organic",
+    "blend",
+    "base",
+    "mix",
+    "sauce",
+    "oil",
+    "acid",
+    "color",
+    "colour",
+    "spice",
+    "spices",
+}
 
 
 def _normalize(value: str) -> str:
@@ -63,27 +81,35 @@ def load_ingredient_knowledge(csv_path: str | None = None) -> list[dict]:
     return rows
 
 
-def _build_index(rows: list[dict]) -> dict[str, dict]:
+@lru_cache(maxsize=1)
+def _search_structures() -> tuple[dict[str, dict], list[str], dict[str, list[str]]]:
+    """exact index, pre-sorted contains keys, token -> keys inverted index."""
     index: dict[str, dict] = {}
-    for row in rows:
+    token_postings: dict[str, list[str]] = {}
+    for row in load_ingredient_knowledge():
         keys = [row["ingredient_name"], *row.get("aliases", [])]
         for key in keys:
             norm = _normalize(key)
-            if norm and norm not in index:
-                index[norm] = row
-    return index
-
-
-@lru_cache(maxsize=1)
-def _knowledge_index() -> dict[str, dict]:
-    return _build_index(load_ingredient_knowledge())
+            if not norm or norm in index:
+                continue
+            index[norm] = row
+            for token in norm.split():
+                if len(token) < 3 or token in SKIP_CONTAINS:
+                    continue
+                token_postings.setdefault(token, []).append(norm)
+    sorted_keys = sorted(
+        (key for key in index if key not in SKIP_CONTAINS and len(key) >= 4),
+        key=len,
+        reverse=True,
+    )
+    return index, sorted_keys, token_postings
 
 
 def lookup_ingredient_knowledge(ingredient: str) -> dict | None:
     """Return knowledge for an ingredient name or E-number, or None."""
     if not isinstance(ingredient, str) or not ingredient.strip():
         return None
-    index = _knowledge_index()
+    index, sorted_keys, token_postings = _search_structures()
     normalized = _normalize(ingredient)
     direct = index.get(normalized)
     if direct:
@@ -97,8 +123,22 @@ def lookup_ingredient_knowledge(ingredient: str) -> dict | None:
         if hit:
             return dict(hit)
 
-    for key, row in sorted(index.items(), key=lambda item: len(item[0]), reverse=True):
-        if len(key) < 4:
+    # Candidate set from shared tokens (much smaller than full 9k scan).
+    candidates: set[str] = set()
+    for token in normalized.split():
+        if len(token) < 3:
+            continue
+        for key in token_postings.get(token, []):
+            candidates.add(key)
+
+    search_keys = sorted(candidates, key=len, reverse=True) if candidates else sorted_keys[:400]
+    for key in search_keys:
+        if len(key) < 4 or len(key) > len(normalized) + 8:
+            continue
+        if key in SKIP_CONTAINS:
+            continue
+        row = index.get(key)
+        if not row:
             continue
         if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
             return dict(row)
