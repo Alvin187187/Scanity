@@ -69,7 +69,9 @@ export function markScanFavorite(id: string, favorite = true) {
 }
 
 export function scoreFromVerdict(verdict: StoredScan["verdict"]): number {
-  if (verdict === "safe") return 88
+  // Fallback only when the API did not return safety_score.
+  // Bands: 0–39 avoid, 40–69 caution, 70–100 safe.
+  if (verdict === "safe") return 100
   if (verdict === "caution") return 55
   if (verdict === "avoid") return 22
   return 50
@@ -120,6 +122,7 @@ export function storedScanFromAnalysis(input: {
   explanation?: string
   allergyFlags?: unknown
   nutrition?: Record<string, number | undefined>
+  safetyScore?: number | null
   id?: string
 }): StoredScan {
   const verdict = (
@@ -133,6 +136,10 @@ export function storedScanFromAnalysis(input: {
       : null
   ) as StoredScan["grade"]
   const ingredients = asStringList(input.ingredients)
+  const score =
+    typeof input.safetyScore === "number" && Number.isFinite(input.safetyScore)
+      ? Math.max(0, Math.min(100, Math.round(input.safetyScore)))
+      : scoreFromVerdict(verdict)
   return {
     id: input.id || `${input.source}-${input.barcode || input.name || "scan"}-${Date.now()}`,
     name: input.name?.trim() || "Scanned product",
@@ -149,6 +156,6 @@ export function storedScanFromAnalysis(input: {
     ingredients,
     ingredientsText: input.ingredientsText || ingredients.join(", "),
     nutrition: input.nutrition,
-    score: scoreFromVerdict(verdict),
+    score,
   }
 }

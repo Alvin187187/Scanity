@@ -43,6 +43,45 @@ CATEGORY_SYNONYMS = {
     "sesame": "sesame",
 }
 
+# Carriers / processing aids that are not major allergens. Treating these as
+# "caution" made products like bottled water look risky for no allergy reason.
+INERT_INGREDIENTS = {
+    "water",
+    "purified water",
+    "spring water",
+    "mineral water",
+    "natural mineral water",
+    "carbonated water",
+    "sparkling water",
+    "distilled water",
+    "filtered water",
+    "drinking water",
+    "still water",
+    "aqua",
+    "carbon dioxide",
+    "co2",
+    "nitrogen",
+    "n2",
+}
+
+# "… water" phrases that are beverages/ingredients, not plain water.
+_NON_INERT_WATER_MARKERS = (
+    "coconut",
+    "almond",
+    "cashew",
+    "hazelnut",
+    "rice",
+    "oat",
+    "soy",
+    "soya",
+    "chestnut",
+    "rose",
+    "orange",
+    "lemon",
+    "lime",
+    "tonic",
+)
+
 
 def _get_seed():
     global _SEED_CACHE
@@ -67,6 +106,22 @@ def _normalize_allergy_category(raw_category) -> str:
     text if no synonym is found, so seed-native slugs still work unchanged."""
     normalized = _normalize(raw_category)
     return CATEGORY_SYNONYMS.get(normalized, normalized)
+
+
+def _is_inert_ingredient(ingredient_text) -> bool:
+    """True for plain water / gas carriers that should never raise Caution."""
+    normalized = _normalize(ingredient_text)
+    if not normalized:
+        return False
+    if normalized in INERT_INGREDIENTS:
+        return True
+    if normalized.endswith(" water"):
+        if any(marker in normalized for marker in _NON_INERT_WATER_MARKERS):
+            return False
+        # Keep short water-like phrases inert ("natural spring water").
+        if len(normalized.split()) <= 4:
+            return True
+    return False
 
 
 def _build_lookup(seed):
@@ -136,6 +191,16 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
             })
             continue
 
+        if _is_inert_ingredient(ingredient):
+            flags.append({
+                "ingredient": ingredient,
+                "status": "safe",
+                "matched_category": None,
+                "matched_kb_entry": None,
+                "reason": "Inert carrier (e.g. water/gas) — not a major allergen risk.",
+            })
+            continue
+
         kb_entry, match_type = _match_ingredient(ingredient, name_lookup, alias_lookup)
 
         if kb_entry is None:
@@ -193,6 +258,33 @@ def overall_verdict(flags: list) -> str:
     if "caution" in statuses:
         return "caution"
     return "safe"
+
+
+def compute_safety_score(flags: list) -> int:
+    """
+    Personalized allergy safety score on a 0–100 scale (separate from Nutri-Score).
+
+    Formula (deterministic, no LLM):
+    - No ingredient evidence → 50 (unknown mid-band).
+    - Any Avoid (matched user allergen) → hard low band:
+        score = max(0, 22 - 7 * (avoid_count - 1))
+    - Else any Caution (unmapped) → mid band:
+        score = max(40, 72 - 8 * caution_count)
+    - Else all Safe → 100.
+
+    Bands for UI: 0–39 Avoid, 40–69 Caution, 70–100 Safe.
+    """
+    if not flags:
+        return 50
+
+    avoid_count = sum(1 for item in flags if item.get("status") == "avoid")
+    caution_count = sum(1 for item in flags if item.get("status") == "caution")
+
+    if avoid_count:
+        return max(0, 22 - 7 * (avoid_count - 1))
+    if caution_count:
+        return max(40, 72 - 8 * caution_count)
+    return 100
 
 
 class AllergyMatchService:

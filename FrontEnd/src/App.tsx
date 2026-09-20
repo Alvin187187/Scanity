@@ -31,6 +31,7 @@ import {
   loadScanHistory,
   markScanFavorite,
   saveActiveScan,
+  scoreFromVerdict,
   storedScanFromAnalysis,
   type StoredScan,
 } from "./api/scanHistory"
@@ -4033,8 +4034,9 @@ function openStoredScan(id: string | undefined, go: (s: Screen) => void) {
 // and the Dashboard's own Scan History panel use (SOFT_SLATE.green/caution/
 // unsafe), so a score reads the same way on both screens.
 function scanStatusInfo(score: number): { label: string; color: string; bg: string } {
-  if (score >= 71) return { label: "Safe", color: SOFT_SLATE.green, bg: "#E1EBE5" }
-  if (score >= 42) return { label: "Caution", color: SOFT_SLATE.caution, bg: "#F1E3D8" }
+  // Matches backend safety_score bands: 0–39 Avoid, 40–69 Caution, 70–100 Safe.
+  if (score >= 70) return { label: "Safe", color: SOFT_SLATE.green, bg: "#E1EBE5" }
+  if (score >= 40) return { label: "Caution", color: SOFT_SLATE.caution, bg: "#F1E3D8" }
   return { label: "Avoid", color: SOFT_SLATE.unsafe, bg: "#F1DEDA" }
 }
 // ── "1a Grouped activity list" ───────────────────────────────────────────────
@@ -4606,22 +4608,37 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                 <div>
                   <div
                     style={{
-                      fontSize: isDesktop ? 30 : 24,
-                      fontWeight: 800,
-                      letterSpacing: "-0.02em",
-                      color: SOFT_SLATE.textPrimary,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: SOFT_SLATE.textMuted,
                     }}
                   >
-                    Hello, {greetingName}!
+                    Scanity
+                  </div>
+                  <div
+                    style={{
+                      fontSize: isDesktop ? 34 : 26,
+                      fontWeight: 800,
+                      letterSpacing: "-0.03em",
+                      color: SOFT_SLATE.textPrimary,
+                      marginTop: 6,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    Hello, {greetingName}
                   </div>
                   <div
                     style={{
                       fontSize: 14,
                       color: SOFT_SLATE.textSecondary,
-                      marginTop: 4,
+                      marginTop: 8,
+                      maxWidth: 420,
+                      lineHeight: 1.45,
                     }}
                   >
-                    See It. Know It. Eat It.
+                    Scan a product to see allergy safety and nutrition quality at a glance.
                   </div>
                 </div>
 
@@ -4726,8 +4743,8 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                         <div style={{ fontSize: 20, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
                           Scan Barcode
                         </div>
-                        <div style={{ fontSize: 13, color: SOFT_SLATE.textSecondary }}>
-                          Get product information from the food.
+                        <div style={{ fontSize: 13, color: SOFT_SLATE.textSecondary, marginTop: 2 }}>
+                          Faster live detect — hold steady over the code.
                         </div>
                       </div>
                     </div>
@@ -5173,7 +5190,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const isDuplicateScan = (barcode: string) => {
     const now = Date.now()
     const sameBarcode = lastScannedBarcodeRef.current === barcode
-    const scannedRecently = now - lastScanTimeRef.current < 1500
+    const scannedRecently = now - lastScanTimeRef.current < 900
     return sameBarcode && scannedRecently
   }
 
@@ -5255,7 +5272,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       setScanStatus("captured")
       stopCamera()
-      await new Promise((resolve) => setTimeout(resolve, 250))
+      await new Promise((resolve) => setTimeout(resolve, 120))
       if (!isMountedRef.current) return
 
       setScanStatus("processing")
@@ -5280,6 +5297,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
           explanation: result?.explanation,
           allergyFlags: result?.allergy_flags,
           nutrition: product.nutrition,
+          safetyScore: result?.safety_score,
         })
         appendScanHistory(stored)
         localStorage.setItem("scanityLastBarcode", cleanBarcode)
@@ -5288,7 +5306,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       }
 
       setScanStatus("success")
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      await new Promise((resolve) => setTimeout(resolve, 180))
       if (isMountedRef.current) go("productResult")
     } catch (error) {
       console.error("Barcode processing error:", error)
@@ -5346,16 +5364,19 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
         BarcodeFormat.CODE_128,
         BarcodeFormat.ITF,
       ])
-      hints.set(DecodeHintType.TRY_HARDER, true)
-      const reader = new BrowserMultiFormatReader(hints, 200)
+      // Prefer speed over exhaustive decode — TRY_HARDER made phone scans sluggish.
+      hints.set(DecodeHintType.TRY_HARDER, false)
+      const reader = new BrowserMultiFormatReader(hints, {
+        delayBetweenScanAttempts: 80,
+      })
       readerRef.current = reader
 
       await reader.decodeFromConstraints(
         {
           video: {
             facingMode: { ideal: facing },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
             focusMode: "continuous",
           } as MediaTrackConstraints,
           audio: false,
@@ -6919,6 +6940,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         grade: data?.nutri_score_grade || data?.score,
         explanation: data?.explanation,
         allergyFlags: data?.allergy_flags,
+        safetyScore: data?.safety_score,
       })
       appendScanHistory(stored)
 
@@ -7684,9 +7706,99 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   )
 }
 // ── Product Result Screen ─────────────────────────────────────────────────────
+function safetyBand(score: number): { label: string; color: string; track: string } {
+  if (score >= 70) return { label: "Safe for you", color: SOFT_SLATE.green, track: "#cfe3d6" }
+  if (score >= 40) return { label: "Review carefully", color: SOFT_SLATE.caution, track: "#f0dfd0" }
+  return { label: "Avoid for you", color: SOFT_SLATE.unsafe, track: "#f0d5cf" }
+}
+
+function SafetySpeedGauge({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, Math.round(score)))
+  const band = safetyBand(clamped)
+  // Needle rotates from -90deg (0) to +90deg (100)
+  const needleDeg = -90 + (clamped / 100) * 180
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        background: SOFT_SLATE.bg,
+        borderRadius: 24,
+        padding: "22px 20px 18px",
+        boxShadow: SOFT_SLATE.raisedMd,
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+            Safety score
+          </div>
+          <div style={{ marginTop: 4, fontSize: 13, color: SOFT_SLATE.textSecondary }}>
+            Allergy fit for your profile · 0–100
+          </div>
+        </div>
+        <div style={{ fontSize: 34, fontWeight: 800, color: band.color, letterSpacing: "-0.03em", lineHeight: 1 }}>
+          {clamped}
+        </div>
+      </div>
+
+      <div style={{ position: "relative", width: "100%", maxWidth: 280, margin: "18px auto 8px", height: 140 }}>
+        <svg viewBox="0 0 200 110" width="100%" height="100%" aria-hidden="true">
+          <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke={band.track} strokeWidth="16" strokeLinecap="round" />
+          <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke={band.color} strokeWidth="16" strokeLinecap="round"
+            strokeDasharray={`${(clamped / 100) * 251.2} 251.2`} />
+          <g transform={`translate(100,100) rotate(${needleDeg})`}>
+            <line x1="0" y1="0" x2="0" y2="-68" stroke={SOFT_SLATE.textPrimary} strokeWidth="3" strokeLinecap="round" />
+            <circle cx="0" cy="0" r="6" fill={SOFT_SLATE.textPrimary} />
+          </g>
+        </svg>
+        <div style={{ position: "absolute", left: 8, bottom: 0, fontSize: 10, fontWeight: 700, color: SOFT_SLATE.unsafe }}>0</div>
+        <div style={{ position: "absolute", right: 8, bottom: 0, fontSize: 10, fontWeight: 700, color: SOFT_SLATE.green }}>100</div>
+      </div>
+
+      <div style={{ textAlign: "center", fontSize: 14, fontWeight: 700, color: band.color }}>{band.label}</div>
+      <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", gap: 8, fontSize: 10, fontWeight: 700, color: SOFT_SLATE.textMuted }}>
+        <span>0–39 Avoid</span>
+        <span>40–69 Caution</span>
+        <span>70–100 Safe</span>
+      </div>
+    </div>
+  )
+}
+
+function nutritionRows(nutrition?: Record<string, number | undefined> | null) {
+  if (!nutrition) return [] as { label: string; value: string }[]
+  const pairs: { key: string; label: string; suffix: string }[] = [
+    { key: "energy_kj", label: "Energy", suffix: " kJ" },
+    { key: "energyKcal100g", label: "Energy", suffix: " kcal" },
+    { key: "sugars_g", label: "Sugars", suffix: " g" },
+    { key: "sugars100g", label: "Sugars", suffix: " g" },
+    { key: "sat_fat_g", label: "Sat. fat", suffix: " g" },
+    { key: "saturatedFat100g", label: "Sat. fat", suffix: " g" },
+    { key: "sodium_mg", label: "Sodium", suffix: " mg" },
+    { key: "sodium100g", label: "Sodium", suffix: " g" },
+    { key: "fiber_g", label: "Fiber", suffix: " g" },
+    { key: "fiber100g", label: "Fiber", suffix: " g" },
+    { key: "protein_g", label: "Protein", suffix: " g" },
+    { key: "proteins100g", label: "Protein", suffix: " g" },
+  ]
+  const seen = new Set<string>()
+  const rows: { label: string; value: string }[] = []
+  for (const pair of pairs) {
+    const raw = nutrition[pair.key]
+    if (typeof raw !== "number" || !Number.isFinite(raw) || seen.has(pair.label)) continue
+    seen.add(pair.label)
+    rows.push({ label: pair.label, value: `${raw}${pair.suffix}` })
+  }
+  return rows
+}
+
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   const scan = loadActiveScan()
+  const [saved, setSaved] = useState(Boolean(scan?.favorite))
+  const [showAi, setShowAi] = useState(false)
 
   const rawGrade = scan?.grade
   const grade: NutritionGrade | null =
@@ -7697,6 +7809,13 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     rawGrade === "e"
       ? rawGrade
       : null
+  const gradeLabels: Record<NutritionGrade, string> = {
+    a: "Excellent",
+    b: "Good",
+    c: "Fair",
+    d: "Poor",
+    e: "Lowest",
+  }
   const verdict: CompareVerdict = (scan?.verdict as CompareVerdict) || null
   const verdictReason = scan?.explanation || "Scan a barcode or nutrition label to see a safety result."
   const allergens = scan?.allergens || []
@@ -7705,7 +7824,8 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     .filter(Boolean)
     .join(" · ") || "Scan a product to fill this page"
   const imageUrl = scan?.imageUrl
-  const [saved, setSaved] = useState(Boolean(scan?.favorite))
+  const safetyScore = typeof scan?.score === "number" ? scan.score : scoreFromVerdict(verdict)
+  const nutrients = nutritionRows(scan?.nutrition)
 
   return (
     <div
@@ -7714,184 +7834,175 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         minHeight: 0,
         display: "flex",
         flexDirection: "column",
-        background: C.offWhite,
+        position: "relative",
         overflow: "hidden",
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
       }}
     >
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div>
-        <InfoHeader
-          title="Product Result"
-          subtitle="Scan analysis complete"
-          go={go}
-        />
-      </div>
-
       <div
         style={{
-          flex: 1,
-          overflowY: "auto",
+          flexShrink: 0,
+          padding: isDesktop ? "22px 40px 12px" : "16px 16px 10px",
+          paddingTop: `calc(${SAFE_TOP} + 8px)`,
         }}
       >
-        <Center
-          maxWidth={isDesktop ? 900 : 640}
-          style={{
-            padding: isDesktop
-              ? "30px 40px 40px"
-              : "0 16px 24px",
-          }}
-        >
-          {/* ── Product Image ─────────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, maxWidth: 900, margin: "0 auto" }}>
+          <button
+            type="button"
+            onClick={() => go("dashboard")}
+            aria-label="Back"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 15,
+              border: "none",
+              background: SOFT_SLATE.bg,
+              color: SOFT_SLATE.textPrimary,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: SOFT_SLATE.raisedSm,
+              flexShrink: 0,
+            }}
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" />
+              <path d="m12 19-7-7 7-7" />
+            </svg>
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: isDesktop ? 24 : 20, fontWeight: 800, letterSpacing: "-0.02em" }}>
+              Product Result
+            </h1>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: SOFT_SLATE.textMuted }}>
+              Personalized safety + nutrition quality
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        <Center maxWidth={isDesktop ? 900 : 640} style={{ padding: isDesktop ? "8px 40px 40px" : "4px 16px 28px" }}>
           <div
             style={{
               width: "100%",
-              aspectRatio: "16/9",
-              borderRadius: C.radiusLg ?? 16,
-              background: C.white,
-              border: `1.5px solid ${C.border}`,
+              aspectRatio: "16 / 9",
+              borderRadius: 24,
+              background: SOFT_SLATE.bg,
               overflow: "hidden",
-              marginBottom: 16,
+              boxShadow: SOFT_SLATE.raisedLg,
+              marginBottom: 20,
             }}
           >
             {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={productName}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
+              <img src={imageUrl} alt={productName} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "rgba(26,18,9,0.4)",
-                  fontFamily: FONT_BODY,
-                  fontSize: 13,
-                }}
-              >
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: SOFT_SLATE.textMuted, fontSize: 13 }}>
                 No product photo
               </div>
             )}
           </div>
 
-          {/* ── Product Name + Grade ──────────────────────────────────────── */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 12,
-            }}
-          >
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: FONT_HEAD,
-                  fontWeight: 700,
-                  fontSize: 16,
-                  color: C.black,
-                }}
-              >
-                {productName}
-              </p>
-
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  color: "rgba(26,18,9,0.45)",
-                  marginTop: 2,
-                }}
-              >
-                {productBrand}
-              </p>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 18 }}>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ margin: 0, fontSize: isDesktop ? 22 : 18, fontWeight: 800, letterSpacing: "-0.02em" }}>{productName}</h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted }}>{productBrand}</p>
             </div>
-
-            {/* Grade Badge */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 4,
-                flexShrink: 0,
-              }}
-            >
-              <GradeBadge grade={grade} size={56} />
-
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 9,
-                  fontWeight: 700,
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase",
-                  color: "rgba(26,18,9,0.42)",
-                }}
-              >
-                grade
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              <GradeBadge grade={grade} size={52} />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+                Nutri-Score
               </span>
             </div>
           </div>
 
-          {/* ── Grade Scale ──────────────────────────────────────────────── */}
-          <div
-            style={{
-              marginBottom: 20,
-            }}
-          >
-            <GradeScale grade={grade} />
+          <div style={{ marginBottom: 18 }}>
+            <SafetySpeedGauge score={safetyScore} />
           </div>
 
-          {/* ── Allergy & Safety ─────────────────────────────────────────── */}
           <div
             style={{
-              borderRadius: 14,
-              background: C.white,
-              border: `1.5px solid rgba(224,167,46,0.2)`,
-              padding: "14px 16px",
-              marginBottom: 24,
+              background: SOFT_SLATE.bg,
+              borderRadius: 22,
+              padding: "16px 16px 14px",
+              boxShadow: SOFT_SLATE.raisedSm,
+              marginBottom: 18,
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted, marginBottom: 10 }}>
+              Nutrition quality
+            </div>
+            <GradeScale grade={grade} />
+            <p style={{ margin: "12px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
+              {grade
+                ? `Grade ${grade.toUpperCase()} — ${gradeLabels[grade]}. Nutri-Score reflects ingredient/nutrition quality only; it is separate from your allergy safety score.`
+                : "Nutrition grade unavailable for this product. Safety score above still applies to your allergy profile."}
+            </p>
+            {nutrients.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                {nutrients.map((row) => (
+                  <div key={row.label} style={{ padding: "10px 12px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: SOFT_SLATE.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{row.label}</div>
+                    <div style={{ marginTop: 4, fontSize: 15, fontWeight: 800 }}>{row.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              background: SOFT_SLATE.bg,
+              borderRadius: 22,
+              padding: 16,
+              boxShadow: SOFT_SLATE.raisedSm,
+              marginBottom: 18,
               display: "flex",
               flexDirection: "column",
               gap: 12,
             }}
           >
-            <p
-              style={{
-                margin: 0,
-                fontFamily: FONT_HEAD,
-                fontWeight: 700,
-                fontSize: 11,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "rgba(26,18,9,0.5)",
-              }}
-            >
-              Allergy &amp; safety
-            </p>
-
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+              Allergy signals
+            </div>
             <StatusBadge verdict={verdict} reason={verdictReason} size="lg" />
-
             <AllergenList allergens={allergens} />
           </div>
 
-          {/* ── Action Buttons ────────────────────────────────────────────── */}
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-            }}
-          >
-            {/* SAVE */}
+          <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 12, marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={() => setShowAi(true)}
+              style={{
+                flex: 1,
+                minHeight: 52,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.textPrimary,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: SOFT_SLATE.raisedBtn,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round">
+                <path d="M12 3v2" />
+                <path d="M12 19v2" />
+                <path d="M5 12H3" />
+                <path d="M21 12h-2" />
+                <circle cx="12" cy="12" r="5" />
+              </svg>
+              Ask AI about this product
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -7901,43 +8012,129 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               }}
               style={{
                 flex: 1,
-                padding: "13px",
-                borderRadius: 14,
-                border: `1.5px solid rgba(224,167,46,0.4)`,
-                background: "transparent",
-                color: C.greenLight,
-                fontFamily: FONT_HEAD,
-                fontWeight: 400,
-                fontSize: 14,
+                minHeight: 52,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.green,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                fontWeight: 700,
                 cursor: "pointer",
+                boxShadow: SOFT_SLATE.raisedBtn,
               }}
             >
-              {saved ? "SAVED" : "SAVE"}
+              {saved ? "Saved" : "Save"}
             </button>
-
-            {/* COMPARE */}
             <button
               type="button"
               onClick={() => go("productCompare")}
               style={{
                 flex: 1,
-                padding: "13px",
-                borderRadius: 14,
+                minHeight: 52,
                 border: "none",
-                background:
-                  "linear-gradient(135deg, #E0A72E, #C98A1F)",
-                color: C.offWhite,
-                fontFamily: FONT_HEAD,
-                fontWeight: 400,
-                fontSize: 14,
+                borderRadius: 16,
+                background: SOFT_SLATE.green,
+                color: "#ffffff",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 13,
+                fontWeight: 700,
                 cursor: "pointer",
+                boxShadow: SOFT_SLATE.raisedBtn,
               }}
             >
-              COMPARE
+              Compare
             </button>
           </div>
         </Center>
       </div>
+
+      {showAi && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="AI product assistant"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 240,
+            background: "rgba(36,41,47,0.45)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: isDesktop ? 28 : 12,
+          }}
+          onClick={() => setShowAi(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              background: SOFT_SLATE.bg,
+              borderRadius: 26,
+              padding: 22,
+              boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+              maxHeight: "78vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>AI Assistant</div>
+                <div style={{ marginTop: 3, fontSize: 12, color: SOFT_SLATE.textMuted }}>
+                  Explains the scan — does not change Safe/Caution/Avoid
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAi(false)}
+                aria-label="Close"
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  border: "none",
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ marginTop: 16, padding: 14, borderRadius: 16, boxShadow: SOFT_SLATE.insetSm, fontSize: 14, lineHeight: 1.55, color: SOFT_SLATE.textPrimary }}>
+              {verdictReason}
+            </div>
+
+            <div style={{ marginTop: 14, fontSize: 12, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
+              Safety score <strong>{safetyScore}/100</strong> comes from the allergy rules engine.
+              Nutri-Score is nutrition quality only. Ask a clinician for medical advice.
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAi(false)}
+              style={{
+                width: "100%",
+                marginTop: 18,
+                minHeight: 48,
+                border: "none",
+                borderRadius: 14,
+                background: SOFT_SLATE.green,
+                color: "#fff",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: SOFT_SLATE.raisedBtn,
+              }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

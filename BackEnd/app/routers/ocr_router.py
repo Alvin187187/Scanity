@@ -38,6 +38,7 @@ def _with_analysis(
             "allergy_flags": [],
             "allergy_matches": [],
             "verdict": None,
+            "safety_score": None,
             "nutri_score_grade": None,
             "explanation": None,
         }
@@ -48,6 +49,7 @@ def _with_analysis(
         allergy_matches=analysis["allergy_matches"],
         score=analysis["nutri_score_grade"],
         verdict=analysis["verdict"],
+        safety_score=analysis.get("safety_score"),
         nutri_score_grade=analysis["nutri_score_grade"],
         explanation=analysis["explanation"],
         product_name=product_name,

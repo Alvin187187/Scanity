@@ -27,6 +27,7 @@ class OCRScanResponse(BaseModel):
     allergy_matches: list[AllergyMatchOut] = Field(default_factory=list)
     score: Optional[str] = None
     verdict: Optional[str] = None
+    safety_score: Optional[int] = None
     nutri_score_grade: Optional[str] = None
     explanation: Optional[str] = None
     product_name: Optional[str] = None

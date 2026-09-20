@@ -41,6 +41,7 @@ class BarcodeScanResponse(BaseModel):
     allergy_flags: list[str] = Field(default_factory=list)
     allergy_matches: list[AllergyMatchOut] = Field(default_factory=list)
     verdict: Optional[str] = None
+    safety_score: Optional[int] = None
     nutri_score_grade: Optional[str] = None
     explanation: Optional[str] = None
 
