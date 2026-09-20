@@ -2,6 +2,10 @@
 ai/gemini_client.py
 
 Hosted Gemini explanation wrapper. Gemini never decides avoid/caution/safe.
+Supports:
+  - Google AI Studio keys (AIza...) via generativelanguage.googleapis.com
+  - OpenRouter keys (sk-or-...) via openrouter.ai with google/gemini-* models
+
 This function never raises. It returns model text or FALLBACK_TEXT.
 """
 
@@ -19,12 +23,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_ENV_PATH = REPO_ROOT / "BackEnd" / ".env"
 ROOT_ENV_PATH = REPO_ROOT / ".env"
 
-DEFAULT_MODEL = "gemini-2.0-flash"
-GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
+GOOGLE_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 TIMEOUT_SECONDS = 20
 FALLBACK_TEXT = (
     "We couldn't generate a live AI explanation right now, but the safety score "
-    "and CSV ingredient checks above are still valid."
+    "and allergy signals above are still valid. Confirm the package label."
 )
 
 logger = logging.getLogger(__name__)
@@ -61,7 +66,6 @@ def _apply_env_file(path: Path) -> None:
 def _load_local_env() -> None:
     _apply_env_file(BACKEND_ENV_PATH)
     _apply_env_file(ROOT_ENV_PATH)
-    # FastAPI settings may already have loaded the key.
     try:
         from app.core.config import settings
 
@@ -69,20 +73,41 @@ def _load_local_env() -> None:
             os.environ["GEMINI_API_KEY"] = str(settings.GEMINI_API_KEY)
         if getattr(settings, "GEMINI_MODEL", None) and not os.environ.get("GEMINI_MODEL"):
             os.environ["GEMINI_MODEL"] = str(settings.GEMINI_MODEL)
+        if getattr(settings, "AI_PROVIDER", None) and not os.environ.get("AI_PROVIDER"):
+            os.environ["AI_PROVIDER"] = str(settings.AI_PROVIDER)
     except Exception:
         pass
 
 
-def _gemini_settings() -> tuple[str, str]:
+def _detect_provider(api_key: str) -> str:
+    forced = (os.environ.get("AI_PROVIDER") or "").strip().lower()
+    if forced in {"google", "openrouter"}:
+        return forced
+    if api_key.startswith("sk-or-"):
+        return "openrouter"
+    if api_key.startswith("AIza"):
+        return "google"
+    return "google"
+
+
+def _normalize_openrouter_model(model: str) -> str:
+    name = (model or DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    if name.startswith("google/") or "/" in name:
+        return name
+    return f"google/{name}"
+
+
+def _gemini_settings() -> tuple[str, str, str]:
     _load_local_env()
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if api_key.startswith("YOUR_"):
         api_key = ""
     model = (os.environ.get("GEMINI_MODEL") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
-    return api_key, model
+    provider = _detect_provider(api_key) if api_key else "none"
+    return api_key, model, provider
 
 
-def _extract_text(data: dict) -> str:
+def _extract_google_text(data: dict) -> str:
     prompt_feedback = data.get("promptFeedback") or {}
     if prompt_feedback.get("blockReason"):
         return ""
@@ -100,6 +125,85 @@ def _extract_text(data: dict) -> str:
     return "".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
 
 
+def _extract_openrouter_text(data: dict) -> str:
+    choices = data.get("choices") or []
+    if not choices:
+        return ""
+    message = (choices[0] or {}).get("message") or {}
+    content = message.get("content")
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text":
+                chunks.append(str(part.get("text") or ""))
+            elif isinstance(part, str):
+                chunks.append(part)
+        return "".join(chunks).strip()
+    return ""
+
+
+def _call_google(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float) -> str:
+    url = GOOGLE_ENDPOINT.format(model=model)
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key,
+    }
+    payload = {
+        "systemInstruction": {"parts": [{"text": system_instructions}]},
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": max_output_tokens,
+        },
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT_SECONDS)
+    if response.status_code != 200:
+        _set_status("template", f"google_http_{response.status_code}")
+        logger.warning("Gemini Google HTTP %s", response.status_code)
+        return ""
+    try:
+        return _extract_google_text(response.json())
+    except (TypeError, ValueError, AttributeError):
+        _set_status("template", "google_bad_json")
+        return ""
+
+
+def _call_openrouter(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float) -> str:
+    routed_model = _normalize_openrouter_model(model)
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": os.environ.get("OPENROUTER_REFERER", "https://scanity.app"),
+        "X-Title": os.environ.get("OPENROUTER_TITLE", "Scanity"),
+    }
+    payload = {
+        "model": routed_model,
+        "messages": [
+            {"role": "system", "content": system_instructions},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": temperature,
+        "max_tokens": max_output_tokens,
+    }
+    response = requests.post(
+        OPENROUTER_ENDPOINT,
+        headers=headers,
+        json=payload,
+        timeout=TIMEOUT_SECONDS,
+    )
+    if response.status_code != 200:
+        _set_status("template", f"openrouter_http_{response.status_code}")
+        logger.warning("OpenRouter HTTP %s", response.status_code)
+        return ""
+    try:
+        return _extract_openrouter_text(response.json())
+    except (TypeError, ValueError, AttributeError):
+        _set_status("template", "openrouter_bad_json")
+        return ""
+
+
 def call_hosted_ai(
     prompt: str,
     *,
@@ -108,7 +212,7 @@ def call_hosted_ai(
     temperature: float = 0.35,
 ) -> str:
     """
-    Send a prompt to hosted Gemini and return plain text.
+    Send a prompt to hosted Gemini (Google or OpenRouter) and return plain text.
 
     Reads GEMINI_API_KEY / GEMINI_MODEL on every call. The API key is never logged.
     """
@@ -116,58 +220,32 @@ def call_hosted_ai(
         _set_status("template", "empty_prompt")
         return FALLBACK_TEXT
 
-    api_key, model = _gemini_settings()
+    api_key, model, provider = _gemini_settings()
     if not api_key or api_key.startswith("YOUR_"):
         _set_status("template", "missing_api_key")
         logger.warning("Gemini skipped: GEMINI_API_KEY is missing on this server.")
         return FALLBACK_TEXT
 
-    url = GEMINI_ENDPOINT.format(model=model)
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": api_key,
-    }
-    payload = {
-        "systemInstruction": {
-            "parts": [{"text": system_instructions or SYSTEM_INSTRUCTIONS}]
-        },
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
-        },
-    }
-
+    system = system_instructions or SYSTEM_INSTRUCTIONS
     try:
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=TIMEOUT_SECONDS,
-        )
+        if provider == "openrouter":
+            text = _call_openrouter(api_key, model, prompt, system, max_output_tokens, temperature)
+            if text:
+                _set_status("gemini", f"openrouter:{_normalize_openrouter_model(model)}")
+                return text
+            return FALLBACK_TEXT
+
+        text = _call_google(api_key, model, prompt, system, max_output_tokens, temperature)
+        if text:
+            _set_status("gemini", f"google:{model}")
+            return text
+        return FALLBACK_TEXT
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, requests.exceptions.RequestException) as exc:
         _set_status("template", f"network:{type(exc).__name__}")
         logger.warning("Gemini network error: %s", type(exc).__name__)
         return FALLBACK_TEXT
 
-    if response.status_code != 200:
-        _set_status("template", f"http_{response.status_code}")
-        logger.warning("Gemini HTTP %s", response.status_code)
-        return FALLBACK_TEXT
-
-    try:
-        text = _extract_text(response.json())
-    except (TypeError, ValueError, AttributeError):
-        _set_status("template", "bad_json")
-        return FALLBACK_TEXT
-
-    if not text:
-        _set_status("template", "empty_model_text")
-        return FALLBACK_TEXT
-
-    _set_status("gemini", model)
-    return text
-
 
 if __name__ == "__main__":
     print(call_hosted_ai("Say hello in one short sentence with **bold** and one bullet list."))
+    print(last_ai_status())

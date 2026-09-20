@@ -70,9 +70,11 @@ class IngredientExplainResponse(BaseModel):
     what_it_is: str = ""
     commonly_seen_in: str = ""
     possible_effects: str = ""
+    affects_allergens: list[str] = Field(default_factory=list)
+    affects_diets: list[str] = Field(default_factory=list)
     source: str = ""
     aliases: list[str] = Field(default_factory=list)
-    ai_source: str = "csv"
+    ai_source: str = "knowledge"
 
 
 @router.post("/scan/ai/chat", response_model=AiChatResponse)

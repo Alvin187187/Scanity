@@ -147,6 +147,10 @@ export async function explainIngredientWithAi(input: {
     what_it_is: String(data?.what_it_is || ""),
     commonly_seen_in: String(data?.commonly_seen_in || ""),
     possible_effects: String(data?.possible_effects || ""),
+    affects_allergens: Array.isArray(data?.affects_allergens)
+      ? data.affects_allergens.map(String)
+      : [],
+    affects_diets: Array.isArray(data?.affects_diets) ? data.affects_diets.map(String) : [],
     source: String(data?.source || ""),
     aliases: Array.isArray(data?.aliases) ? data.aliases.map(String) : [],
     ai_source: String(data?.ai_source || "template"),

@@ -1,8 +1,12 @@
 """Load curated ingredient knowledge for clickable chip explain panels.
 
 This sits beside the allergen seed. Allergy matching still comes from
-seed_allergens.csv. This file explains what an ingredient / E-number is
-without calling Gemini.
+seed_allergens. This file explains what an ingredient / E-number is
+without requiring a live AI call when a local note exists.
+
+Feature flags (pipe-delimited):
+  affects_allergens  e.g. milk|soy
+  affects_diets      e.g. diabetes|hypertension
 """
 
 from __future__ import annotations
@@ -20,6 +24,10 @@ def _normalize(value: str) -> str:
     text = text.replace("–", "-").replace("—", "-")
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _split_flags(raw: str | None) -> list[str]:
+    return [part.strip() for part in str(raw or "").split("|") if part.strip()]
 
 
 @lru_cache(maxsize=1)
@@ -47,6 +55,8 @@ def load_ingredient_knowledge(csv_path: str | None = None) -> list[dict]:
                     "what_it_is": (raw.get("what_it_is") or "").strip(),
                     "commonly_seen_in": (raw.get("commonly_seen_in") or "").strip(),
                     "possible_effects": (raw.get("possible_effects") or "").strip(),
+                    "affects_allergens": _split_flags(raw.get("affects_allergens")),
+                    "affects_diets": _split_flags(raw.get("affects_diets")),
                     "source": (raw.get("source") or "").strip(),
                 }
             )
@@ -69,30 +79,35 @@ def lookup_ingredient_knowledge(ingredient: str) -> dict | None:
     if not isinstance(ingredient, str) or not ingredient.strip():
         return None
     index = _build_index(load_ingredient_knowledge())
-    direct = index.get(_normalize(ingredient))
+    normalized = _normalize(ingredient)
+    direct = index.get(normalized)
     if direct:
         return dict(direct)
 
-    # Labels often say "colour: e100" or "e330 (citric acid)".
-    compact = _normalize(ingredient).replace(" ", "")
-    e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", _normalize(ingredient))
+    compact = normalized.replace(" ", "")
+    e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", normalized)
     if e_match:
         code = f"e{e_match.group(1)}"
         hit = index.get(code)
         if hit:
             return dict(hit)
 
-    # Contained alias (longer keys first).
     for key, row in sorted(index.items(), key=lambda item: len(item[0]), reverse=True):
-        if len(key) >= 3 and key in _normalize(ingredient):
+        if len(key) < 4:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
             return dict(row)
-        if len(key) >= 3 and key.replace(" ", "") in compact:
+        compact_key = key.replace(" ", "")
+        if len(compact_key) >= 4 and re.search(
+            rf"(?<![a-z0-9]){re.escape(compact_key)}(?![a-z0-9])",
+            compact,
+        ):
             return dict(row)
     return None
 
 
 def enrich_flag_with_knowledge(flag: dict) -> dict:
-    """Attach CSV knowledge onto an allergy-engine flag dict."""
+    """Attach knowledge + feature flags onto an allergy-engine flag dict."""
     if not isinstance(flag, dict):
         return flag
     ingredient = str(flag.get("ingredient") or flag.get("name") or "")
@@ -107,7 +122,17 @@ def enrich_flag_with_knowledge(flag: dict) -> dict:
             "what_it_is": knowledge["what_it_is"],
             "commonly_seen_in": knowledge["commonly_seen_in"],
             "possible_effects": knowledge["possible_effects"],
+            "affects_allergens": knowledge.get("affects_allergens") or [],
+            "affects_diets": knowledge.get("affects_diets") or [],
             "source": knowledge["source"],
             "aliases": knowledge["aliases"],
         }
+        if not out.get("possible_effects") and knowledge.get("possible_effects"):
+            out["possible_effects"] = knowledge["possible_effects"]
+        if not out.get("affects_allergens") and knowledge.get("affects_allergens"):
+            out["affects_allergens"] = list(knowledge["affects_allergens"])
+        if not out.get("affects_diets") and knowledge.get("affects_diets"):
+            out["affects_diets"] = list(knowledge["affects_diets"])
+        if not out.get("plain_explanation") and knowledge.get("possible_effects"):
+            out["plain_explanation"] = knowledge["possible_effects"]
     return out

@@ -26,8 +26,17 @@ class Settings(BaseSettings):
     OPENFOODFACTS_API: str
 
     # Hosted Gemini explains flags only. It does not decide allergy verdicts.
+    # Accepts Google AI Studio keys (AIza...) or OpenRouter keys (sk-or-...).
     GEMINI_API_KEY: str | None = Field(default=None, repr=False)
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
+    # Optional: "google" | "openrouter". Auto-detected from key prefix when empty.
+    AI_PROVIDER: str | None = Field(default=None)
+
+    # Optional RAGFlow OpenAPI (https://github.com/infiniflow/ragflow). Leave empty
+    # to use local Scanity knowledge retrieval only.
+    RAGFLOW_API_URL: str | None = Field(default=None)
+    RAGFLOW_API_KEY: str | None = Field(default=None, repr=False)
+    RAGFLOW_CHAT_ID: str | None = Field(default=None)
 
     DATABASE_CONNECT_TIMEOUT: int = Field(default=10, ge=1, le=60)
     DATABASE_POOL_SIZE: int = Field(default=5, ge=1, le=20)

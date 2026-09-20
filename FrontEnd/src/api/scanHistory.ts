@@ -9,6 +9,8 @@ export type IngredientKnowledge = {
   what_it_is?: string
   commonly_seen_in?: string
   possible_effects?: string
+  affects_allergens?: string[]
+  affects_diets?: string[]
   source?: string
   aliases?: string[]
 }
@@ -19,6 +21,9 @@ export type AllergySignal = {
   reason?: string
   plainExplanation?: string
   matchedCategory?: string
+  possibleEffects?: string
+  affectsAllergens?: string[]
+  affectsDiets?: string[]
   knowledge?: IngredientKnowledge | null
 }
 
@@ -29,6 +34,8 @@ export type LabelInsight = {
   what_it_is?: string
   commonly_seen_in?: string
   possible_effects?: string
+  affects_allergens?: string[]
+  affects_diets?: string[]
   source?: string
   aliases?: string[]
 }
@@ -186,11 +193,23 @@ function knowledgeFromUnknown(value: unknown): IngredientKnowledge | null {
     what_it_is: String(record.what_it_is || "").trim() || undefined,
     commonly_seen_in: String(record.commonly_seen_in || "").trim() || undefined,
     possible_effects: String(record.possible_effects || "").trim() || undefined,
+    affects_allergens: Array.isArray(record.affects_allergens)
+      ? record.affects_allergens.map((item) => String(item).trim()).filter(Boolean)
+      : undefined,
+    affects_diets: Array.isArray(record.affects_diets)
+      ? record.affects_diets.map((item) => String(item).trim()).filter(Boolean)
+      : undefined,
     source: String(record.source || "").trim() || undefined,
     aliases: Array.isArray(record.aliases)
       ? record.aliases.map((item) => String(item).trim()).filter(Boolean)
       : undefined,
   }
+}
+
+function stringList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const items = value.map((item) => String(item).trim()).filter(Boolean)
+  return items.length ? items : undefined
 }
 
 function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
@@ -211,6 +230,12 @@ function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
         plain_explanation?: string
         plainExplanation?: string
         matched_category?: string
+        possible_effects?: string
+        possibleEffects?: string
+        affects_allergens?: unknown
+        affectsAllergens?: unknown
+        affects_diets?: unknown
+        affectsDiets?: unknown
         knowledge?: unknown
       }
       const name = (record.name || record.ingredient || "").trim()
@@ -222,6 +247,9 @@ function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
         reason: record.reason,
         plainExplanation: record.plainExplanation || record.plain_explanation,
         matchedCategory: record.matched_category,
+        possibleEffects: record.possibleEffects || record.possible_effects,
+        affectsAllergens: stringList(record.affectsAllergens || record.affects_allergens),
+        affectsDiets: stringList(record.affectsDiets || record.affects_diets),
         knowledge: knowledgeFromUnknown(record.knowledge),
       }
     })
@@ -244,6 +272,8 @@ function labelInsightsFromUnknown(value: unknown): LabelInsight[] {
         what_it_is: String(record.what_it_is || "").trim() || undefined,
         commonly_seen_in: String(record.commonly_seen_in || "").trim() || undefined,
         possible_effects: String(record.possible_effects || "").trim() || undefined,
+        affects_allergens: stringList(record.affects_allergens),
+        affects_diets: stringList(record.affects_diets),
         source: String(record.source || "").trim() || undefined,
         aliases: Array.isArray(record.aliases)
           ? record.aliases.map((part) => String(part).trim()).filter(Boolean)

@@ -8,6 +8,7 @@ from ai.prompt import (
     build_coach_chat_prompt,
     build_safety_report_prompt,
 )
+from ai.rag_layer import enrich_prompt_with_rag
 
 
 def _template_chat(message: str, product: dict, profile: dict) -> str:
@@ -55,6 +56,17 @@ def answer_product_question(
     history: list[dict] | None = None,
 ) -> str:
     prompt = build_coach_chat_prompt(message, product, profile, history or [])
+    rag_query = " ".join(
+        part
+        for part in [
+            message,
+            str(product.get("product_name") or ""),
+            " ".join(str(item) for item in (product.get("allergy_flags") or [])[:6]),
+            " ".join(str(item) for item in (profile.get("allergies") or [])[:6]),
+        ]
+        if part
+    )
+    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=6)
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
@@ -72,6 +84,17 @@ def build_safety_report(
     focus: str | None = None,
 ) -> str:
     prompt = build_safety_report_prompt(product, profile, focus)
+    rag_query = " ".join(
+        part
+        for part in [
+            str(product.get("product_name") or ""),
+            focus or "",
+            " ".join(str(item) for item in (product.get("allergy_flags") or [])[:8]),
+            " ".join(str(item) for item in (profile.get("allergies") or [])[:6]),
+        ]
+        if part
+    )
+    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=6)
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,

@@ -209,10 +209,52 @@ def apply_condition_rules(
 
     severity_rank = {"safe": 0, "caution": 1, "avoid": 2}
 
+    # Diet feature flag → default severity when it hits the shopper profile.
+    diet_severity = {
+        "lactose": "avoid",
+        "celiac": "avoid",
+        "diabetes": "caution",
+        "hypertension": "caution",
+        "heart": "caution",
+        "kidney": "caution",
+        "ibs": "caution",
+    }
+
     for item in out:
         ingredient = str(item.get("ingredient") or "")
+        # Prefer structured feature flags when present (easier, less false noise).
+        flag_diets = {
+            _normalize(str(value))
+            for value in (item.get("affects_diets") or [])
+            if value
+        }
+        if not flag_diets and isinstance(item.get("knowledge"), dict):
+            flag_diets = {
+                _normalize(str(value))
+                for value in (item.get("knowledge") or {}).get("affects_diets") or []
+                if value
+            }
+        for diet in flag_diets:
+            if diet not in active:
+                continue
+            target = diet_severity.get(diet, "caution")
+            current = str(item.get("status") or "safe").lower()
+            if severity_rank.get(target, 0) > severity_rank.get(current, 0):
+                item["status"] = target
+                item["matched_category"] = item.get("matched_category") or diet
+                item["condition"] = diet
+                item["reason"] = (
+                    f"Feature flag `{diet}` matches your saved health profile."
+                )
+                item["plain_explanation"] = item.get("possible_effects") or item.get("plain_explanation") or (
+                    f"This ingredient is tagged for {diet.replace('_', ' ')} on your profile."
+                )
+
         for condition, spec in CONDITION_MARKERS.items():
             if condition not in active:
+                continue
+            # Skip marker hunting when feature flags already covered this diet.
+            if condition in flag_diets:
                 continue
             hit = _marker_hit(ingredient, spec["markers"])
             if not hit:
