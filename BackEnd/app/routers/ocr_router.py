@@ -29,10 +29,15 @@ def _with_analysis(
     parsed: dict,
     user_allergies: list[str],
     product_name: str | None = None,
+    user_conditions: list[str] | None = None,
 ) -> OCRScanResponse:
     ingredients = parsed.get("parsed_ingredients") or []
     if ingredients:
-        analysis = analyze_ingredients(ingredients, user_allergies)
+        analysis = analyze_ingredients(
+            ingredients,
+            user_allergies,
+            user_conditions=user_conditions or [],
+        )
     else:
         analysis = {
             "allergy_flags": [],
@@ -70,7 +75,12 @@ async def scan_ocr(
     except InvalidOCRInputError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
-    return _with_analysis(result, request.user_allergies, request.product_name)
+    return _with_analysis(
+        result,
+        request.user_allergies,
+        request.product_name,
+        request.user_conditions,
+    )
 
 
 @router.post("/scan/ocr/image", response_model=OCRScanResponse)

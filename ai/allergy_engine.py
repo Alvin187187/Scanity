@@ -359,32 +359,13 @@ def overall_verdict(flags: list) -> str:
     return "safe"
 
 
-def compute_safety_score(flags: list) -> int:
+def compute_safety_score(flags: list, conditions: list | None = None, nutrition: dict | None = None) -> int:
     """
-    Personalized allergy safety score on a 0-100 scale (separate from Nutri-Score).
-
-    Profile-first formula (deterministic, no LLM):
-    - Start at 100 (assume fit for this shopper).
-    - Each Avoid match (ingredient hits a saved allergy) subtracts a large amount.
-    - Unmapped / review-only Caution items subtract a small amount so incomplete
-      labels do not slam every product into the mid-50s.
-    - No ingredient evidence → 82 (incomplete, not a fake "average risk").
-
-    Bands for UI: 0-39 Avoid, 40-69 Caution, 70-100 Safe.
+    Personalized 0-100 score. Prefers condition + nutrition aware scoring.
     """
-    if not flags:
-        return 82
+    from ai.condition_engine import compute_personalized_score
 
-    avoid_count = sum(1 for item in flags if item.get("status") == "avoid")
-    caution_count = sum(1 for item in flags if item.get("status") == "caution")
-
-    if avoid_count:
-        # Hard low band whenever the profile allergen is present.
-        return max(0, 28 - 8 * (avoid_count - 1))
-
-    # No profile hits: stay in the Safe band unless the label is very incomplete.
-    score = 100 - min(22, caution_count * 3)
-    return max(78, score)
+    return compute_personalized_score(flags, conditions=conditions, nutrition=nutrition)
 
 
 class AllergyMatchService:

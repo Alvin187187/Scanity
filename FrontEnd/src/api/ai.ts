@@ -119,3 +119,36 @@ export async function requestSafetyReport(input: {
   }
   return String(data?.report || "").trim()
 }
+
+export async function explainIngredientWithAi(input: {
+  ingredient: string
+  productName?: string
+  conditions?: string[]
+}) {
+  const response = await fetch(`${requireApiBaseUrl()}/scan/ai/ingredient-explain`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      ingredient: input.ingredient,
+      product_name: input.productName || null,
+      conditions: input.conditions || profilePayload().conditions,
+    }),
+  })
+  const data = await response.json().catch(() => null)
+  if (response.status === 401) {
+    throw new Error("Please sign in again to look up ingredients.")
+  }
+  if (!response.ok) {
+    throw new Error(readError(data, "Could not research this ingredient right now."))
+  }
+  return {
+    title: String(data?.title || input.ingredient),
+    category: String(data?.category || ""),
+    what_it_is: String(data?.what_it_is || ""),
+    commonly_seen_in: String(data?.commonly_seen_in || ""),
+    possible_effects: String(data?.possible_effects || ""),
+    source: String(data?.source || ""),
+    aliases: Array.isArray(data?.aliases) ? data.aliases.map(String) : [],
+    ai_source: String(data?.ai_source || "template"),
+  }
+}

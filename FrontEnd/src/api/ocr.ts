@@ -23,6 +23,7 @@ export async function analyzeOcrText(payload: {
   confirmed_ingredients?: string[]
   edited_ingredients?: string[]
   user_allergies?: string[]
+  user_conditions?: string[]
   product_name?: string
 }) {
   const response = await fetch(`${requireApiBaseUrl()}/scan/ocr`, {

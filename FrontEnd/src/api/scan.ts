@@ -64,7 +64,12 @@ function nutritionFromOff(product: any) {
 }
 
 /** Lightweight client-side match when the Scanity API is asleep or unreachable. */
-function localAllergyAnalysis(ingredientNames: string[], userAllergies: AllergyList) {
+function localAllergyAnalysis(
+  ingredientNames: string[],
+  userAllergies: AllergyList,
+  userConditions: AllergyList = [],
+  nutrition?: Record<string, number | null | undefined>,
+) {
   const allergy_matches: {
     ingredient: string
     status: string
@@ -73,8 +78,15 @@ function localAllergyAnalysis(ingredientNames: string[], userAllergies: AllergyL
     reason: string
   }[] = []
 
+  const conditions = userConditions.map((item) => String(item || "").toLowerCase())
+  const hasDiabetes = conditions.includes("diabetes")
+  const hasLactose = conditions.includes("lactose")
+  const sugarWords = ["sugar", "glucose", "fructose", "syrup", "sucrose", "maltodextrin", "honey"]
+  const dairyWords = ["milk", "lactose", "whey", "casein", "cream", "butter", "cheese", "yogurt"]
+
   for (const name of ingredientNames) {
     const lower = name.toLowerCase()
+    let matched = false
     for (const allergy of userAllergies) {
       const needle = String(allergy || "")
         .toLowerCase()
@@ -89,21 +101,56 @@ function localAllergyAnalysis(ingredientNames: string[], userAllergies: AllergyL
           matched_kb_entry: allergy,
           reason: `Looks related to your ${needle} profile (offline check). Confirm on the label.`,
         })
+        matched = true
         break
       }
     }
+    if (matched) continue
+    if (hasLactose && dairyWords.some((word) => lower.includes(word))) {
+      allergy_matches.push({
+        ingredient: name,
+        status: "avoid",
+        matched_category: "lactose",
+        matched_kb_entry: name,
+        reason: "Dairy / lactose-related (offline check for lactose intolerance).",
+      })
+      continue
+    }
+    if (hasDiabetes && sugarWords.some((word) => lower.includes(word))) {
+      allergy_matches.push({
+        ingredient: name,
+        status: "caution",
+        matched_category: "diabetes",
+        matched_kb_entry: name,
+        reason: "Added sugar / sweet carb (offline check for diabetes).",
+      })
+    }
+  }
+
+  const sugars = nutrition?.sugars_g
+  if (hasDiabetes && typeof sugars === "number" && sugars >= 8) {
+    allergy_matches.push({
+      ingredient: `Sugars ${sugars} g/100g`,
+      status: "caution",
+      matched_category: "diabetes",
+      matched_kb_entry: "sugars",
+      reason: "Nutrition sugars are elevated for a diabetes profile (offline check).",
+    })
   }
 
   const allergy_flags = allergy_matches
     .filter((item) => item.status === "avoid")
     .map((item) => item.ingredient)
   const avoidCount = allergy_flags.length
-  const verdict = avoidCount ? "avoid" : ingredientNames.length ? "safe" : "caution"
-  const safety_score = avoidCount
-    ? Math.max(0, 28 - 8 * (avoidCount - 1))
-    : ingredientNames.length
-      ? 96
-      : 82
+  const cautionCount = allergy_matches.filter((item) => item.status === "caution").length
+  let safety_score = 96
+  if (avoidCount) safety_score = Math.max(0, 26 - 7 * (avoidCount - 1))
+  else if (cautionCount) safety_score = Math.max(40, 66 - cautionCount * 8)
+  if (hasDiabetes && typeof sugars === "number") {
+    if (sugars >= 22) safety_score = Math.min(safety_score, 48)
+    else if (sugars >= 8) safety_score = Math.min(safety_score, 58)
+  }
+  const verdict = avoidCount ? "avoid" : cautionCount ? "caution" : ingredientNames.length ? "safe" : "caution"
 
   return {
     allergy_flags,
@@ -112,10 +159,12 @@ function localAllergyAnalysis(ingredientNames: string[], userAllergies: AllergyL
     safety_score,
     nutri_score_grade: null as string | null,
     explanation: avoidCount
-      ? `Avoid. Offline check flagged ${allergy_flags.slice(0, 3).join(", ")} against your saved allergies. Confirm ingredients on the package.`
-      : ingredientNames.length
-        ? "Safe for your saved allergies based on an offline check. Confirm the package if anything looks incomplete."
-        : "Caution. Product details came from Open Food Facts, but ingredients were incomplete.",
+      ? `**Avoid.** Offline check flagged ${allergy_flags.slice(0, 3).join(", ")} against your profile. Confirm the package.`
+      : cautionCount
+        ? `**Caution.** Offline check found ${cautionCount} item(s) to watch for your saved conditions. Confirm the package.`
+        : ingredientNames.length
+          ? "**Safe** for your saved allergies/conditions based on an offline check. Confirm the package if anything looks incomplete."
+          : "**Caution.** Product details came from Open Food Facts, but ingredients were incomplete.",
   }
 }
 
@@ -168,10 +217,15 @@ async function fetchOffProduct(barcode: string): Promise<any> {
   throw lastError || new Error("Unable to reach the product database. Please try again.")
 }
 
-async function lookupViaOpenFoodFacts(barcode: string, userAllergies: AllergyList) {
+async function lookupViaOpenFoodFacts(
+  barcode: string,
+  userAllergies: AllergyList,
+  userConditions: AllergyList = [],
+) {
   const data = await fetchOffProduct(barcode)
   const product = data.product
   const ingredientNames = ingredientsFromOff(product)
+  const nutrition = nutritionFromOff(product)
   const offGrade = String(product.nutriscore_grade || product.nutrition_grades || "")
     .trim()
     .toLowerCase()
@@ -184,7 +238,12 @@ async function lookupViaOpenFoodFacts(barcode: string, userAllergies: AllergyLis
       ? offGrade
       : null
 
-  let analysis: any = localAllergyAnalysis(ingredientNames, userAllergies)
+  let analysis: any = localAllergyAnalysis(
+    ingredientNames,
+    userAllergies,
+    userConditions,
+    nutrition,
+  )
   analysis.nutri_score_grade = nutriFromOff
 
   if (ingredientNames.length && getAccessToken()) {
@@ -192,16 +251,19 @@ async function lookupViaOpenFoodFacts(barcode: string, userAllergies: AllergyLis
       const remote = await analyzeOcrText({
         edited_ingredients: ingredientNames,
         user_allergies: userAllergies,
+        user_conditions: userConditions,
         product_name: product.product_name || product.product_name_en || "Scanned product",
         extracted_text: product.ingredients_text || ingredientNames.join(", "),
       })
       analysis = {
         allergy_flags: remote.allergy_flags || [],
         allergy_matches: remote.allergy_matches || [],
+        label_insights: remote.label_insights || [],
         verdict: remote.verdict || analysis.verdict,
         safety_score: remote.safety_score ?? analysis.safety_score,
         nutri_score_grade: remote.nutri_score_grade || remote.score || nutriFromOff,
         explanation: remote.explanation || analysis.explanation,
+        ai_source: remote.ai_source,
       }
     } catch {
       // Keep offline / OFF analysis so phone scans still succeed.
@@ -222,14 +284,16 @@ async function lookupViaOpenFoodFacts(barcode: string, userAllergies: AllergyLis
       image_url: product.image_url || product.image_front_url || null,
       ingredients_raw_text: product.ingredients_text || product.ingredients_text_en || "",
       ingredients: ingredientNames.map((name) => ({ name, is_allergen: false })),
-      nutrition: nutritionFromOff(product),
+      nutrition,
     },
     allergy_flags: analysis.allergy_flags || [],
     allergy_matches: analysis.allergy_matches || [],
+    label_insights: analysis.label_insights || [],
     verdict: analysis.verdict || null,
     safety_score: analysis.safety_score ?? null,
     nutri_score_grade: analysis.nutri_score_grade || null,
     explanation: analysis.explanation || null,
+    ai_source: analysis.ai_source || null,
     source: "openfoodfacts-fallback",
   }
 }
@@ -237,13 +301,14 @@ async function lookupViaOpenFoodFacts(barcode: string, userAllergies: AllergyLis
 export async function lookupBarcodeProduct(
   barcode: string,
   userAllergies: AllergyList = [],
+  userConditions: AllergyList = [],
 ) {
   const token = getAccessToken()
   const clean = barcode.trim()
 
   // Race: try Scanity API when signed in, but always keep OFF available.
   // Many phones lose scans when Render is cold; OFF is the reliable path.
-  const offPromise = lookupViaOpenFoodFacts(clean, userAllergies)
+  const offPromise = lookupViaOpenFoodFacts(clean, userAllergies, userConditions)
 
   if (!token) {
     return await offPromise
@@ -259,7 +324,11 @@ export async function lookupBarcodeProduct(
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ barcode: clean, user_allergies: userAllergies }),
+        body: JSON.stringify({
+          barcode: clean,
+          user_allergies: userAllergies,
+          user_conditions: userConditions,
+        }),
       },
       API_TIMEOUT_MS,
     )
