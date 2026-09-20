@@ -44,7 +44,7 @@ ROOT_ENV_PATH = REPO_ROOT / ".env"
 
 DEFAULT_MODEL = "gemini-3.1-flash-lite"
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-TIMEOUT_SECONDS = 8
+TIMEOUT_SECONDS = 15
 FALLBACK_TEXT = (
     "We couldn't generate an explanation right now, but the safety result above is accurate."
 )
@@ -101,7 +101,13 @@ def _extract_text(data: dict) -> str:
     return "".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
 
 
-def call_hosted_ai(prompt: str) -> str:
+def call_hosted_ai(
+    prompt: str,
+    *,
+    system_instructions: str | None = None,
+    max_output_tokens: int = 160,
+    temperature: float = 0.2,
+) -> str:
     """
     Send a prompt to hosted Gemini and return plain text.
 
@@ -121,11 +127,13 @@ def call_hosted_ai(prompt: str) -> str:
         "x-goog-api-key": api_key,
     }
     payload = {
-        "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTIONS}]},
+        "systemInstruction": {
+            "parts": [{"text": system_instructions or SYSTEM_INSTRUCTIONS}]
+        },
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
-            "temperature": 0.2,
-            "maxOutputTokens": 160,
+            "temperature": temperature,
+            "maxOutputTokens": max_output_tokens,
         },
     }
 

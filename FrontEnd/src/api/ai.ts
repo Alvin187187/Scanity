@@ -1,0 +1,121 @@
+import { requireApiBaseUrl } from "./auth"
+import { loadHealthProfile } from "./healthProfile"
+import { getAccessToken } from "./session"
+import type { AllergySignal, StoredScan } from "./scanHistory"
+
+export type AiChatMessage = {
+  role: "user" | "assistant"
+  content: string
+}
+
+function authHeaders() {
+  const token = getAccessToken()
+  if (!token) {
+    throw new Error("Please sign in again to use the AI assistant.")
+  }
+  return {
+    Accept: "application/json",
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  }
+}
+
+function readError(data: any, fallback: string) {
+  const detail = data?.detail
+  if (typeof detail === "string" && detail.trim()) return detail
+  return detail?.error || data?.message || data?.error || fallback
+}
+
+function productPayload(scan: StoredScan | null) {
+  if (!scan) {
+    return {
+      product_name: null,
+      brand: null,
+      barcode: null,
+      verdict: null,
+      safety_score: null,
+      nutri_score_grade: null,
+      explanation: null,
+      ingredients: [] as string[],
+      allergy_flags: [] as string[],
+      allergy_matches: [] as AllergySignal[],
+    }
+  }
+  return {
+    product_name: scan.name,
+    brand: scan.brand || null,
+    barcode: scan.barcode || null,
+    verdict: scan.verdict,
+    safety_score: scan.score,
+    nutri_score_grade: scan.grade,
+    explanation: scan.explanation || null,
+    ingredients: scan.ingredients || [],
+    allergy_flags: scan.allergens || [],
+    allergy_matches: scan.allergySignals || [],
+  }
+}
+
+function profilePayload() {
+  const profile = loadHealthProfile()
+  return {
+    allergies: [
+      ...profile.allergies,
+      ...(profile.otherAllergy?.trim() ? [profile.otherAllergy.trim()] : []),
+    ],
+    conditions: [
+      ...profile.conditions,
+      ...(profile.otherCondition?.trim() ? [profile.otherCondition.trim()] : []),
+    ],
+  }
+}
+
+export async function askAiAboutProduct(input: {
+  message: string
+  scan: StoredScan | null
+  history?: AiChatMessage[]
+}) {
+  const response = await fetch(`${requireApiBaseUrl()}/scan/ai/chat`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      message: input.message,
+      product: productPayload(input.scan),
+      profile: profilePayload(),
+      history: (input.history || []).map((item) => ({
+        role: item.role,
+        content: item.content,
+      })),
+    }),
+  })
+  const data = await response.json().catch(() => null)
+  if (response.status === 401) {
+    throw new Error("Please sign in again to use the AI assistant.")
+  }
+  if (!response.ok) {
+    throw new Error(readError(data, "The AI assistant could not answer right now."))
+  }
+  return String(data?.reply || "").trim()
+}
+
+export async function requestSafetyReport(input: {
+  scan: StoredScan | null
+  focus?: string
+}) {
+  const response = await fetch(`${requireApiBaseUrl()}/scan/ai/safety-report`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      product: productPayload(input.scan),
+      profile: profilePayload(),
+      focus: input.focus || null,
+    }),
+  })
+  const data = await response.json().catch(() => null)
+  if (response.status === 401) {
+    throw new Error("Please sign in again to use the AI assistant.")
+  }
+  if (!response.ok) {
+    throw new Error(readError(data, "Could not build a safety report right now."))
+  }
+  return String(data?.report || "").trim()
+}

@@ -47,6 +47,19 @@ FORMATTING RULES (critical):
 - Respond in plain text only."""
 
 
+COACH_SYSTEM_INSTRUCTIONS = """You are Scanity's friendly AI coach for shoppers.
+- Warm, clear, and careful — like a helpful friend who takes allergies seriously.
+- Easy words first. If you must use a technical term, explain it in plain language.
+- Never decide Safe / Caution / Avoid yourself. Repeat the scan result already given.
+- Ground every claim in the product and profile facts provided. Do not invent ingredients or diagnoses.
+- You may mention Nutri-Score only as nutrition quality, never as allergy safety.
+- Respect health conditions in the profile as context for careful wording, not as a medical diagnosis.
+- Never prescribe treatment, medication, or dosages. Suggest confirming the package and talking to a clinician for medical questions.
+- If the user describes an emergency allergic reaction, tell them to seek emergency help immediately.
+- Keep chat answers short (2–5 sentences). Safety reports may be a short paragraph (up to ~8 sentences) and stay scannable.
+- Plain text only. No markdown, bullets, or headers."""
+
+
 def build_prompt(
     ingredient: str,
     flag_reason: str,
@@ -80,6 +93,46 @@ def build_explainer_prompt(
         "verdict:\n"
         f"{verdict}\n\n"
         "Write the explanation now."
+    )
+
+
+def build_coach_chat_prompt(
+    message: str,
+    product: dict,
+    profile: dict,
+    history: list[dict],
+) -> str:
+    recent = history[-6:] if history else []
+    return (
+        "product:\n"
+        f"{product}\n\n"
+        "profile:\n"
+        f"{profile}\n\n"
+        "recent_chat:\n"
+        f"{recent}\n\n"
+        "shopper_message:\n"
+        f"{message}\n\n"
+        "Reply as Scanity's careful coach now."
+    )
+
+
+def build_safety_report_prompt(
+    product: dict,
+    profile: dict,
+    focus: str | None = None,
+) -> str:
+    focus_line = focus.strip() if isinstance(focus, str) and focus.strip() else "full safety overview"
+    return (
+        "product:\n"
+        f"{product}\n\n"
+        "profile:\n"
+        f"{profile}\n\n"
+        "report_focus:\n"
+        f"{focus_line}\n\n"
+        "Write a short personalized safety report for this shopper now. "
+        "Start with the existing verdict. Cover allergy fit, notable flagged ingredients, "
+        "and how health conditions in the profile should make them extra careful — "
+        "without diagnosing or changing the verdict."
     )
 
 
