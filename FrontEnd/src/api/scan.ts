@@ -98,7 +98,7 @@ function localAllergyAnalysis(
           status: "avoid",
           matched_category: allergy,
           matched_kb_entry: allergy,
-          reason: `Looks related to your ${needle} profile (offline check). Confirm on the label.`,
+          reason: `Matches your ${needle} profile. Confirm on the package.`,
         })
         matched = true
         break
@@ -111,7 +111,7 @@ function localAllergyAnalysis(
         status: "avoid",
         matched_category: "lactose",
         matched_kb_entry: name,
-        reason: "Dairy / lactose-related (offline check for lactose intolerance).",
+        reason: "Dairy / lactose-related for your lactose intolerance profile.",
       })
       continue
     }
@@ -121,7 +121,7 @@ function localAllergyAnalysis(
         status: "caution",
         matched_category: "diabetes",
         matched_kb_entry: name,
-        reason: "Added sugar / sweet carb (offline check for diabetes).",
+        reason: "Added sugar / sweet carb for your diabetes profile.",
       })
     }
   }
@@ -133,7 +133,7 @@ function localAllergyAnalysis(
       status: "caution",
       matched_category: "diabetes",
       matched_kb_entry: "sugars",
-      reason: "Nutrition sugars are elevated for a diabetes profile (offline check).",
+      reason: "Nutrition sugars are elevated for your diabetes profile.",
     })
   }
 
@@ -158,12 +158,13 @@ function localAllergyAnalysis(
     safety_score,
     nutri_score_grade: null as string | null,
     explanation: avoidCount
-      ? `**Avoid.** Offline check flagged ${allergy_flags.slice(0, 3).join(", ")} against your profile. Confirm the package.`
+      ? `**Avoid.** ${allergy_flags.slice(0, 3).join(", ")} matched your saved profile. Confirm the package.`
       : cautionCount
-        ? `**Caution.** Offline check found ${cautionCount} item(s) to watch for your saved conditions. Confirm the package.`
+        ? `**Caution.** ${cautionCount} item(s) need a quick check for your saved conditions. Confirm the package.`
         : ingredientNames.length
-          ? "**Safe** for your saved allergies/conditions based on an offline check. Confirm the package if anything looks incomplete."
+          ? "**Safe** for your saved allergies/conditions based on this label check. Confirm the package if anything looks incomplete."
           : "**Caution.** Product details came from Open Food Facts, but ingredients were incomplete.",
+    ai_source: "local",
   }
 }
 

@@ -124,6 +124,7 @@ export async function explainIngredientWithAi(input: {
   ingredient: string
   productName?: string
   conditions?: string[]
+  signal?: AbortSignal
 }) {
   const response = await fetch(`${requireApiBaseUrl()}/scan/ai/ingredient-explain`, {
     method: "POST",
@@ -133,6 +134,7 @@ export async function explainIngredientWithAi(input: {
       product_name: input.productName || null,
       conditions: input.conditions || profilePayload().conditions,
     }),
+    signal: input.signal,
   })
   const data = await response.json().catch(() => null)
   if (response.status === 401) {

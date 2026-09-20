@@ -27,9 +27,10 @@ DEFAULT_MODEL = "gemini-3.1-flash-lite"
 GOOGLE_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 TIMEOUT_SECONDS = 20
+CHIP_TIMEOUT_SECONDS = 7
 FALLBACK_TEXT = (
-    "We couldn't generate a live AI explanation right now, but the safety score "
-    "and allergy signals above are still valid. Confirm the package label."
+    "Safety score and allergy signals above still apply. "
+    "Confirm the package label if anything looks incomplete."
 )
 
 logger = logging.getLogger(__name__)
@@ -144,7 +145,7 @@ def _extract_openrouter_text(data: dict) -> str:
     return ""
 
 
-def _call_google(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float) -> str:
+def _call_google(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float, timeout: float) -> str:
     url = GOOGLE_ENDPOINT.format(model=model)
     headers = {
         "Content-Type": "application/json",
@@ -158,7 +159,7 @@ def _call_google(api_key: str, model: str, prompt: str, system_instructions: str
             "maxOutputTokens": max_output_tokens,
         },
     }
-    response = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT_SECONDS)
+    response = requests.post(url, headers=headers, json=payload, timeout=timeout)
     if response.status_code != 200:
         _set_status("template", f"google_http_{response.status_code}")
         logger.warning("Gemini Google HTTP %s", response.status_code)
@@ -170,7 +171,7 @@ def _call_google(api_key: str, model: str, prompt: str, system_instructions: str
         return ""
 
 
-def _call_openrouter(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float) -> str:
+def _call_openrouter(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float, timeout: float) -> str:
     routed_model = _normalize_openrouter_model(model)
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -191,7 +192,7 @@ def _call_openrouter(api_key: str, model: str, prompt: str, system_instructions:
         OPENROUTER_ENDPOINT,
         headers=headers,
         json=payload,
-        timeout=TIMEOUT_SECONDS,
+        timeout=timeout,
     )
     if response.status_code != 200:
         _set_status("template", f"openrouter_http_{response.status_code}")
@@ -210,6 +211,7 @@ def call_hosted_ai(
     system_instructions: str | None = None,
     max_output_tokens: int = 512,
     temperature: float = 0.35,
+    timeout_seconds: float | None = None,
 ) -> str:
     """
     Send a prompt to hosted Gemini (Google or OpenRouter) and return plain text.
@@ -227,15 +229,16 @@ def call_hosted_ai(
         return FALLBACK_TEXT
 
     system = system_instructions or SYSTEM_INSTRUCTIONS
+    timeout = float(timeout_seconds) if timeout_seconds is not None else float(TIMEOUT_SECONDS)
     try:
         if provider == "openrouter":
-            text = _call_openrouter(api_key, model, prompt, system, max_output_tokens, temperature)
+            text = _call_openrouter(api_key, model, prompt, system, max_output_tokens, temperature, timeout)
             if text:
                 _set_status("gemini", f"openrouter:{_normalize_openrouter_model(model)}")
                 return text
             return FALLBACK_TEXT
 
-        text = _call_google(api_key, model, prompt, system, max_output_tokens, temperature)
+        text = _call_google(api_key, model, prompt, system, max_output_tokens, temperature, timeout)
         if text:
             _set_status("gemini", f"google:{model}")
             return text

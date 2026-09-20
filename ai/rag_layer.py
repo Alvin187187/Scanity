@@ -40,7 +40,7 @@ def _local_corpus() -> list[dict[str, str]]:
             if not name:
                 continue
             aliases = " ".join(row.get("aliases") or [])
-            explanation = str(row.get("plain_explanation") or "").strip()
+            explanation = str(row.get("plain_explanation") or row.get("possible_effects") or "").strip()
             category = str(row.get("allergen_category") or "").strip()
             docs.append(
                 {
@@ -79,26 +79,62 @@ def _local_corpus() -> list[dict[str, str]]:
     return docs
 
 
+@lru_cache(maxsize=1)
+def _corpus_postings() -> dict[str, list[int]]:
+    """token -> doc indexes for O(tokens) retrieval instead of full scan."""
+    postings: dict[str, list[int]] = {}
+    for idx, doc in enumerate(_local_corpus()):
+        hay = _normalize(f"{doc.get('title','')} {doc.get('text','')}")
+        seen: set[str] = set()
+        for token in hay.split():
+            if len(token) < 3 or token in seen:
+                continue
+            seen.add(token)
+            postings.setdefault(token, []).append(idx)
+    return postings
+
+
 def retrieve_local(query: str, *, limit: int = 6) -> list[dict[str, str]]:
-    """Simple keyword retrieval over local allergen + ingredient knowledge."""
+    """Inverted-index keyword retrieval over local allergen + ingredient knowledge."""
     q = _normalize(query)
     if not q:
         return []
     tokens = [t for t in q.split() if len(t) >= 3]
+    corpus = _local_corpus()
+    postings = _corpus_postings()
+
+    candidate_scores: dict[int, int] = {}
+    for token in tokens:
+        for idx in postings.get(token, []):
+            candidate_scores[idx] = candidate_scores.get(idx, 0) + 2
+
+    # Exact / title boosts for a small candidate set.
     scored: list[tuple[int, dict[str, str]]] = []
-    for doc in _local_corpus():
+    for idx, base in candidate_scores.items():
+        doc = corpus[idx]
         hay = _normalize(f"{doc.get('title','')} {doc.get('text','')}")
-        score = 0
-        if q and q in hay:
+        score = base
+        if q in hay:
             score += 12
         title = _normalize(doc.get("title") or "")
         if title and (title in q or q in title):
             score += 10
-        for token in tokens:
-            if token in hay:
-                score += 2
-        if score:
-            scored.append((score, doc))
+        scored.append((score, doc))
+
+    # If inverted index missed (odd punctuation), fall back to title-only pass.
+    if not scored:
+        for doc in corpus[:1500]:
+            title = _normalize(doc.get("title") or "")
+            if not title:
+                continue
+            score = 0
+            if title == q or title in q or q in title:
+                score = 14
+            elif any(token in title for token in tokens):
+                score = 4
+            if score:
+                scored.append((score, doc))
+
     scored.sort(key=lambda item: (-item[0], item[1].get("title") or ""))
     return [doc for _, doc in scored[:limit]]
 

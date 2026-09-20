@@ -8107,25 +8107,46 @@ function IngredientExplainSheet({
       return
     }
     const existing = item.knowledge
-    const hasBody = Boolean(
-      existing?.what_it_is || existing?.commonly_seen_in || existing?.possible_effects,
+    const hasFullKnowledge = Boolean(existing?.what_it_is && existing?.possible_effects)
+    const instantBody = Boolean(
+      existing?.what_it_is ||
+        existing?.commonly_seen_in ||
+        existing?.possible_effects ||
+        item.plainExplanation ||
+        item.possibleEffects ||
+        item.reason,
     )
-    if (hasBody) {
-      setKnowledge(existing || null)
+    // Show local details immediately — never block the sheet on the network/AI.
+    if (instantBody) {
+      setKnowledge(
+        existing || {
+          title: item.name,
+          what_it_is: item.plainExplanation || item.reason || "",
+          possible_effects: item.possibleEffects || "",
+          affects_allergens: item.affectsAllergens || [],
+          affects_diets: item.affectsDiets || [],
+        },
+      )
       setError("")
       setLoading(false)
-      return
+      // Already have curated knowledge from the scan — skip the round-trip.
+      if (hasFullKnowledge) return
+    } else {
+      setLoading(true)
+      setKnowledge(null)
     }
+
     let cancelled = false
-    setLoading(true)
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 4500)
     setError("")
-    setKnowledge(null)
     void (async () => {
       try {
         const researched = await explainIngredientWithAi({
           ingredient: item.name,
           productName,
           conditions: conditionsForApi(),
+          signal: controller.signal,
         })
         if (cancelled) return
         setKnowledge({
@@ -8140,15 +8161,20 @@ function IngredientExplainSheet({
           aliases: researched.aliases,
         })
       } catch (err) {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : "Could not research this ingredient.")
-        setKnowledge(item.knowledge || null)
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return
+        if (!instantBody) {
+          setError(err instanceof Error ? err.message : "Could not research this ingredient.")
+          setKnowledge(item.knowledge || null)
+        }
       } finally {
+        window.clearTimeout(timeoutId)
         if (!cancelled) setLoading(false)
       }
     })()
     return () => {
       cancelled = true
+      controller.abort()
+      window.clearTimeout(timeoutId)
     }
   }, [item, productName])
 
@@ -8239,16 +8265,18 @@ function IngredientExplainSheet({
           </div>
         ) : null}
 
-        {loading ? (
+        {loading && !(resolved?.what_it_is || item.plainExplanation || item.reason) ? (
           <p style={{ margin: "18px 0 0", fontSize: 15, color: SOFT_SLATE.textSecondary }}>
             Looking this up...
           </p>
         ) : (
           <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-            {(resolved?.what_it_is || item.plainExplanation) && (
+            {(resolved?.what_it_is || item.plainExplanation || item.reason) && (
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>What it is</div>
-                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved?.what_it_is || item.plainExplanation}</p>
+                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>
+                  {resolved?.what_it_is || item.plainExplanation || item.reason}
+                </p>
               </div>
             )}
             {resolved?.commonly_seen_in && (
@@ -8271,7 +8299,7 @@ function IngredientExplainSheet({
               label="May affect dietary needs"
               values={resolved?.affects_diets || item.affectsDiets || []}
             />
-            {item.reason && (
+            {item.reason && item.reason !== (resolved?.what_it_is || item.plainExplanation) && (
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Why Scanity showed this</div>
                 <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>{item.reason}</p>
