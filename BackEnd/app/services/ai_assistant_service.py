@@ -19,13 +19,13 @@ def _template_chat(message: str, product: dict, profile: dict) -> str:
         flagged = ", ".join(str(item) for item in flags[:4])
         return (
             f"{verdict} for {name} based on the scan. Flagged items include {flagged}, "
-            f"checked against {allergies}. I can explain ingredients, but I am not a doctor — "
+            f"checked against {allergies}. I can explain ingredients, but I am not a doctor - "
             f"double-check the package if you are unsure."
         )
     return (
         f"For {name}, the scan says {verdict}. I did not see a clear allergy flag in the "
         f"saved result for {allergies}. Ask me about a specific ingredient if you want more detail. "
-        f"This is guidance only — confirm the label yourself."
+        f"This is guidance only - confirm the label yourself."
     )
 
 
@@ -45,7 +45,7 @@ def _template_report(product: dict, profile: dict) -> str:
     return (
         f"{verdict}. {name} was checked against your profile ({allergies}; health notes: {conditions})."
         f"{score_bit}{flag_bit} Nutri-Score is nutrition quality only and does not change the allergy result. "
-        f"This is a careful consumer summary, not medical advice — confirm ingredients on the package."
+        f"This is a careful consumer summary, not medical advice - confirm ingredients on the package."
     )
 
 

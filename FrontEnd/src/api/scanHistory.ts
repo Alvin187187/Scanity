@@ -111,7 +111,7 @@ export function restoreScanToHistory(scan: StoredScan, index = 0) {
 
 export function scoreFromVerdict(verdict: StoredScan["verdict"]): number {
   // Fallback only when the API did not return safety_score.
-  // Bands: 0–39 avoid, 40–69 caution, 70–100 safe.
+  // Bands: 0-39 avoid, 40-69 caution, 70-100 safe.
   if (verdict === "safe") return 100
   if (verdict === "caution") return 55
   if (verdict === "avoid") return 22
