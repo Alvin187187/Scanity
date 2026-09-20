@@ -56,6 +56,7 @@ import {
   sessionUserFromLogin,
   sessionUserFromRegister,
 } from "./api/session"
+import { applyThemeMode, loadThemeMode, toggleThemeMode, type ThemeMode } from "./api/theme"
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -4198,26 +4199,37 @@ function ScanRow({
 // shading) - every other screen still keeps the app's normal PALETTE/theme,
 // so don't reach for these elsewhere without a similar explicit reason.
 const SOFT_SLATE = {
-  bg: "#e9edf2",
-  raisedLg: "9px 9px 22px #c6ccd4, -9px -9px 22px #ffffff",
-  raisedMd: "8px 8px 20px #c6ccd4, -8px -8px 20px #ffffff",
-  raisedSm: "5px 5px 12px #c6ccd4, -5px -5px 12px #ffffff",
-  raisedBtn: "6px 6px 14px #c6ccd4, -4px -4px 10px #ffffff",
-  raisedBtnAlt: "6px 6px 14px #c6ccd4, -6px -6px 14px #ffffff",
-  raisedIconWell: "4px 4px 10px #c0a06a, -3px -3px 8px #ffffff",
-  insetLg: "inset 7px 7px 15px #c6ccd4, inset -7px -7px 15px #ffffff",
-  insetMd: "inset 5px 5px 11px #c6ccd4, inset -5px -5px 11px #ffffff",
-  insetSm: "inset 3px 3px 7px #c6ccd4, inset -3px -3px 7px #ffffff",
-  textPrimary: "#24292f",
-  textSecondary: "#565d64",
-  textMuted: "#5f666d",
-  green: "#1e6b3f",
-  gold: "#d8a02a",
-  caution: "#b8501f",
-  unsafe: "#c23a1f",
-  barDark: "#2b3138",
-  thumbBg: "#dfe4ea",
+  bg: "var(--ss-bg)",
+  raisedLg: "var(--ss-raised-lg)",
+  raisedMd: "var(--ss-raised-md)",
+  raisedSm: "var(--ss-raised-sm)",
+  raisedBtn: "var(--ss-raised-btn)",
+  raisedBtnAlt: "var(--ss-raised-btn-alt)",
+  raisedIconWell: "var(--ss-raised-icon)",
+  insetLg: "var(--ss-inset-lg)",
+  insetMd: "var(--ss-inset-md)",
+  insetSm: "var(--ss-inset-sm)",
+  textPrimary: "var(--ss-text-primary)",
+  textSecondary: "var(--ss-text-secondary)",
+  textMuted: "var(--ss-text-muted)",
+  green: "var(--ss-green)",
+  gold: "var(--ss-gold)",
+  caution: "var(--ss-caution)",
+  unsafe: "var(--ss-unsafe)",
+  barDark: "var(--ss-bar-dark)",
+  thumbBg: "var(--ss-thumb)",
   fontFamily: `"Plus Jakarta Sans", Archivo, ${FONT_BODY}`,
+  displayFont: `"Archivo", "Plus Jakarta Sans", ${FONT_BODY}`,
+  space: {
+    1: "var(--scanity-space-1)",
+    2: "var(--scanity-space-2)",
+    3: "var(--scanity-space-3)",
+    4: "var(--scanity-space-4)",
+    5: "var(--scanity-space-5)",
+    6: "var(--scanity-space-6)",
+    7: "var(--scanity-space-7)",
+    8: "var(--scanity-space-8)",
+  },
 }
 
 // ── Dashboard icon rail - 80px, icon-only, own palette ──────────────────────────
@@ -4404,6 +4416,7 @@ function DashboardIconRail({
             <Tooltip key={item.screen} label={item.label}>
               <button
                 type="button"
+                className="scanity-hit"
                 onClick={() => go(item.screen)}
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
@@ -4443,7 +4456,7 @@ function DashboardIconRail({
           style={{
             width: 32,
             height: 1,
-            background: "#c6ccd4",
+            background: "var(--ss-thumb)",
             margin: "auto 0 8px",
             flexShrink: 0,
           }}
@@ -4454,6 +4467,7 @@ function DashboardIconRail({
       <Tooltip label="Log out">
         <button
           type="button"
+          className="scanity-hit scanity-hit-raised"
           onClick={() => setShowLogoutConfirm(true)}
           aria-label="Log out"
           style={{
@@ -4585,9 +4599,44 @@ function DashboardIconRail({
   )
 }
 
+function useThemeMode() {
+  const [theme, setTheme] = useState<ThemeMode>(() => loadThemeMode())
+  useEffect(() => {
+    applyThemeMode(theme)
+    const onTheme = (event: Event) => {
+      const detail = (event as CustomEvent<ThemeMode>).detail
+      if (detail === "light" || detail === "dark") setTheme(detail)
+      else setTheme(loadThemeMode())
+    }
+    window.addEventListener("scanity-theme-updated", onTheme as EventListener)
+    return () => window.removeEventListener("scanity-theme-updated", onTheme as EventListener)
+  }, [theme])
+  const toggle = () => setTheme(toggleThemeMode())
+  return { theme, toggle }
+}
+
+function useProfileAvatarUrl() {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => loadProfileAvatar())
+  useEffect(() => {
+    const refresh = () => setAvatarUrl(loadProfileAvatar())
+    refresh()
+    window.addEventListener("focus", refresh)
+    window.addEventListener("storage", refresh)
+    window.addEventListener("scanity-avatar-updated", refresh)
+    return () => {
+      window.removeEventListener("focus", refresh)
+      window.removeEventListener("storage", refresh)
+      window.removeEventListener("scanity-avatar-updated", refresh)
+    }
+  }, [])
+  return avatarUrl
+}
+
 function DashboardScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   const greetingName = firstName(loadSessionUser()?.name || "")
+  const profileAvatarUrl = useProfileAvatarUrl()
+  const { theme, toggle: toggleTheme } = useThemeMode()
   const [recentScans, setRecentScans] = useState<ScanRecord[]>(() => loadScanRecords())
   useEffect(() => {
     setRecentScans(loadScanRecords())
@@ -4705,50 +4754,70 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                   display: "flex",
                   alignItems: "flex-start",
                   justifyContent: "space-between",
-                  gap: 20,
+                  gap: SOFT_SLATE.space[5],
+                  paddingBottom: SOFT_SLATE.space[1],
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="scanity-section-label">Scanity</div>
                   <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      color: SOFT_SLATE.textMuted,
-                    }}
-                  >
-                    Scanity
-                  </div>
-                  <div
+                    className="scanity-title"
                     style={{
                       fontSize: isDesktop ? 34 : 26,
-                      fontWeight: 800,
-                      letterSpacing: "-0.03em",
-                      color: SOFT_SLATE.textPrimary,
-                      marginTop: 6,
-                      lineHeight: 1.1,
+                      marginTop: SOFT_SLATE.space[2],
+                      fontFamily: SOFT_SLATE.displayFont,
                     }}
                   >
                     Hello, {greetingName}
                   </div>
                   <div
+                    className="scanity-body"
                     style={{
-                      fontSize: 14,
-                      color: SOFT_SLATE.textSecondary,
-                      marginTop: 8,
-                      maxWidth: 420,
-                      lineHeight: 1.45,
+                      fontSize: 14.5,
+                      marginTop: SOFT_SLATE.space[2],
+                      maxWidth: 440,
                     }}
                   >
                     Scan a product to see allergy safety and nutrition quality at a glance.
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ display: "flex", gap: SOFT_SLATE.space[3], flexShrink: 0 }}>
+                  <Tooltip label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+                    <button
+                      type="button"
+                      className="scanity-hit scanity-hit-raised"
+                      onClick={toggleTheme}
+                      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 14,
+                        background: SOFT_SLATE.bg,
+                        border: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        boxShadow: SOFT_SLATE.raisedSm,
+                        color: SOFT_SLATE.textPrimary,
+                      }}
+                    >
+                      {theme === "dark" ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <circle cx="12" cy="12" r="4" />
+                          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                        </svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+                        </svg>
+                      )}
+                    </button>
+                  </Tooltip>
                   <Tooltip label="Open profile">
                     <button
                       type="button"
+                      className="scanity-hit scanity-hit-raised"
                       onClick={() => go("profile")}
                       aria-label="Open profile"
                       style={{
@@ -4756,26 +4825,35 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                         height: 44,
                         borderRadius: "50%",
                         background: SOFT_SLATE.bg,
-                        border: "none",
+                        border: `2px solid ${SOFT_SLATE.green}`,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         boxShadow: SOFT_SLATE.raisedSm,
-                        cursor: "pointer",
+                        overflow: "hidden",
+                        padding: 0,
                       }}
                     >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke={SOFT_SLATE.green}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      >
-                        <circle cx="12" cy="8" r="4" />
-                        <path d="M6 21v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
-                      </svg>
+                      {profileAvatarUrl ? (
+                        <img
+                          src={profileAvatarUrl}
+                          alt=""
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke={SOFT_SLATE.green}
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        >
+                          <circle cx="12" cy="8" r="4" />
+                          <path d="M6 21v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
+                        </svg>
+                      )}
                     </button>
                   </Tooltip>
                 </div>
@@ -4906,9 +4984,10 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                     <div style={{ marginTop: 20, display: "flex", gap: 14 }}>
                       <button
                         type="button"
+                        className="scanity-hit"
                         onClick={() => go("barcode")}
                         style={{
-                          padding: "15px 26px",
+                          padding: `${SOFT_SLATE.space[4]} ${SOFT_SLATE.space[6]}`,
                           border: "none",
                           borderRadius: 16,
                           background: SOFT_SLATE.green,
@@ -4923,13 +5002,14 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                       </button>
                       <button
                         type="button"
+                        className="scanity-hit scanity-hit-raised"
                         onClick={() => go("barcode")}
                         style={{
-                          padding: "15px 26px",
+                          padding: `${SOFT_SLATE.space[4]} ${SOFT_SLATE.space[6]}`,
                           border: "none",
                           borderRadius: 16,
                           background: SOFT_SLATE.bg,
-                          color: "#4a5158",
+                          color: SOFT_SLATE.textPrimary,
                           fontSize: 14,
                           fontWeight: 700,
                           boxShadow: SOFT_SLATE.raisedBtnAlt,
@@ -4946,23 +5026,24 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                     style={{
                       display: "grid",
                       gridTemplateColumns: "1fr 1fr",
-                      gap: 18,
+                      gap: SOFT_SLATE.space[5],
                     }}
                   >
                     {actionCards.map((card) => (
                       <button
                         type="button"
+                        className="scanity-hit scanity-hit-raised"
                         key={card.label}
                         onClick={card.action}
                         style={{
                           background: SOFT_SLATE.bg,
                           border: "none",
                           borderRadius: 22,
-                          padding: 24,
+                          padding: SOFT_SLATE.space[6],
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "flex-start",
-                          gap: 14,
+                          gap: SOFT_SLATE.space[4],
                           boxShadow: SOFT_SLATE.raisedMd,
                           cursor: "pointer",
                           boxSizing: "border-box",
@@ -5013,26 +5094,32 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                     flex: "none",
                     background: SOFT_SLATE.bg,
                     borderRadius: 26,
-                    padding: "24px 22px",
+                    padding: SOFT_SLATE.space[6],
                     boxShadow: SOFT_SLATE.raisedLg,
                     boxSizing: "border-box",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ fontSize: 17, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: SOFT_SLATE.space[3] }}>
+                    <div
+                      className="scanity-title"
+                      style={{ fontSize: 17, fontFamily: SOFT_SLATE.displayFont }}
+                    >
                       Scan History
                     </div>
                     <button
                       type="button"
+                      className="scanity-hit"
                       onClick={() => go("history")}
                       style={{
                         border: "none",
-                        background: "none",
-                        padding: 0,
+                        background: SOFT_SLATE.bg,
+                        padding: `${SOFT_SLATE.space[2]} ${SOFT_SLATE.space[3]}`,
+                        borderRadius: 999,
                         fontSize: 12,
-                        fontWeight: 700,
+                        fontWeight: 800,
                         color: SOFT_SLATE.green,
                         cursor: "pointer",
+                        boxShadow: SOFT_SLATE.raisedSm,
                       }}
                     >
                       View All
@@ -5053,7 +5140,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                         No scans yet. Scan a barcode or nutrition label to start your history.
                       </div>
                     ) : (
-                    recentScans.map((scan) => {
+                    recentScans.slice(0, 5).map((scan) => {
                       const status = scanStatusInfo(scan.score)
                       const statusColor =
                         status.label === "Safe"
@@ -5064,14 +5151,15 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                       return (
                         <button
                           type="button"
+                          className="scanity-hit scanity-hit-raised"
                           key={`${scan.name}-${scan.time}`}
                           onClick={() => openStoredScan(scan.id, go)}
                           style={{
                             width: "100%",
                             display: "flex",
                             alignItems: "center",
-                            gap: 14,
-                            padding: "13px 15px",
+                            gap: SOFT_SLATE.space[4],
+                            padding: `${SOFT_SLATE.space[3]} ${SOFT_SLATE.space[4]}`,
                             border: "none",
                             borderRadius: 18,
                             background: SOFT_SLATE.bg,
@@ -13704,6 +13792,7 @@ function ProfileScreen({
                     <Tooltip label={avatarUrl ? "Change profile picture" : "Add profile picture"}>
                       <button
                         type="button"
+                        className="scanity-hit"
                         onClick={openAvatarPicker}
                         aria-label={avatarUrl ? "Change profile picture" : "Add profile picture"}
                         style={{
@@ -15686,15 +15775,12 @@ function LegalScreen({
 }
 function SettingsScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
+  const { theme, toggle: toggleTheme } = useThemeMode()
 
   const Section = ({ title }: { title: string }) => (
     <div
+      className="scanity-section-label"
       style={{
-        fontSize: 10.5,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: SOFT_SLATE.textMuted,
         margin: "0 0 10px 4px",
       }}
     >
@@ -15727,7 +15813,7 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
 
     return (
       <Tag
-        {...(onClick ? { type: "button" as const, onClick } : {})}
+        {...(onClick ? { type: "button" as const, onClick, className: "scanity-hit scanity-hit-raised" } : {})}
         style={{
           width: "100%",
           display: "flex",
@@ -15829,6 +15915,54 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
               <div style={{ fontSize: 14, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
                 Customize your Scanity experience
               </div>
+            </div>
+
+            {/* APPEARANCE */}
+            <div>
+              <Section title="Appearance" />
+              <Row
+                onClick={toggleTheme}
+                label="Dark mode"
+                sub={theme === "dark" ? "On — easier on the eyes at night" : "Off — bright Soft Slate look"}
+                right={
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 46,
+                      height: 28,
+                      borderRadius: 999,
+                      background: theme === "dark" ? SOFT_SLATE.green : SOFT_SLATE.thumbBg,
+                      boxShadow: SOFT_SLATE.insetSm,
+                      position: "relative",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 3,
+                        left: theme === "dark" ? 20 : 3,
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: "#fff",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        transition: "left 0.15s ease",
+                      }}
+                    />
+                  </span>
+                }
+                icon={
+                  theme === "dark" ? (
+                    <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+                  ) : (
+                    <>
+                      <circle cx="12" cy="12" r="4" />
+                      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                    </>
+                  )
+                }
+              />
             </div>
 
             {/* SECURITY */}
@@ -17752,6 +17886,9 @@ function persistScreenHistory(history: Screen[]) {
 }
 export default function App() {
   const [screen, setScreen] = useState<Screen>(readStoredScreen)
+  useEffect(() => {
+    applyThemeMode(loadThemeMode())
+  }, [])
   // Tracks where each `go()` was called from, so a screen that can be
   // reached from more than one place (like Forgot Password, opened from
   // either Login or Settings) can send the back button to wherever the

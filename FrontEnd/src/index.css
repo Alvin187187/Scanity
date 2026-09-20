@@ -14,16 +14,28 @@ html, body, #root {
   height: 100%;
 }
 
+html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 body {
-  font-family: 'Plus Jakarta Sans', 'Archivo', 'Poppins', sans-serif;
+  font-family: var(--scanity-font-body);
   font-size: 16px;
   line-height: 1.5;
   min-height: 100dvh;
   overflow-x: hidden;
+  background: var(--ss-bg);
+  color: var(--ss-text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 input::placeholder {
-  color: #B5A99F;
+  color: var(--ss-text-muted);
+  opacity: 0.85;
 }
 
 .sr-only {
@@ -42,12 +54,77 @@ input:focus {
   outline: none;
 }
 
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--ss-focus);
+  outline-offset: 3px;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #C4B5A8;
+  background: var(--ss-text-muted);
   border-radius: 4px;
+}
+
+/* Clear interactive affordances for Soft Slate controls */
+.scanity-hit {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    filter 0.15s ease;
+  cursor: pointer;
+}
+
+.scanity-hit:hover:not(:disabled) {
+  transform: translateY(var(--ss-hit-hover-lift, -1px));
+  filter: brightness(1.03);
+}
+
+.scanity-hit:active:not(:disabled) {
+  transform: scale(0.97);
+  filter: brightness(0.98);
+}
+
+.scanity-hit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.scanity-hit-inset:hover:not(:disabled) {
+  box-shadow: var(--ss-inset-sm);
+}
+
+.scanity-hit-raised:hover:not(:disabled) {
+  box-shadow: var(--ss-raised-md);
+}
+
+.scanity-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ss-text-muted);
+}
+
+.scanity-title {
+  font-family: var(--scanity-font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ss-text-primary);
+  line-height: 1.15;
+}
+
+.scanity-body {
+  font-family: var(--scanity-font-body);
+  color: var(--ss-text-secondary);
+  line-height: 1.5;
 }
 
 @keyframes deleteProgress {

@@ -1,5 +1,6 @@
 const USER_STORAGE_KEY = "scanityUser"
 const AVATAR_STORAGE_PREFIX = "scanityAvatar:"
+const AVATAR_UPDATED_EVENT = "scanity-avatar-updated"
 
 export type SessionUser = {
   name: string
@@ -9,41 +10,62 @@ export type SessionUser = {
   avatarUrl?: string
 }
 
-function avatarStorageKey(email: string) {
-  return `${AVATAR_STORAGE_PREFIX}${email.trim().toLowerCase()}`
+function avatarStorageKey(owner: string) {
+  return `${AVATAR_STORAGE_PREFIX}${owner}`
 }
 
-function readStoredAvatar(email: string): string | null {
-  if (!email.trim()) return null
+function avatarOwner(email?: string | null): string {
+  const session = readStoredUser()
+  const target = (email || session?.email || "").trim().toLowerCase()
+  // Always persist somewhere — empty email used to silently drop photos.
+  return target || "local"
+}
+
+function readStoredAvatar(owner: string): string | null {
+  if (!owner) return null
   try {
-    const raw = window.localStorage.getItem(avatarStorageKey(email))
+    const raw = window.localStorage.getItem(avatarStorageKey(owner))
     return raw && raw.startsWith("data:image") ? raw : null
   } catch {
     return null
   }
 }
 
+function notifyAvatarUpdated() {
+  try {
+    window.dispatchEvent(new Event(AVATAR_UPDATED_EVENT))
+  } catch {
+    /* ignore */
+  }
+}
+
 export function loadProfileAvatar(email?: string | null): string | null {
-  const session = readStoredUser()
-  const target = (email || session?.email || "").trim()
-  if (!target) return null
-  return readStoredAvatar(target)
+  const owner = avatarOwner(email)
+  const direct = readStoredAvatar(owner)
+  if (direct) return direct
+  // Fall back to previous local key if the user later gained an email.
+  if (owner !== "local") return readStoredAvatar("local")
+  return null
 }
 
 export function saveProfileAvatar(avatarUrl: string | null, email?: string | null) {
-  const session = readStoredUser()
-  const target = (email || session?.email || "").trim()
-  if (!target) return
+  const owner = avatarOwner(email)
   try {
     if (!avatarUrl) {
-      window.localStorage.removeItem(avatarStorageKey(target))
+      window.localStorage.removeItem(avatarStorageKey(owner))
+      notifyAvatarUpdated()
       return
     }
     // Keep avatars reasonably small for localStorage.
     if (avatarUrl.length > 1_800_000) {
       throw new Error("Profile picture is too large to save on this device.")
     }
-    window.localStorage.setItem(avatarStorageKey(target), avatarUrl)
+    window.localStorage.setItem(avatarStorageKey(owner), avatarUrl)
+    // Keep a local mirror so dashboard still finds it after email edits.
+    if (owner !== "local") {
+      window.localStorage.setItem(avatarStorageKey("local"), avatarUrl)
+    }
+    notifyAvatarUpdated()
   } catch (error) {
     throw error instanceof Error ? error : new Error("Could not save profile picture.")
   }
