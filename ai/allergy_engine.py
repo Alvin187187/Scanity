@@ -14,6 +14,7 @@ from seed.allergen_seed_loader import load_allergen_seed
 logger = logging.getLogger("allergy_engine")
 
 _SEED_CACHE = None
+_LOOKUP_CACHE = None
 
 # Maps free-text allergen names (as they may appear in a real user profile,
 # e.g. allergy_types.allergen_name) to the seed's canonical category slugs.
@@ -148,6 +149,13 @@ def _get_seed():
     return _SEED_CACHE
 
 
+def _get_lookups():
+    global _LOOKUP_CACHE
+    if _LOOKUP_CACHE is None:
+        _LOOKUP_CACHE = _build_lookup(_get_seed())
+    return _LOOKUP_CACHE
+
+
 def _normalize(text) -> str:
     """Lowercase, trim, collapse whitespace. Guards non-string input rather
     than crashing with AttributeError."""
@@ -202,10 +210,36 @@ def _build_lookup(seed):
         name_lookup[_normalize(row["ingredient_name"])] = row
         for alias in row["aliases"]:
             alias_lookup[_normalize(alias)] = row
-    return name_lookup, alias_lookup
+    sorted_names = sorted(name_lookup.keys(), key=len, reverse=True)
+    sorted_aliases = sorted(alias_lookup.keys(), key=len, reverse=True)
+    return name_lookup, alias_lookup, sorted_names, sorted_aliases
 
 
-def _match_ingredient(ingredient_text, name_lookup, alias_lookup):
+SKIP_CONTAINS_KEYS = {
+    "flavor",
+    "flavour",
+    "flavoring",
+    "flavouring",
+    "seasoning",
+    "extract",
+    "powder",
+    "natural",
+    "artificial",
+    "organic",
+    "blend",
+    "base",
+    "mix",
+    "sauce",
+    "oil",
+    "acid",
+    "color",
+    "colour",
+    "spice",
+    "spices",
+}
+
+
+def _match_ingredient(ingredient_text, name_lookup, alias_lookup, sorted_names, sorted_aliases):
     normalized = _normalize(ingredient_text)
     if not normalized:
         return None, "invalid_input"
@@ -216,16 +250,20 @@ def _match_ingredient(ingredient_text, name_lookup, alias_lookup):
     # Labels often bury an allergen inside a longer phrase ("contains milk solids").
     # Prefer longer keys and require word-boundary style matches to avoid
     # "rice" hitting inside unrelated tokens.
-    for key, row in sorted(name_lookup.items(), key=lambda item: len(item[0]), reverse=True):
-        if len(key) < 4:
+    for key in sorted_names:
+        if len(key) < 4 or len(key) > len(normalized):
+            continue
+        if key in SKIP_CONTAINS_KEYS:
             continue
         if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
-            return row, "contains_name"
-    for key, row in sorted(alias_lookup.items(), key=lambda item: len(item[0]), reverse=True):
-        if len(key) <= 3:
+            return name_lookup[key], "contains_name"
+    for key in sorted_aliases:
+        if len(key) < 5 or len(key) > len(normalized):
+            continue
+        if key in SKIP_CONTAINS_KEYS:
             continue
         if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
-            return row, "contains_alias"
+            return alias_lookup[key], "contains_alias"
     return None, "unmapped"
 
 
@@ -251,8 +289,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
 
         Unmapped or invalid ingredients return status "caution", never "safe".
     """
-    seed = _get_seed()
-    name_lookup, alias_lookup = _build_lookup(seed)
+    name_lookup, alias_lookup, sorted_names, sorted_aliases = _get_lookups()
     user_allergies_normalized = {_normalize_allergy_category(a) for a in (user_allergies or [])}
 
     flags = []
@@ -301,7 +338,13 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
             })
             continue
 
-        kb_entry, match_type = _match_ingredient(ingredient, name_lookup, alias_lookup)
+        kb_entry, match_type = _match_ingredient(
+            ingredient,
+            name_lookup,
+            alias_lookup,
+            sorted_names,
+            sorted_aliases,
+        )
 
         if kb_entry is None:
             # Known additives / pantry items from ingredient knowledge are

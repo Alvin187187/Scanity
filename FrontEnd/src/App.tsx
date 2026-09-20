@@ -49,7 +49,9 @@ import {
   firstName,
   formatJoinedLabel,
   getAccessToken,
+  loadProfileAvatar,
   loadSessionUser,
+  saveProfileAvatar,
   saveSessionUser,
   sessionUserFromLogin,
   sessionUserFromRegister,
@@ -4315,7 +4317,21 @@ function DashboardIconRail({
   }[]
 }) {
   const iconSize = isDesktop ? 42 : 36
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showLogoutLoading, setShowLogoutLoading] = useState(false)
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(false)
+    setShowLogoutLoading(true)
+    clearSessionUser()
+    setTimeout(() => {
+      setShowLogoutLoading(false)
+      go("splash")
+    }, 900)
+  }
+
   return (
+    <>
     <div
       style={{
         width: isDesktop ? 80 : "100%",
@@ -4438,7 +4454,7 @@ function DashboardIconRail({
       <Tooltip label="Log out">
         <button
           type="button"
-          onClick={() => go("splash")}
+          onClick={() => setShowLogoutConfirm(true)}
           aria-label="Log out"
           style={{
             marginTop: 0,
@@ -4472,6 +4488,100 @@ function DashboardIconRail({
         </button>
       </Tooltip>
     </div>
+
+    {showLogoutConfirm && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Confirm log out"
+        onClick={() => setShowLogoutConfirm(false)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 320,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          background: "rgba(20,20,20,0.55)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+        }}
+      >
+        <div
+          onClick={(event) => event.stopPropagation()}
+          style={{
+            width: "min(360px, 100%)",
+            background: SOFT_SLATE.bg,
+            borderRadius: 18,
+            padding: "24px 22px",
+            boxShadow: SOFT_SLATE.raisedLg,
+            fontFamily: SOFT_SLATE.fontFamily,
+            color: SOFT_SLATE.textPrimary,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Log out?</h3>
+          <p style={{ margin: "10px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
+            Are you sure you want to log out of Scanity?
+          </p>
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+            <button
+              type="button"
+              onClick={() => setShowLogoutConfirm(false)}
+              style={{
+                flex: 1,
+                minHeight: 44,
+                borderRadius: 12,
+                border: "none",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.raisedSm,
+                fontWeight: 700,
+                cursor: "pointer",
+                color: SOFT_SLATE.textPrimary,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                flex: 1,
+                minHeight: 44,
+                borderRadius: 12,
+                border: "none",
+                background: SOFT_SLATE.caution,
+                color: "#fff",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Log out
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {showLogoutLoading && (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 330,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(20,20,20,0.45)",
+          color: "#fff",
+          fontFamily: SOFT_SLATE.fontFamily,
+          fontWeight: 700,
+        }}
+      >
+        Logging out...
+      </div>
+    )}
+    </>
   )
 }
 
@@ -5265,7 +5375,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       setScanStatus("captured")
       stopCamera()
-      await new Promise((resolve) => setTimeout(resolve, 120))
       if (!isMountedRef.current) return
 
       setScanStatus("processing")
@@ -5306,7 +5415,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       }
 
       setScanStatus("success")
-      await new Promise((resolve) => setTimeout(resolve, 180))
       if (isMountedRef.current) go("productResult")
     } catch (error) {
       console.error("Barcode processing error:", error)
@@ -6791,7 +6899,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       stopCamera()
       setScanStatus("captured")
-      await new Promise((resolve) => setTimeout(resolve, 300))
 
       setScanStatus("ocrProcessing")
       let text = ""
@@ -6860,7 +6967,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         console.warn("Unable to save OCR result:", error)
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 400))
       setScanStatus("textPreview")
     } catch (error) {
       console.error("OCR processing error:", error)
@@ -6975,7 +7081,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setProductName(stored.name)
       setProductFound(true)
 
-      await new Promise((resolve) => setTimeout(resolve, 400))
       go("productResult")
     } catch (error) {
       console.error("Product lookup error:", error)
@@ -13129,8 +13234,10 @@ function ProfileScreen({
   const [draftEmail, setDraftEmail] = useState(email)
 
   // ── Profile picture ──────────────────────────────────────────────────────
-  const [avatarUrl, setAvatarUrl] =
-    useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
+    loadProfileAvatar(storedUser?.email),
+  )
+  const [avatarError, setAvatarError] = useState("")
 
   const avatarInputRef =
     useRef<HTMLInputElement>(null)
@@ -13145,18 +13252,55 @@ function ProfileScreen({
     const file = e.target.files?.[0]
 
     if (!file) return
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Please choose an image file.")
+      e.target.value = ""
+      return
+    }
 
     const reader = new FileReader()
 
     reader.onload = () => {
-      setAvatarUrl(reader.result as string)
+      const dataUrl = String(reader.result || "")
+      // Downscale large photos so localStorage can keep them.
+      const image = new Image()
+      image.onload = () => {
+        const maxSide = 512
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+        const width = Math.max(1, Math.round(image.width * scale))
+        const height = Math.max(1, Math.round(image.height * scale))
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          setAvatarError("Could not process this photo.")
+          return
+        }
+        ctx.drawImage(image, 0, 0, width, height)
+        const compressed = canvas.toDataURL("image/jpeg", 0.82)
+        try {
+          saveProfileAvatar(compressed, email)
+          setAvatarUrl(compressed)
+          setAvatarError("")
+        } catch (error) {
+          setAvatarError(error instanceof Error ? error.message : "Could not save profile picture.")
+        }
+      }
+      image.onerror = () => setAvatarError("Could not read this photo.")
+      image.src = dataUrl
     }
 
+    reader.onerror = () => setAvatarError("Could not read this photo.")
     reader.readAsDataURL(file)
 
     // Allow re-selecting the same file later
     e.target.value = ""
   }
+
+  useEffect(() => {
+    setAvatarUrl(loadProfileAvatar(email))
+  }, [email])
 
   // ── Saved preferences ────────────────────────────────────────────────────
   const [savedAllergies, setSavedAllergies] =
@@ -13598,6 +13742,12 @@ function ProfileScreen({
                         </svg>
                       </button>
                     </Tooltip>
+
+                    {avatarError ? (
+                      <p style={{ margin: "10px 0 0", fontSize: 12, color: SOFT_SLATE.caution, lineHeight: 1.4 }}>
+                        {avatarError}
+                      </p>
+                    ) : null}
 
                     {!editingIdentity && (
                       <Tooltip

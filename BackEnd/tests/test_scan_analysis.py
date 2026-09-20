@@ -27,7 +27,7 @@ def test_sugar_and_e100_use_knowledge_not_flagged():
 
 
 def test_unmapped_ingredient_is_caution_not_safe():
-    result = analyze_ingredients(["mystery flavoring"], user_allergies=["milk"])
+    result = analyze_ingredients(["zxq999qqx"], user_allergies=["milk"])
     assert result["verdict"] == "caution"
     assert result["allergy_flags"] == []
 

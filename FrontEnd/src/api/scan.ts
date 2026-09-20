@@ -1,11 +1,10 @@
 import { requireApiBaseUrl } from "./auth"
-import { analyzeOcrText } from "./ocr"
 import { getAccessToken } from "./session"
 
 type AllergyList = string[]
 
-const OFF_TIMEOUT_MS = 20_000
-const API_TIMEOUT_MS = 18_000
+const OFF_TIMEOUT_MS = 12_000
+const API_TIMEOUT_MS = 10_000
 
 function readError(data: any, fallback: string) {
   const detail = data?.detail
@@ -246,30 +245,8 @@ async function lookupViaOpenFoodFacts(
   )
   analysis.nutri_score_grade = nutriFromOff
 
-  if (ingredientNames.length && getAccessToken()) {
-    try {
-      const remote = await analyzeOcrText({
-        edited_ingredients: ingredientNames,
-        user_allergies: userAllergies,
-        user_conditions: userConditions,
-        product_name: product.product_name || product.product_name_en || "Scanned product",
-        extracted_text: product.ingredients_text || ingredientNames.join(", "),
-      })
-      analysis = {
-        allergy_flags: remote.allergy_flags || [],
-        allergy_matches: remote.allergy_matches || [],
-        label_insights: remote.label_insights || [],
-        verdict: remote.verdict || analysis.verdict,
-        safety_score: remote.safety_score ?? analysis.safety_score,
-        nutri_score_grade: remote.nutri_score_grade || remote.score || nutriFromOff,
-        explanation: remote.explanation || analysis.explanation,
-        ai_source: remote.ai_source,
-      }
-    } catch {
-      // Keep offline / OFF analysis so phone scans still succeed.
-    }
-  }
-
+  // Keep OFF path fast: local rules only. Full server analysis already runs on
+  // /scan/barcode when the API is reachable; chip tap still does AI research.
   return {
     product: {
       product_id: `off-${barcode}`,
@@ -293,7 +270,7 @@ async function lookupViaOpenFoodFacts(
     safety_score: analysis.safety_score ?? null,
     nutri_score_grade: analysis.nutri_score_grade || null,
     explanation: analysis.explanation || null,
-    ai_source: analysis.ai_source || null,
+    ai_source: analysis.ai_source || "local",
     source: "openfoodfacts-fallback",
   }
 }

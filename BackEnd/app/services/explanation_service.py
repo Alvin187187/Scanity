@@ -88,7 +88,16 @@ def _call_ollama(prompt: str) -> str:
     return text
 
 
-def explain_scan(allergy_result: dict, nutrition_result: dict | None, verdict: str) -> str:
+def explain_scan(
+    allergy_result: dict,
+    nutrition_result: dict | None,
+    verdict: str,
+    *,
+    use_hosted_ai: bool = True,
+) -> str:
+    if not use_hosted_ai:
+        return _template_explanation(allergy_result, nutrition_result, verdict)
+
     prompt = build_explainer_prompt(allergy_result, nutrition_result, verdict)
     flagged_names = [
         str(item.get("ingredient") or "")

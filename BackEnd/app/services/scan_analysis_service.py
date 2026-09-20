@@ -81,6 +81,8 @@ def analyze_ingredients(
     user_allergies: list[str] | None = None,
     nutrition: dict | None = None,
     user_conditions: list[str] | None = None,
+    *,
+    use_hosted_ai: bool = False,
 ) -> dict:
     flags = [
         enrich_flag_with_knowledge(item)
@@ -114,12 +116,14 @@ def analyze_ingredients(
         "safety_score": safety_score,
         "conditions": user_conditions or [],
     }
+    # Scan path stays fast: rules decide verdict/score; Gemini is for chat/chips.
     explanation = explain_scan(
         allergy_result,
         nutrition_result if (grade or nutrition) else None,
         verdict.capitalize(),
+        use_hosted_ai=use_hosted_ai,
     )
-    ai_status = last_ai_status()
+    ai_status = last_ai_status() if use_hosted_ai else {"source": "template", "detail": "scan_fast_path"}
     return {
         "allergy_flags": [
             item["ingredient"]
