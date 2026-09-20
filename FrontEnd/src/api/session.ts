@@ -1,10 +1,52 @@
 const USER_STORAGE_KEY = "scanityUser"
+const AVATAR_STORAGE_PREFIX = "scanityAvatar:"
 
 export type SessionUser = {
   name: string
   email: string
   joinedAt: string
   accessToken?: string
+  avatarUrl?: string
+}
+
+function avatarStorageKey(email: string) {
+  return `${AVATAR_STORAGE_PREFIX}${email.trim().toLowerCase()}`
+}
+
+function readStoredAvatar(email: string): string | null {
+  if (!email.trim()) return null
+  try {
+    const raw = window.localStorage.getItem(avatarStorageKey(email))
+    return raw && raw.startsWith("data:image") ? raw : null
+  } catch {
+    return null
+  }
+}
+
+export function loadProfileAvatar(email?: string | null): string | null {
+  const session = readStoredUser()
+  const target = (email || session?.email || "").trim()
+  if (!target) return null
+  return readStoredAvatar(target)
+}
+
+export function saveProfileAvatar(avatarUrl: string | null, email?: string | null) {
+  const session = readStoredUser()
+  const target = (email || session?.email || "").trim()
+  if (!target) return
+  try {
+    if (!avatarUrl) {
+      window.localStorage.removeItem(avatarStorageKey(target))
+      return
+    }
+    // Keep avatars reasonably small for localStorage.
+    if (avatarUrl.length > 1_800_000) {
+      throw new Error("Profile picture is too large to save on this device.")
+    }
+    window.localStorage.setItem(avatarStorageKey(target), avatarUrl)
+  } catch (error) {
+    throw error instanceof Error ? error : new Error("Could not save profile picture.")
+  }
 }
 
 function readStoredUser(): SessionUser | null {

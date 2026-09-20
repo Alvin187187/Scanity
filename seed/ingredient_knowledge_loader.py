@@ -74,11 +74,16 @@ def _build_index(rows: list[dict]) -> dict[str, dict]:
     return index
 
 
+@lru_cache(maxsize=1)
+def _knowledge_index() -> dict[str, dict]:
+    return _build_index(load_ingredient_knowledge())
+
+
 def lookup_ingredient_knowledge(ingredient: str) -> dict | None:
     """Return knowledge for an ingredient name or E-number, or None."""
     if not isinstance(ingredient, str) or not ingredient.strip():
         return None
-    index = _build_index(load_ingredient_knowledge())
+    index = _knowledge_index()
     normalized = _normalize(ingredient)
     direct = index.get(normalized)
     if direct:
