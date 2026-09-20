@@ -8,6 +8,7 @@ from app.schemas.ocr import AllergyMatchOut, LabelInsightOut
 class BarcodeScanRequest(BaseModel):
     barcode: str
     user_allergies: list[str] = Field(default_factory=list)
+    user_conditions: list[str] = Field(default_factory=list)
 
 
 class IngredientOut(BaseModel):

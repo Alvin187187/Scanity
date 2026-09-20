@@ -13,6 +13,7 @@ from app.services.ai_assistant_service import (
     answer_product_question,
     build_safety_report,
 )
+from app.services.ingredient_explain_service import explain_ingredient
 
 router = APIRouter()
 
@@ -56,6 +57,24 @@ class SafetyReportResponse(BaseModel):
     report: str
 
 
+class IngredientExplainRequest(BaseModel):
+    ingredient: str
+    product_name: str | None = None
+    conditions: list[str] = Field(default_factory=list)
+
+
+class IngredientExplainResponse(BaseModel):
+    ingredient: str
+    title: str
+    category: str = ""
+    what_it_is: str = ""
+    commonly_seen_in: str = ""
+    possible_effects: str = ""
+    source: str = ""
+    aliases: list[str] = Field(default_factory=list)
+    ai_source: str = "csv"
+
+
 @router.post("/scan/ai/chat", response_model=AiChatResponse)
 async def ai_chat(
     request: AiChatRequest,
@@ -81,3 +100,16 @@ async def ai_safety_report(
         focus=request.focus,
     )
     return SafetyReportResponse(report=report)
+
+
+@router.post("/scan/ai/ingredient-explain", response_model=IngredientExplainResponse)
+async def ai_ingredient_explain(
+    request: IngredientExplainRequest,
+    _current_user: dict = Depends(get_current_user),
+):
+    data = explain_ingredient(
+        request.ingredient,
+        product_name=request.product_name,
+        profile_conditions=request.conditions,
+    )
+    return IngredientExplainResponse(**data)

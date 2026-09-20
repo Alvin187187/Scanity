@@ -56,6 +56,16 @@ export function allergyCategoriesForApi(profile = loadHealthProfile()): string[]
     .map((id) => ALLERGY_CATEGORY[id] || id)
     .filter(Boolean)
   if (profile.otherAllergy?.trim()) mapped.push(profile.otherAllergy.trim())
+  // Lactose intolerance is stored as a condition in the UI, but dairy matching
+  // also needs the milk allergy category so scans treat dairy correctly.
+  if (profile.conditions.includes("lactose")) mapped.push("milk")
+  if (profile.conditions.includes("celiac")) mapped.push("wheat")
+  return Array.from(new Set(mapped))
+}
+
+export function conditionsForApi(profile = loadHealthProfile()): string[] {
+  const mapped = profile.conditions.filter((id) => id && id !== "none" && id !== "other")
+  if (profile.otherCondition?.trim()) mapped.push(profile.otherCondition.trim())
   return Array.from(new Set(mapped))
 }
 
@@ -92,6 +102,7 @@ function profileFromApi(data: any): HealthProfile {
 
 /** Pull the signed-in user's profile from the API and cache it locally. */
 export async function syncHealthProfileFromServer(): Promise<HealthProfile> {
+  const localBefore = loadHealthProfile()
   const response = await fetch(`${requireApiBaseUrl()}/users/me`, {
     method: "GET",
     headers: authHeaders(),
@@ -107,9 +118,30 @@ export async function syncHealthProfileFromServer(): Promise<HealthProfile> {
         : "Could not load your health profile.",
     )
   }
-  const profile = profileFromApi(data)
-  saveHealthProfile(profile)
-  return profile
+  const remote = profileFromApi(data)
+  const hasRemote =
+    remote.allergies.length > 0 ||
+    remote.conditions.length > 0 ||
+    Boolean(remote.otherAllergy?.trim()) ||
+    Boolean(remote.otherCondition?.trim())
+  const hasLocal =
+    localBefore.allergies.length > 0 ||
+    localBefore.conditions.length > 0 ||
+    Boolean(localBefore.otherAllergy?.trim()) ||
+    Boolean(localBefore.otherCondition?.trim())
+
+  // Do not wipe a filled local profile with an empty server row.
+  if (!hasRemote && hasLocal) {
+    try {
+      return await persistHealthProfile(localBefore)
+    } catch {
+      saveHealthProfile(localBefore)
+      return localBefore
+    }
+  }
+
+  saveHealthProfile(remote)
+  return remote
 }
 
 /** Save locally and push to the API so the profile survives restarts. */

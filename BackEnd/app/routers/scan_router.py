@@ -42,6 +42,7 @@ async def scan_barcode(
         ingredient_names,
         request.user_allergies,
         product.get("nutrition"),
+        request.user_conditions,
     )
 
     nutrition = product.get("nutrition") or {}

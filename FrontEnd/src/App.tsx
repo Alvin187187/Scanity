@@ -15,12 +15,13 @@ import orangeJuiceImg from "@/imports/orange_juice_scanity.jpeg"
 import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
-import { askAiAboutProduct, requestSafetyReport, type AiChatMessage } from "./api/ai"
-import { loginUser, registerUser, wakeApi } from "./api/auth"
+import { askAiAboutProduct, explainIngredientWithAi, requestSafetyReport, type AiChatMessage } from "./api/ai"
+import { loginUser, registerUser, wakeApi, requireApiBaseUrl } from "./api/auth"
 import { lookupBarcodeProduct } from "./api/scan"
 import { analyzeOcrText, extractOcrImage } from "./api/ocr"
 import {
   allergyCategoriesForApi,
+  conditionsForApi,
   loadHealthProfile,
   persistHealthProfile,
   saveHealthProfile,
@@ -47,6 +48,7 @@ import {
   clearSessionUser,
   firstName,
   formatJoinedLabel,
+  getAccessToken,
   loadSessionUser,
   saveSessionUser,
   sessionUserFromLogin,
@@ -5217,7 +5219,11 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const lookupBarcode = async (barcode: string) => {
     const cleanBarcode = barcode.trim()
     try {
-      const data = await lookupBarcodeProduct(cleanBarcode, allergyCategoriesForApi())
+      const data = await lookupBarcodeProduct(
+        cleanBarcode,
+        allergyCategoriesForApi(),
+        conditionsForApi(),
+      )
 
       if (
         data?.found === false ||
@@ -6946,6 +6952,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         extracted_text: extractedText,
         edited_ingredients: finalIngredients,
         user_allergies: allergyCategoriesForApi(),
+        user_conditions: conditionsForApi(),
         product_name: "Label scan",
       })
 
@@ -7944,13 +7951,70 @@ type IngredientSheetPayload = {
 function IngredientExplainSheet({
   item,
   onClose,
+  productName,
 }: {
   item: IngredientSheetPayload | null
   onClose: () => void
+  productName?: string
 }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [knowledge, setKnowledge] = useState<IngredientKnowledge | null | undefined>(undefined)
+
+  useEffect(() => {
+    if (!item) {
+      setKnowledge(undefined)
+      setError("")
+      setLoading(false)
+      return
+    }
+    const existing = item.knowledge
+    const hasBody = Boolean(
+      existing?.what_it_is || existing?.commonly_seen_in || existing?.possible_effects,
+    )
+    if (hasBody) {
+      setKnowledge(existing || null)
+      setError("")
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError("")
+    setKnowledge(null)
+    void (async () => {
+      try {
+        const researched = await explainIngredientWithAi({
+          ingredient: item.name,
+          productName,
+          conditions: conditionsForApi(),
+        })
+        if (cancelled) return
+        setKnowledge({
+          title: researched.title,
+          category: researched.category,
+          what_it_is: researched.what_it_is,
+          commonly_seen_in: researched.commonly_seen_in,
+          possible_effects: researched.possible_effects,
+          source: researched.source,
+          aliases: researched.aliases,
+        })
+      } catch (err) {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : "Could not research this ingredient.")
+        setKnowledge(item.knowledge || null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [item, productName])
+
   if (!item) return null
-  const knowledge = item.knowledge
-  const title = knowledge?.title || item.name
+  const resolved = knowledge === undefined ? item.knowledge : knowledge
+  const title = resolved?.title || item.name
   const status = String(item.status || "").toLowerCase()
   const statusColor =
     status === "avoid" ? SOFT_SLATE.unsafe : status === "caution" ? SOFT_SLATE.caution : SOFT_SLATE.green
@@ -7989,8 +8053,8 @@ function IngredientExplainSheet({
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
           <div style={{ minWidth: 0 }}>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>{title}</h2>
-            {knowledge?.category ? (
-              <p style={{ margin: "6px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted }}>{knowledge.category}</p>
+            {resolved?.category ? (
+              <p style={{ margin: "6px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted }}>{resolved.category}</p>
             ) : null}
           </div>
           <button
@@ -8014,7 +8078,7 @@ function IngredientExplainSheet({
           </button>
         </div>
 
-        {status ? (
+        {status && status !== "info" ? (
           <div
             style={{
               marginTop: 14,
@@ -8035,40 +8099,44 @@ function IngredientExplainSheet({
           </div>
         ) : null}
 
-        <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
-          {(knowledge?.what_it_is || item.plainExplanation) && (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>What it is</div>
-              <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{knowledge?.what_it_is || item.plainExplanation}</p>
-            </div>
-          )}
-          {knowledge?.commonly_seen_in && (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Commonly seen in</div>
-              <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{knowledge.commonly_seen_in}</p>
-            </div>
-          )}
-          {knowledge?.possible_effects && (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>If not controlled / watch-outs</div>
-              <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{knowledge.possible_effects}</p>
-            </div>
-          )}
-          {item.reason && (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Why Scanity showed this</div>
-              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>{item.reason}</p>
-            </div>
-          )}
-          {knowledge?.source && (
-            <p style={{ margin: 0, fontSize: 12, color: SOFT_SLATE.textMuted }}>Source: {knowledge.source}</p>
-          )}
-          {!knowledge && !item.plainExplanation && (
-            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>
-              No CSV note yet for this item. Confirm the package label if you are unsure.
-            </p>
-          )}
-        </div>
+        {loading ? (
+          <p style={{ margin: "18px 0 0", fontSize: 15, color: SOFT_SLATE.textSecondary }}>
+            Looking this up (CSV first, then AI research)...
+          </p>
+        ) : (
+          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+            {(resolved?.what_it_is || item.plainExplanation) && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>What it is</div>
+                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved?.what_it_is || item.plainExplanation}</p>
+              </div>
+            )}
+            {resolved?.commonly_seen_in && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Commonly seen in</div>
+                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved.commonly_seen_in}</p>
+              </div>
+            )}
+            {resolved?.possible_effects && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>If not controlled / watch-outs</div>
+                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>{resolved.possible_effects}</p>
+              </div>
+            )}
+            {item.reason && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>Why Scanity showed this</div>
+                <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>{item.reason}</p>
+              </div>
+            )}
+            {resolved?.source && (
+              <p style={{ margin: 0, fontSize: 12, color: SOFT_SLATE.textMuted }}>Source: {resolved.source}</p>
+            )}
+            {error && (
+              <p style={{ margin: 0, fontSize: 13, color: SOFT_SLATE.caution }}>{error}</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -8875,7 +8943,11 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         </div>
       )}
 
-      <IngredientExplainSheet item={ingredientSheet} onClose={() => setIngredientSheet(null)} />
+      <IngredientExplainSheet
+        item={ingredientSheet}
+        productName={productName}
+        onClose={() => setIngredientSheet(null)}
+      />
     </div>
   )
 }
@@ -13596,6 +13668,29 @@ function ProfileScreen({
                                 storedUser?.joinedAt ||
                                 new Date().toISOString(),
                             })
+                            const profile = loadHealthProfile()
+                            void persistHealthProfile({
+                              ...profile,
+                            }).catch(() => {})
+                            // Push display name to /users/me when signed in.
+                            void (async () => {
+                              try {
+                                const token = (await import("./api/session")).getAccessToken()
+                                if (!token) return
+                                const { requireApiBaseUrl } = await import("./api/auth")
+                                await fetch(`${requireApiBaseUrl()}/users/me`, {
+                                  method: "PUT",
+                                  headers: {
+                                    Accept: "application/json",
+                                    Authorization: `Bearer ${token}`,
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({ full_name: nextName }),
+                                })
+                              } catch {
+                                // Local session still updated.
+                              }
+                            })()
                             setEditingIdentity(false)
                           }}
                           style={{

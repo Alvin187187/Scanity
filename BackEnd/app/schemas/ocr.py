@@ -21,6 +21,7 @@ class LabelInsightOut(BaseModel):
     possible_effects: str = ""
     source: str = ""
     aliases: list[str] = Field(default_factory=list)
+    needs_ai: bool = False
 
 
 class OCRScanRequest(BaseModel):
@@ -30,6 +31,7 @@ class OCRScanRequest(BaseModel):
     edited_ingredients: Optional[list[str]] = None
     extracted_text: Optional[str] = None
     user_allergies: list[str] = Field(default_factory=list)
+    user_conditions: list[str] = Field(default_factory=list)
     product_name: Optional[str] = None
 
 
