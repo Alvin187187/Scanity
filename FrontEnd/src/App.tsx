@@ -4310,31 +4310,34 @@ function DashboardIconRail({
     path: ReactNode
   }[]
 }) {
+  const iconSize = isDesktop ? 42 : 36
   return (
     <div
       style={{
         width: isDesktop ? 80 : "100%",
-        height: isDesktop ? "100%" : 72,
+        maxWidth: "100%",
+        height: isDesktop ? "100%" : 64,
         flex: "none",
         background: SOFT_SLATE.bg,
-        borderRadius: 26,
-        padding: isDesktop ? "36px 0 6px" : "0 18px",
+        borderRadius: isDesktop ? 26 : 20,
+        padding: isDesktop ? "36px 0 6px" : "0 10px",
         display: "flex",
         flexDirection: isDesktop ? "column" : "row",
         alignItems: "center",
-        justifyContent: isDesktop ? "flex-start" : "space-between",
-        gap: isDesktop ? 32 : 20,
+        justifyContent: isDesktop ? "flex-start" : "flex-start",
+        gap: isDesktop ? 32 : 6,
         boxShadow: SOFT_SLATE.raisedLg,
         fontFamily: SOFT_SLATE.fontFamily,
         boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       {/* Brand leaf mark */}
       <Tooltip label="Scanity">
         <div
           style={{
-            width: 42,
-            height: 42,
+            width: iconSize,
+            height: iconSize,
             borderRadius: 14,
             background: SOFT_SLATE.bg,
             display: "flex",
@@ -4345,8 +4348,8 @@ function DashboardIconRail({
           }}
         >
           <svg
-            width="19"
-            height="19"
+            width={isDesktop ? 19 : 16}
+            height={isDesktop ? 19 : 16}
             viewBox="0 0 24 24"
             fill="none"
             stroke={SOFT_SLATE.green}
@@ -4365,9 +4368,14 @@ function DashboardIconRail({
           display: "flex",
           flexDirection: isDesktop ? "column" : "row",
           alignItems: "center",
-          gap: isDesktop ? 20 : 12,
-          flex: isDesktop ? undefined : 1,
-          justifyContent: isDesktop ? undefined : "center",
+          gap: isDesktop ? 20 : 4,
+          flex: 1,
+          minWidth: 0,
+          justifyContent: isDesktop ? undefined : "space-evenly",
+          overflowX: isDesktop ? undefined : "auto",
+          overflowY: "hidden",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
         }}
       >
         {navItems.map((item) => {
@@ -4380,8 +4388,8 @@ function DashboardIconRail({
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 style={{
-                  width: 42,
-                  height: 42,
+                  width: iconSize,
+                  height: iconSize,
                   borderRadius: 14,
                   border: "none",
                   background: isActive ? SOFT_SLATE.bg : "transparent",
@@ -4390,11 +4398,12 @@ function DashboardIconRail({
                   justifyContent: "center",
                   cursor: "pointer",
                   boxShadow: isActive ? SOFT_SLATE.insetMd : "none",
+                  flexShrink: 0,
                 }}
               >
                 <svg
-                  width="17"
-                  height="17"
+                  width={isDesktop ? 17 : 15}
+                  height={isDesktop ? 17 : 15}
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke={isActive ? SOFT_SLATE.green : SOFT_SLATE.textMuted}
@@ -4409,10 +4418,6 @@ function DashboardIconRail({
         })}
       </div>
 
-      {/* Divider - sits right above logout; the auto top-margin here (not on
-          logout) is what pushes this whole bottom group down to the bottom
-          of the rail, so the divider and the logout icon stay right next to
-          each other instead of drifting apart. */}
       {isDesktop && (
         <div
           style={{
@@ -4425,7 +4430,7 @@ function DashboardIconRail({
         />
       )}
 
-      {/* Logout - pinned to the bottom of the rail, right under the divider */}
+      {/* Logout stays inside the rail on mobile */}
       <Tooltip label="Log out">
         <button
           type="button"
@@ -4433,9 +4438,10 @@ function DashboardIconRail({
           aria-label="Log out"
           style={{
             marginTop: 0,
+            marginLeft: isDesktop ? 0 : 2,
             flexShrink: 0,
-            width: 42,
-            height: 42,
+            width: iconSize,
+            height: iconSize,
             borderRadius: 14,
             border: "none",
             background: SOFT_SLATE.bg,
@@ -4447,8 +4453,8 @@ function DashboardIconRail({
           }}
         >
           <svg
-            width="17"
-            height="17"
+            width={isDesktop ? 17 : 15}
+            height={isDesktop ? 17 : 15}
             viewBox="0 0 24 24"
             fill="none"
             stroke={SOFT_SLATE.caution}
@@ -5088,15 +5094,11 @@ const BARCODE_ICON_PATH: ReactNode = (
   </>
 )
 
-// Barcode Scanner's own rail set: Dashboard, this screen, then the usual
-// Settings/Help/About - same pattern SCAN_HISTORY_RAIL_ITEMS uses on the
-// Scan History screen.
+// Barcode rail stays compact on phones so logout never spills outside the bar.
 const BARCODE_RAIL_ITEMS: { screen: Screen; label: string; path: ReactNode }[] = [
   DASHBOARD_RAIL_ITEMS[0],
   { screen: "barcode", label: "Barcode Scanner", path: BARCODE_ICON_PATH },
-  DASHBOARD_RAIL_ITEMS[1],
   DASHBOARD_RAIL_ITEMS[2],
-  DASHBOARD_RAIL_ITEMS[3],
 ]
 
 // Soft-tinted status backgrounds - the exact pairs scanStatusInfo() uses on
@@ -5280,7 +5282,11 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
           explanation: result?.explanation,
           allergyFlags: result?.allergy_flags,
           allergyMatches: result?.allergy_matches,
-          nutrition: product.nutrition,
+          nutrition: Object.fromEntries(
+            Object.entries(product.nutrition || {}).filter(
+              ([, value]) => typeof value === "number" && Number.isFinite(value),
+            ),
+          ) as Record<string, number | undefined>,
           safetyScore: result?.safety_score,
         })
         appendScanHistory(stored)
@@ -7744,7 +7750,7 @@ function SafetySpeedGauge({ score }: { score: number }) {
             Safety score
           </div>
           <div style={{ marginTop: 4, fontSize: 13, color: SOFT_SLATE.textSecondary }}>
-            Allergy fit for your profile · 0-100
+            How well this product fits your allergies (0-100)
           </div>
         </div>
         <div style={{ fontSize: 34, fontWeight: 800, color: band.color, letterSpacing: "-0.03em", lineHeight: 1 }}>
@@ -7779,28 +7785,136 @@ function SafetySpeedGauge({ score }: { score: number }) {
 function nutritionRows(nutrition?: Record<string, number | undefined> | null) {
   if (!nutrition) return [] as { label: string; value: string }[]
   const pairs: { key: string; label: string; suffix: string }[] = [
-    { key: "energy_kj", label: "Energy", suffix: " kJ" },
+    { key: "energy_kcal", label: "Energy", suffix: " kcal" },
     { key: "energyKcal100g", label: "Energy", suffix: " kcal" },
+    { key: "energy_kj", label: "Energy", suffix: " kJ" },
+    { key: "energy-kcal_100g", label: "Energy", suffix: " kcal" },
     { key: "sugars_g", label: "Sugars", suffix: " g" },
     { key: "sugars100g", label: "Sugars", suffix: " g" },
+    { key: "sugars_100g", label: "Sugars", suffix: " g" },
     { key: "sat_fat_g", label: "Sat. fat", suffix: " g" },
     { key: "saturatedFat100g", label: "Sat. fat", suffix: " g" },
+    { key: "saturated-fat_100g", label: "Sat. fat", suffix: " g" },
     { key: "sodium_mg", label: "Sodium", suffix: " mg" },
     { key: "sodium100g", label: "Sodium", suffix: " g" },
+    { key: "sodium_100g", label: "Sodium", suffix: " g" },
     { key: "fiber_g", label: "Fiber", suffix: " g" },
     { key: "fiber100g", label: "Fiber", suffix: " g" },
+    { key: "fiber_100g", label: "Fiber", suffix: " g" },
     { key: "protein_g", label: "Protein", suffix: " g" },
     { key: "proteins100g", label: "Protein", suffix: " g" },
+    { key: "proteins_100g", label: "Protein", suffix: " g" },
   ]
   const seen = new Set<string>()
   const rows: { label: string; value: string }[] = []
   for (const pair of pairs) {
-    const raw = nutrition[pair.key]
-    if (typeof raw !== "number" || !Number.isFinite(raw) || seen.has(pair.label)) continue
+    const raw = (nutrition as Record<string, unknown>)[pair.key]
+    const value =
+      typeof raw === "number"
+        ? raw
+        : typeof raw === "string" && raw.trim() && !Number.isNaN(Number(raw))
+          ? Number(raw)
+          : null
+    if (value == null || !Number.isFinite(value) || seen.has(pair.label)) continue
     seen.add(pair.label)
-    rows.push({ label: pair.label, value: `${raw}${pair.suffix}` })
+    rows.push({ label: pair.label, value: `${Number(value.toFixed(2))}${pair.suffix}` })
   }
   return rows
+}
+
+function ExplainThisButton({
+  label = "Explain this",
+  onClick,
+  busy,
+}: {
+  label?: string
+  onClick: () => void
+  busy?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      style={{
+        border: "none",
+        borderRadius: 999,
+        padding: "8px 12px",
+        background: SOFT_SLATE.bg,
+        boxShadow: SOFT_SLATE.raisedSm,
+        color: SOFT_SLATE.green,
+        fontFamily: SOFT_SLATE.fontFamily,
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: busy ? "wait" : "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        opacity: busy ? 0.7 : 1,
+      }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+        <path d="M12 3v2" />
+        <path d="M12 19v2" />
+        <path d="M5 12H3" />
+        <path d="M21 12h-2" />
+        <circle cx="12" cy="12" r="5" />
+      </svg>
+      {busy ? "Explaining..." : label}
+    </button>
+  )
+}
+
+function renderCoachMarkdown(text: string): ReactNode {
+  const blocks = String(text || "").trim().split(/\n{2,}/)
+  if (!blocks.length) return null
+
+  const inline = (line: string, keyPrefix: string): ReactNode[] => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g)
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return (
+          <strong key={`${keyPrefix}-b-${index}`} style={{ fontWeight: 800 }}>
+            {part.slice(2, -2)}
+          </strong>
+        )
+      }
+      return <span key={`${keyPrefix}-t-${index}`}>{part}</span>
+    })
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {blocks.map((block, blockIndex) => {
+        const lines = block.split(/\n/).map((line) => line.trim()).filter(Boolean)
+        const bulletLines = lines.filter((line) => /^[-*•]\s+/.test(line))
+        if (bulletLines.length >= 2 && bulletLines.length === lines.length) {
+          return (
+            <ul
+              key={`blk-${blockIndex}`}
+              style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}
+            >
+              {lines.map((line, lineIndex) => (
+                <li key={`li-${blockIndex}-${lineIndex}`} style={{ lineHeight: 1.5 }}>
+                  {inline(line.replace(/^[-*•]\s+/, ""), `li-${blockIndex}-${lineIndex}`)}
+                </li>
+              ))}
+            </ul>
+          )
+        }
+        return (
+          <p key={`p-${blockIndex}`} style={{ margin: 0, lineHeight: 1.55 }}>
+            {lines.map((line, lineIndex) => (
+              <span key={`ln-${blockIndex}-${lineIndex}`}>
+                {lineIndex > 0 && <br />}
+                {inline(line.replace(/^[-*•]\s+/, ""), `p-${blockIndex}-${lineIndex}`)}
+              </span>
+            ))}
+          </p>
+        )
+      })}
+    </div>
+  )
 }
 
 function AllergySignalsCard({
@@ -8139,7 +8253,23 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           </div>
 
           <div style={{ marginBottom: 26 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+                Allergy safety for you
+              </div>
+              <ExplainThisButton
+                busy={reportBusy}
+                onClick={() =>
+                  void runSafetyReport(
+                    "Explain this safety score in simple words for my allergies. Use short bullets if helpful.",
+                  )
+                }
+              />
+            </div>
             <SafetySpeedGauge score={safetyScore} />
+            <p style={{ margin: "12px 0 0", fontSize: 12.5, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
+              Starts high when nothing in this product hits your saved allergies. It only drops a lot when an ingredient matches your profile.
+            </p>
           </div>
 
           <div
@@ -8151,16 +8281,26 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               marginBottom: 26,
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted, marginBottom: 14 }}>
-              Nutrition quality
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+                Nutrition quality
+              </div>
+              <ExplainThisButton
+                busy={reportBusy}
+                onClick={() =>
+                  void runSafetyReport(
+                    "Explain this Nutri-Score and the nutrition numbers in plain language. Remind me it is separate from allergy safety. Use short bullets if helpful.",
+                  )
+                }
+              />
             </div>
             <GradeScale grade={grade} />
             <p style={{ margin: "16px 0 0", fontSize: 13, color: SOFT_SLATE.textSecondary, lineHeight: 1.55 }}>
               {grade
-                ? `Grade ${grade.toUpperCase()} - ${gradeLabels[grade]}. Nutri-Score reflects ingredient/nutrition quality only; it is separate from your allergy safety score.`
-                : "Nutrition grade unavailable for this product. Safety score above still applies to your allergy profile."}
+                ? `Grade ${grade.toUpperCase()} - ${gradeLabels[grade]}. Nutri-Score is general nutrition quality only; it does not change your allergy safety score.`
+                : "Nutrition grade unavailable for this product. Your allergy safety score above still applies."}
             </p>
-            {nutrients.length > 0 && (
+            {nutrients.length > 0 ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
                 {nutrients.map((row) => (
                   <div key={row.label} style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
@@ -8168,6 +8308,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                     <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800 }}>{row.value}</div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div style={{ marginTop: 16, padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm, fontSize: 12.5, color: SOFT_SLATE.textMuted }}>
+                No detailed nutrition numbers were included for this product in Open Food Facts.
               </div>
             )}
           </div>
@@ -8182,8 +8326,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 14, marginBottom: 18 }}>
             <button
               type="button"
-              onClick={() => void runSafetyReport("full safety overview for my allergies and health conditions")}
-              disabled={reportBusy}
+              onClick={() => setChatOpen(true)}
               style={{
                 flex: 1,
                 minHeight: 54,
@@ -8194,12 +8337,11 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 fontFamily: SOFT_SLATE.fontFamily,
                 fontSize: 13,
                 fontWeight: 700,
-                cursor: reportBusy ? "wait" : "pointer",
+                cursor: "pointer",
                 boxShadow: SOFT_SLATE.raisedBtn,
-                opacity: reportBusy ? 0.75 : 1,
               }}
             >
-              {reportBusy ? "Building report..." : "Safety report"}
+              Ask AI chat
             </button>
             <button
               type="button"
@@ -8246,8 +8388,8 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           </div>
 
           {reportText && !chatOpen && (
-            <div style={{ marginBottom: 20, padding: 16, borderRadius: 18, boxShadow: SOFT_SLATE.insetSm, fontSize: 13.5, lineHeight: 1.55, color: SOFT_SLATE.textPrimary }}>
-              {reportText}
+            <div style={{ marginBottom: 20, padding: 16, borderRadius: 18, boxShadow: SOFT_SLATE.insetSm, fontSize: 13.5, color: SOFT_SLATE.textPrimary }}>
+              {renderCoachMarkdown(reportText)}
             </div>
           )}
         </Center>
@@ -8394,7 +8536,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                   lineHeight: 1.5,
                 }}
               >
-                {item.content}
+                {item.role === "assistant" ? renderCoachMarkdown(item.content) : item.content}
               </div>
             ))}
             <div ref={chatEndRef} />
