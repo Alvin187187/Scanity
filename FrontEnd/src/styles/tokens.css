@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="light"] {
   /* Scanity Colors */
   --scanity-green: #2D6A4F;
   --scanity-green-light: #7DC242;
@@ -39,10 +40,11 @@
   --scanity-grade-e: var(--scanity-danger);
 
   /* Typography */
-  --scanity-font-heading: "General Sans", "Inter", sans-serif;
-  --scanity-font-body: "General Sans", "Inter", sans-serif;
+  --scanity-font-heading: "Plus Jakarta Sans", "Archivo", "Poppins", sans-serif;
+  --scanity-font-body: "Plus Jakarta Sans", "Archivo", "Poppins", sans-serif;
+  --scanity-font-display: "Archivo", "Plus Jakarta Sans", sans-serif;
 
-  /* Spacing */
+  /* Spacing scale */
   --scanity-space-1: 4px;
   --scanity-space-2: 8px;
   --scanity-space-3: 12px;
@@ -65,25 +67,112 @@
   --scanity-shadow-lg: 0 12px 30px rgba(26, 18, 9, 0.12);
 
   /* Additional Scanity UI tokens */
---scanity-green-dark: #5c3d20;
---scanity-green-soft: #e8f4ec;
---scanity-green-text: #2d6a4f;
+  --scanity-green-dark: #5c3d20;
+  --scanity-green-soft: #e8f4ec;
+  --scanity-green-text: #2d6a4f;
 
---scanity-danger-bg: #fbeaea;
---scanity-danger-text: #b3261e;
+  --scanity-danger-text: #b3261e;
+  --scanity-warning-text: #8a6300;
 
---scanity-warning-text: #8a6300;
+  --scanity-blue: #3b6ea8;
+  --scanity-blue-soft: #edf4fc;
 
---scanity-blue: #3b6ea8;
---scanity-blue-soft: #edf4fc;
+  --scanity-red: #c94c4c;
+  --scanity-red-soft: #fbecec;
 
---scanity-red: #c94c4c;
---scanity-red-soft: #fbecec;
+  --scanity-brown: #593217;
 
---scanity-brown: #593217;
+  --scanity-sidebar-bg: #2d6a4f;
+  --scanity-sidebar-dark: #24553f;
 
---scanity-sidebar-bg: #2d6a4f;
---scanity-sidebar-dark: #24553f;
+  --scanity-yellow: #c98a1f;
 
---scanity-yellow: #c98a1f;
+  /* Soft Slate surfaces (dashboard / history / scanners) */
+  --ss-bg: #e6ebf1;
+  --ss-raised-lg: 9px 9px 22px #c4cad3, -9px -9px 22px #ffffff;
+  --ss-raised-md: 8px 8px 20px #c4cad3, -8px -8px 20px #ffffff;
+  --ss-raised-sm: 5px 5px 12px #c4cad3, -5px -5px 12px #ffffff;
+  --ss-raised-btn: 6px 6px 14px #c4cad3, -4px -4px 10px #ffffff;
+  --ss-raised-btn-alt: 6px 6px 14px #c4cad3, -6px -6px 14px #ffffff;
+  --ss-raised-icon: 4px 4px 10px #c0a06a, -3px -3px 8px #ffffff;
+  --ss-inset-lg: inset 7px 7px 15px #c4cad3, inset -7px -7px 15px #ffffff;
+  --ss-inset-md: inset 5px 5px 11px #c4cad3, inset -5px -5px 11px #ffffff;
+  --ss-inset-sm: inset 3px 3px 7px #c4cad3, inset -3px -3px 7px #ffffff;
+  --ss-text-primary: #1a1f26;
+  --ss-text-secondary: #3f4750;
+  --ss-text-muted: #4a525c;
+  --ss-green: #176338;
+  --ss-gold: #b8861a;
+  --ss-caution: #a64412;
+  --ss-unsafe: #b43318;
+  --ss-bar-dark: #2b3138;
+  --ss-thumb: #d8dee6;
+  --ss-focus: #176338;
+  --ss-overlay: rgba(20, 24, 28, 0.48);
+  --ss-hit-hover-lift: -1px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --scanity-green: #3f9a66;
+  --scanity-green-light: #8fd45a;
+  --scanity-green-mid: #56b07f;
+  --scanity-mocha: #c4a07a;
+  --scanity-mocha-dark: #e2c4a4;
+  --scanity-mocha-light: #d2b496;
+  --scanity-mocha-pale: #2a241e;
+  --scanity-white: #1c2128;
+  --scanity-off-white: #161a20;
+  --scanity-black: #f3f6fa;
+  --scanity-gray: #6b7380;
+  --scanity-gray-light: #2a3038;
+  --scanity-input-bg: #252b33;
+  --scanity-border: #3a424d;
+
+  --scanity-success: #5dcb6a;
+  --scanity-warning: #e6c24a;
+  --scanity-danger: #f07166;
+  --scanity-danger-bg: #3a2220;
+
+  --scanity-gold: #e0b04a;
+  --scanity-gold-dark: #f0c56a;
+  --scanity-text-on-dark: #f3f6fa;
+
+  --scanity-green-soft: #1d3328;
+  --scanity-green-text: #8fd4a8;
+  --scanity-danger-text: #ffb4a8;
+  --scanity-warning-text: #f0d27a;
+  --scanity-blue-soft: #1d2a3a;
+  --scanity-red-soft: #3a2220;
+  --scanity-sidebar-bg: #1e3d2e;
+  --scanity-sidebar-dark: #162e23;
+
+  --ss-bg: #1a1f26;
+  --ss-raised-lg: 8px 8px 18px #101318, -6px -6px 14px #262c36;
+  --ss-raised-md: 7px 7px 16px #101318, -5px -5px 12px #262c36;
+  --ss-raised-sm: 4px 4px 10px #101318, -4px -4px 10px #262c36;
+  --ss-raised-btn: 5px 5px 12px #101318, -3px -3px 8px #262c36;
+  --ss-raised-btn-alt: 5px 5px 12px #101318, -5px -5px 12px #262c36;
+  --ss-raised-icon: 4px 4px 10px #3a2e18, -3px -3px 8px #262c36;
+  --ss-inset-lg: inset 6px 6px 12px #101318, inset -6px -6px 12px #262c36;
+  --ss-inset-md: inset 4px 4px 9px #101318, inset -4px -4px 9px #262c36;
+  --ss-inset-sm: inset 3px 3px 6px #101318, inset -3px -3px 6px #262c36;
+  --ss-text-primary: #f2f5f8;
+  --ss-text-secondary: #c2c8d0;
+  --ss-text-muted: #a7afb9;
+  --ss-green: #4db87a;
+  --ss-gold: #e0b04a;
+  --ss-caution: #f08a4b;
+  --ss-unsafe: #f07166;
+  --ss-bar-dark: #0f1318;
+  --ss-thumb: #2a3038;
+  --ss-focus: #4db87a;
+  --ss-overlay: rgba(4, 6, 8, 0.62);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+  }
 }
