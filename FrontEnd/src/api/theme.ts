@@ -9,9 +9,6 @@ export function loadThemeMode(): ThemeMode {
   } catch {
     /* ignore */
   }
-  if (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
-    return "dark"
-  }
   return "light"
 }
 
@@ -31,8 +28,11 @@ export function saveThemeMode(mode: ThemeMode) {
 
 export function applyThemeMode(mode: ThemeMode = loadThemeMode()) {
   if (typeof document === "undefined") return
-  document.documentElement.dataset.theme = mode
-  document.documentElement.style.colorScheme = mode
+  const root = document.documentElement
+  root.classList.add("theme-switching")
+  root.dataset.theme = mode
+  root.style.colorScheme = mode
+  window.setTimeout(() => root.classList.remove("theme-switching"), 200)
 }
 
 export function toggleThemeMode(): ThemeMode {

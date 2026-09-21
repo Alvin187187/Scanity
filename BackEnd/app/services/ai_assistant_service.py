@@ -88,12 +88,15 @@ def _template_chat(message: str, product: dict, profile: dict) -> str:
 
     # Default: short, question-aware acknowledgment + only needed context
     lines = [
-        f"On **{name}**, Scanity's result is **{verdict}**.",
+        f"On {name}, Scanity's result is {verdict}.",
     ]
     if flags:
-        lines.append("- Notable items: " + ", ".join(f"**{item}**" for item in flags[:4]) + ".")
+        lines.append("- Notable items: " + ", ".join(flags[:4]) + ".")
     elif allergies:
-        lines.append(f"- Checked against: **{', '.join(allergies[:3])}**.")
+        lines.append(f"- Checked against: {', '.join(allergies[:3])}.")
+    score = product.get("safety_score")
+    if score is not None:
+        lines.append(f"- Allergy safety score on this scan: {score}/100.")
     lines.append("- Ask me about a specific ingredient, or whether this looks okay for you.")
     return "\n".join(lines)
 
@@ -106,14 +109,14 @@ def _template_report(product: dict, profile: dict) -> str:
     conditions = ", ".join(str(item) for item in (profile.get("conditions") or [])[:4]) or "none saved"
     flags = [str(item) for item in (product.get("allergy_flags") or []) if str(item).strip()]
     lines = [
-        f"**{verdict}** for **{name}**.",
-        f"- Checked with your notes: **{allergies}**"
-        + (f"; health notes: **{conditions}**." if conditions != "none saved" else "."),
+        f"{verdict} for {name}.",
+        f"- Checked with your notes: {allergies}"
+        + (f"; health notes: {conditions}." if conditions != "none saved" else "."),
     ]
     if score is not None:
-        lines.append(f"- Safety score: **{score}/100**.")
+        lines.append(f"- Safety score: {score}/100.")
     if flags:
-        lines.append("- Watch-outs: " + ", ".join(f"**{item}**" for item in flags[:5]) + ".")
+        lines.append("- Watch-outs: " + ", ".join(str(item) for item in flags[:5]) + ".")
     else:
         lines.append("- No avoid-level allergy flags on this scan.")
     lines.append("- Nutri-Score is about nutrition quality, not allergy safety.")

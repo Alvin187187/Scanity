@@ -27,6 +27,7 @@ class ProductContextIn(BaseModel):
     nutri_score_grade: str | None = None
     explanation: str | None = None
     ingredients: list[str] = Field(default_factory=list)
+    ingredients_text: str | None = None
     allergy_flags: list[str] = Field(default_factory=list)
     allergy_matches: list[dict] = Field(default_factory=list)
 
