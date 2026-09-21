@@ -102,6 +102,8 @@ export function appendScanHistory(scan: StoredScan) {
 export function markScanFavorite(id: string, favorite = true) {
   const next = readList().map((item) => (item.id === id ? { ...item, favorite } : item))
   window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+  const active = loadActiveScan()
+  if (active?.id === id) saveActiveScan({ ...active, favorite })
   notifyHistoryUpdated()
 }
 

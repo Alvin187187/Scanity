@@ -37,6 +37,7 @@ function productPayload(scan: StoredScan | null) {
       nutri_score_grade: null,
       explanation: null,
       ingredients: [] as string[],
+      ingredients_text: null as string | null,
       allergy_flags: [] as string[],
       allergy_matches: [] as AllergySignal[],
     }
@@ -50,6 +51,7 @@ function productPayload(scan: StoredScan | null) {
     nutri_score_grade: scan.grade,
     explanation: scan.explanation || null,
     ingredients: scan.ingredients || [],
+    ingredients_text: scan.ingredientsText || null,
     allergy_flags: scan.allergens || [],
     allergy_matches: scan.allergySignals || [],
   }

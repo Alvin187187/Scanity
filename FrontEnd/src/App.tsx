@@ -105,6 +105,8 @@ const C = {
 
   sidebarBg: "var(--scanity-sidebar-bg)",
   sidebarDark: "var(--scanity-sidebar-dark)",
+  onGreen: "var(--scanity-on-green)",
+  onAccent: "var(--scanity-on-accent)",
 
   yellow: "var(--scanity-yellow)",
 }
@@ -116,30 +118,30 @@ const FONT = "var(--scanity-font-body)"
 
 // ── Light-theme design tokens ─────────────────────────────────────────────────
 const PALETTE = {
-  page: "#E8E5E0",
-  panel: "#FFFFFF",
+  page: "var(--scanity-page)",
+  panel: "var(--scanity-panel)",
 
-  green: "#176B3A",
-  greenDark: "#124F2A",
-  greenMid: "#2E8B57",
-  greenLight: "#E7F3EC",
-  greenText: "#1F7A44",
+  green: "var(--scanity-palette-green)",
+  greenDark: "var(--scanity-palette-green-dark)",
+  greenMid: "var(--scanity-green-mid)",
+  greenLight: "var(--scanity-palette-green-light)",
+  greenText: "var(--scanity-green-text)",
 
-  textDark: "#1A1A1A",
-  textMuted: "#6B6B6B",
+  textDark: "var(--scanity-text)",
+  textMuted: "var(--scanity-text-muted)",
 
-  border: "#E5E3DC",
+  border: "var(--scanity-border)",
 
-  danger: "#D94A4A",
-  dangerBg: "#FBEAEA",
+  danger: "var(--scanity-danger)",
+  dangerBg: "var(--scanity-danger-bg)",
 
   gold: C.greenLight,
-  goldDark: "#d8a650",
+  goldDark: "var(--scanity-gold-dark)",
 
-  brown: "#593217",
+  brown: "var(--scanity-brown)",
 
-  cautionText: "#8A6300",
-  dangerText: "#B3261E",
+  cautionText: "var(--scanity-warning-text)",
+  dangerText: "var(--scanity-danger-text)",
 }
 
 const cardShadow = "0 5px 0 rgba(0,0,0,0.08)"
@@ -517,7 +519,7 @@ function PrimaryBtn({
         border: "none",
 
         background: hover ? C.mochaDark : color,
-        color: C.white,
+        color: C.onAccent,
 
         fontFamily: FONT_HEAD,
         fontWeight: 700,
@@ -620,11 +622,23 @@ const SIDEBAR_MENU: {
   icon: string
   label: string
   screen: Screen
+  openSaved?: boolean
 }[] = [
   {
     icon: "fa-home",
     label: "Dashboard",
     screen: "dashboard",
+  },
+  {
+    icon: "fa-history",
+    label: "Scan History",
+    screen: "history",
+  },
+  {
+    icon: "fa-bookmark",
+    label: "Saved products",
+    screen: "history",
+    openSaved: true,
   },
   {
     icon: "fa-gear",
@@ -725,8 +739,8 @@ function AppSidebar({
 
               background: `linear-gradient(
                 180deg,
-                ${PALETTE.green} 0%,
-                ${PALETTE.greenDark} 100%
+                ${C.sidebarBg} 0%,
+                ${C.sidebarDark} 100%
               )`,
 
               boxShadow:
@@ -853,7 +867,7 @@ function AppSidebar({
                       background:
                         "rgba(255,255,255,0.08)",
 
-                      color: C.white,
+                      color: C.onGreen,
 
                       cursor: "pointer",
 
@@ -890,10 +904,15 @@ function AppSidebar({
 
                 return (
                   <button
-                    key={item.screen}
+                    key={item.label}
                     type="button"
                     onClick={() => {
                       onClose()
+                      if (item.openSaved) {
+                        openSavedProducts(go)
+                        return
+                      }
+                      if (item.screen === "history") saveHistoryFilter("all")
                       go(item.screen)
                     }}
                     style={{
@@ -941,9 +960,9 @@ function AppSidebar({
                         style={{
                           fontSize: 15,
 
-                          color: isActive
-                            ? C.greenLight
-                            : "rgba(255,255,255,0.85)",
+                        color: isActive
+                            ? C.onAccent
+                            : "rgba(255,255,255,0.92)",
 
                           transition:
                             "color 0.18s ease",
@@ -962,7 +981,7 @@ function AppSidebar({
 
                         fontSize: 12.5,
 
-                        color: C.white,
+                        color: C.onAccent,
 
                         letterSpacing: "0.01em",
                       }}
@@ -1045,7 +1064,7 @@ function AppSidebar({
                     fontFamily: FONT_BODY,
                     fontWeight: 600,
                     fontSize: 12.5,
-                    color: C.white,
+                    color: C.onAccent,
                   }}
                 >
                   Logout
@@ -1219,7 +1238,7 @@ function AppSidebar({
 
                   background: PALETTE.green,
 
-                  color: C.white,
+                  color: C.onAccent,
 
                   fontFamily: FONT_HEAD,
                   fontWeight: 700,
@@ -2958,7 +2977,7 @@ function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
               borderRadius: 14,
               border: "none",
               background: buttonActive ? C.mochaDark : C.mocha,
-              color: C.white,
+              color: C.onAccent,
               fontFamily: FONT_HEAD,
               fontWeight: 700,
               fontSize: 14,
@@ -3316,7 +3335,7 @@ function HealthScreen({ go }: { go: (s: Screen) => void }) {
               borderRadius: 14,
               border: "none",
               background: buttonActive ? C.mochaDark : C.mocha,
-              color: C.white,
+              color: C.onAccent,
               fontFamily: FONT_HEAD,
               fontWeight: 700,
               fontSize: 14,
@@ -3975,14 +3994,42 @@ function openStoredScan(id: string | undefined, go: (s: Screen) => void) {
   if (match) saveActiveScan(match)
   go("productResult")
 }
+
+const HISTORY_FILTER_KEY = "scanityHistoryFilter"
+
+function loadHistoryFilter(): "all" | "saved" {
+  try {
+    return window.sessionStorage.getItem(HISTORY_FILTER_KEY) === "saved" ? "saved" : "all"
+  } catch {
+    return "all"
+  }
+}
+
+function saveHistoryFilter(filter: "all" | "saved") {
+  try {
+    window.sessionStorage.setItem(HISTORY_FILTER_KEY, filter)
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.dispatchEvent(new CustomEvent("scanity-history-filter", { detail: filter }))
+  } catch {
+    /* ignore */
+  }
+}
+
+function openSavedProducts(go: (s: Screen) => void) {
+  saveHistoryFilter("saved")
+  go("history")
+}
 // Colors are the same Soft Slate status hues DashboardIconRail's logout icon
 // and the Dashboard's own Scan History panel use (SOFT_SLATE.green/caution/
 // unsafe), so a score reads the same way on both screens.
 function scanStatusInfo(score: number): { label: string; color: string; bg: string } {
   // Matches backend safety_score bands: 0-39 Avoid, 40-69 Caution, 70-100 Safe.
-  if (score >= 70) return { label: "Safe", color: SOFT_SLATE.green, bg: "#E1EBE5" }
-  if (score >= 40) return { label: "Caution", color: SOFT_SLATE.caution, bg: "#F1E3D8" }
-  return { label: "Avoid", color: SOFT_SLATE.unsafe, bg: "#F1DEDA" }
+  if (score >= 70) return { label: "Safe", color: SOFT_SLATE.green, bg: "var(--ss-status-safe-bg)" }
+  if (score >= 40) return { label: "Caution", color: SOFT_SLATE.caution, bg: "var(--ss-status-caution-bg)" }
+  return { label: "Avoid", color: SOFT_SLATE.unsafe, bg: "var(--ss-status-avoid-bg)" }
 }
 // ── "1a Grouped activity list" ───────────────────────────────────────────────
 // Scan History layout: date sections, one panel per group, hairline
@@ -4240,10 +4287,17 @@ const SOFT_SLATE = {
 // Default nav set for DashboardIconRail - Dashboard's own four links. Scan
 // History passes its own SCAN_HISTORY_RAIL_ITEMS (below) instead, via the
 // `navItems` prop, so this default and Dashboard's call sites are untouched.
+const BOOKMARK_ICON_PATH: ReactNode = (
+  <>
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </>
+)
+
 const DASHBOARD_RAIL_ITEMS: {
   screen: Screen
   label: string
   path: ReactNode
+  openSaved?: boolean
 }[] = [
   {
     screen: "dashboard",
@@ -4254,6 +4308,22 @@ const DASHBOARD_RAIL_ITEMS: {
         <path d="M9 22V12h6v10" />
       </>
     ),
+  },
+  {
+    screen: "history",
+    label: "Scan History",
+    path: (
+      <>
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </>
+    ),
+  },
+  {
+    screen: "history",
+    label: "Saved products",
+    path: BOOKMARK_ICON_PATH,
+    openSaved: true,
   },
   {
     screen: "settings",
@@ -4305,27 +4375,25 @@ const SCAN_HISTORY_RAIL_ITEMS: {
   screen: Screen
   label: string
   path: ReactNode
-}[] = [
-  DASHBOARD_RAIL_ITEMS[0],
-  { screen: "history", label: "Scan History", path: CLOCK_ICON_PATH },
-  DASHBOARD_RAIL_ITEMS[1],
-  DASHBOARD_RAIL_ITEMS[2],
-  DASHBOARD_RAIL_ITEMS[3],
-]
+  openSaved?: boolean
+}[] = DASHBOARD_RAIL_ITEMS
 
 function DashboardIconRail({
   go,
   isDesktop,
   active = "dashboard",
+  savedActive = false,
   navItems = DASHBOARD_RAIL_ITEMS,
 }: {
   go: (s: Screen) => void
   isDesktop: boolean
   active?: Screen
+  savedActive?: boolean
   navItems?: {
     screen: Screen
     label: string
     path: ReactNode
+    openSaved?: boolean
   }[]
 }) {
   const iconSize = isDesktop ? 42 : 36
@@ -4411,13 +4479,22 @@ function DashboardIconRail({
         }}
       >
         {navItems.map((item) => {
-          const isActive = item.screen === active
+          const isActive = item.openSaved
+            ? savedActive && active === "history"
+            : item.screen === active && !(savedActive && item.screen === "history")
           return (
-            <Tooltip key={item.screen} label={item.label}>
+            <Tooltip key={item.label} label={item.label}>
               <button
                 type="button"
                 className="scanity-hit"
-                onClick={() => go(item.screen)}
+                onClick={() => {
+                  if (item.openSaved) {
+                    openSavedProducts(go)
+                    return
+                  }
+                  if (item.screen === "history") saveHistoryFilter("all")
+                  go(item.screen)
+                }}
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 style={{
@@ -4895,6 +4972,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                           height: 38,
                           borderRadius: 12,
                           background: SOFT_SLATE.gold,
+                          color: "var(--ss-barcode)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -4907,7 +4985,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                           height="20"
                           viewBox="0 0 24 24"
                           fill="none"
-                          stroke="#3f2f06"
+                          stroke="currentColor"
                           strokeWidth="2"
                           strokeLinecap="round"
                         >
@@ -4963,7 +5041,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                             style={{
                               width: w,
                               height: "100%",
-                              background: SOFT_SLATE.barDark,
+                              background: "var(--ss-barcode)",
                               flexShrink: 0,
                             }}
                           />
@@ -4974,7 +5052,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                           fontSize: 15,
                           fontWeight: 600,
                           letterSpacing: "0.24em",
-                          color: "#555c63",
+                          color: SOFT_SLATE.textMuted,
                         }}
                       >
                         1234567890000
@@ -5025,7 +5103,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
+                      gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr",
                       gap: SOFT_SLATE.space[5],
                     }}
                   >
@@ -5106,24 +5184,52 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                     >
                       Scan History
                     </div>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                     <button
                       type="button"
                       className="scanity-hit"
-                      onClick={() => go("history")}
+                      onClick={() => {
+                        saveHistoryFilter("saved")
+                        go("history")
+                      }}
                       style={{
                         border: "none",
                         background: SOFT_SLATE.bg,
                         padding: `${SOFT_SLATE.space[2]} ${SOFT_SLATE.space[3]}`,
-                        borderRadius: 999,
+                        borderRadius: 10,
+                        minHeight: 36,
                         fontSize: 12,
-                        fontWeight: 800,
+                        fontWeight: 700,
+                        color: SOFT_SLATE.textPrimary,
+                        cursor: "pointer",
+                        boxShadow: SOFT_SLATE.raisedSm,
+                      }}
+                    >
+                      Saved
+                    </button>
+                    <button
+                      type="button"
+                      className="scanity-hit"
+                      onClick={() => {
+                        saveHistoryFilter("all")
+                        go("history")
+                      }}
+                      style={{
+                        border: "none",
+                        background: SOFT_SLATE.bg,
+                        padding: `${SOFT_SLATE.space[2]} ${SOFT_SLATE.space[3]}`,
+                        borderRadius: 10,
+                        minHeight: 36,
+                        fontSize: 12,
+                        fontWeight: 700,
                         color: SOFT_SLATE.green,
                         cursor: "pointer",
                         boxShadow: SOFT_SLATE.raisedSm,
                       }}
                     >
-                      View All
+                      View all
                     </button>
+                    </div>
                   </div>
 
                   <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -5306,9 +5412,9 @@ const BARCODE_RAIL_ITEMS: { screen: Screen; label: string; path: ReactNode }[] =
 // Soft-tinted status backgrounds - the exact pairs scanStatusInfo() uses on
 // the Dashboard, so a "Safe/Caution/Avoid" reads the same everywhere.
 const STATUS_TINTS = {
-  green: { fg: SOFT_SLATE.green, bg: "#E1EBE5" },
-  caution: { fg: SOFT_SLATE.caution, bg: "#F1E3D8" },
-  unsafe: { fg: SOFT_SLATE.unsafe, bg: "#F1DEDA" },
+  green: { fg: SOFT_SLATE.green, bg: "var(--ss-status-safe-bg)" },
+  caution: { fg: SOFT_SLATE.caution, bg: "var(--ss-status-caution-bg)" },
+  unsafe: { fg: SOFT_SLATE.unsafe, bg: "var(--ss-status-avoid-bg)" },
 }
 
 function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
@@ -7793,7 +7899,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           <div
             style={{
               width: "100%", maxWidth: 430, background: SOFT_SLATE.bg, borderRadius: 26, padding: 26,
-              boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+              boxShadow: "var(--ss-chat-shadow)",
             }}
           >
             <h3 style={{ margin: "0 0 18px", fontWeight: 800, fontSize: 18, color: SOFT_SLATE.textPrimary }}>
@@ -7850,7 +7956,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           <div
             style={{
               width: "100%", maxWidth: 390, background: SOFT_SLATE.bg, borderRadius: 26, padding: 26,
-              textAlign: "center", boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+              textAlign: "center", boxShadow: "var(--ss-chat-shadow)",
             }}
           >
             <div
@@ -7910,7 +8016,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           <div
             style={{
               width: 260, background: SOFT_SLATE.bg, borderRadius: 22, padding: 26, textAlign: "center",
-              boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+              boxShadow: "var(--ss-chat-shadow)",
             }}
           >
             <div
@@ -8044,28 +8150,31 @@ function ExplainThisButton({
       disabled={busy}
       style={{
         border: "none",
-        borderRadius: 999,
+        borderRadius: 8,
         padding: "8px 12px",
         background: SOFT_SLATE.bg,
         boxShadow: SOFT_SLATE.raisedSm,
         color: SOFT_SLATE.green,
         fontFamily: SOFT_SLATE.fontFamily,
-        fontSize: 12,
-        fontWeight: 700,
+        fontSize: 13,
+        fontWeight: 600,
         cursor: busy ? "wait" : "pointer",
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
+        minHeight: 40,
         opacity: busy ? 0.7 : 1,
       }}
     >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-        <path d="M12 3v2" />
-        <path d="M12 19v2" />
-        <path d="M5 12H3" />
-        <path d="M21 12h-2" />
-        <circle cx="12" cy="12" r="5" />
-      </svg>
+      {busy ? (
+        <span className="scanity-spinner" style={{ width: 14, height: 14 }} aria-hidden="true" />
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v4" />
+          <path d="M12 16h.01" />
+        </svg>
+      )}
       {busy ? "Explaining..." : label}
     </button>
   )
@@ -8079,9 +8188,14 @@ function renderCoachMarkdown(text: string): ReactNode {
     const parts = line.split(/(\*\*[^*]+\*\*)/g)
     return parts.map((part, index) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        const inner = part.slice(2, -2)
+        const tooLong = inner.length > 24 || inner.trim().split(/\s+/).length > 3
+        if (tooLong) {
+          return <span key={`${keyPrefix}-b-${index}`}>{inner}</span>
+        }
         return (
-          <strong key={`${keyPrefix}-b-${index}`} style={{ fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
-            {part.slice(2, -2)}
+          <strong key={`${keyPrefix}-b-${index}`} style={{ fontWeight: 650 }}>
+            {inner}
           </strong>
         )
       }
@@ -8090,7 +8204,7 @@ function renderCoachMarkdown(text: string): ReactNode {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 16, lineHeight: 1.55, color: SOFT_SLATE.textPrimary }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 15, lineHeight: 1.55, fontWeight: 400, color: SOFT_SLATE.textPrimary }}>
       {blocks.map((block, blockIndex) => {
         const lines = block.split(/\n/).map((line) => line.trim()).filter(Boolean)
         if (!lines.length) return null
@@ -8195,39 +8309,22 @@ function IngredientExplainSheet({
       return
     }
     const existing = item.knowledge
-    const hasFullKnowledge = Boolean(existing?.what_it_is && existing?.possible_effects)
-    const instantBody = Boolean(
-      existing?.what_it_is ||
-        existing?.commonly_seen_in ||
-        existing?.possible_effects ||
-        item.plainExplanation ||
-        item.possibleEffects ||
-        item.reason,
-    )
-    // Show local details immediately — never block the sheet on the network/AI.
-    if (instantBody) {
-      setKnowledge(
-        existing || {
-          title: item.name,
-          what_it_is: item.plainExplanation || item.reason || "",
-          possible_effects: item.possibleEffects || "",
-          affects_allergens: item.affectsAllergens || [],
-          affects_diets: item.affectsDiets || [],
-        },
-      )
+    const hasFullKnowledge = Boolean(existing?.what_it_is && existing?.possible_effects && existing?.category)
+
+    if (hasFullKnowledge) {
+      setKnowledge(existing || null)
       setError("")
       setLoading(false)
-      // Already have curated knowledge from the scan — skip the round-trip.
-      if (hasFullKnowledge) return
-    } else {
-      setLoading(true)
-      setKnowledge(null)
+      return
     }
+
+    setLoading(true)
+    setKnowledge(null)
+    setError("")
 
     let cancelled = false
     const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => controller.abort(), 4500)
-    setError("")
+    const timeoutId = window.setTimeout(() => controller.abort(), 8000)
     void (async () => {
       try {
         const researched = await explainIngredientWithAi({
@@ -8250,10 +8347,16 @@ function IngredientExplainSheet({
         })
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return
-        if (!instantBody) {
-          setError(err instanceof Error ? err.message : "Could not research this ingredient.")
-          setKnowledge(item.knowledge || null)
-        }
+        setKnowledge(
+          existing || {
+            title: item.name,
+            what_it_is: item.plainExplanation || item.reason || "",
+            possible_effects: item.possibleEffects || "",
+            affects_allergens: item.affectsAllergens || [],
+            affects_diets: item.affectsDiets || [],
+          },
+        )
+        setError(err instanceof Error ? err.message : "Could not research this ingredient.")
       } finally {
         window.clearTimeout(timeoutId)
         if (!cancelled) setLoading(false)
@@ -8267,11 +8370,13 @@ function IngredientExplainSheet({
   }, [item, productName])
 
   if (!item) return null
+  const hasFullKnowledge = Boolean(item.knowledge?.what_it_is && item.knowledge?.possible_effects && item.knowledge?.category)
   const resolved = knowledge === undefined ? item.knowledge : knowledge
   const title = resolved?.title || item.name
   const status = String(item.status || "").toLowerCase()
   const statusColor =
     status === "avoid" ? SOFT_SLATE.unsafe : status === "caution" ? SOFT_SLATE.caution : SOFT_SLATE.green
+  const showLoading = Boolean(item) && !hasFullKnowledge && (loading || knowledge === undefined)
 
   return (
     <div
@@ -8353,10 +8458,21 @@ function IngredientExplainSheet({
           </div>
         ) : null}
 
-        {loading && !(resolved?.what_it_is || item.plainExplanation || item.reason) ? (
-          <p style={{ margin: "18px 0 0", fontSize: 15, color: SOFT_SLATE.textSecondary }}>
-            Looking this up...
-          </p>
+        {showLoading ? (
+          <div
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="scanity-spinner" aria-hidden="true" />
+              <span style={{ fontSize: 15, color: SOFT_SLATE.textSecondary }}>Looking up {item.name}…</span>
+            </div>
+            <div className="scanity-skeleton" style={{ width: "92%" }} />
+            <div className="scanity-skeleton" style={{ width: "78%" }} />
+            <div className="scanity-skeleton" style={{ width: "64%" }} />
+          </div>
         ) : (
           <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
             {(resolved?.what_it_is || item.plainExplanation || item.reason) && (
@@ -8410,56 +8526,69 @@ function IngredientChip({
   label,
   tone,
   onClick,
+  busy = false,
 }: {
   label: string
   tone: "caution" | "avoid" | "info"
   onClick: () => void
+  busy?: boolean
 }) {
   const color =
     tone === "avoid" ? SOFT_SLATE.unsafe : tone === "caution" ? SOFT_SLATE.caution : SOFT_SLATE.textPrimary
-  const background = tone === "avoid" ? "#F1DEDA" : tone === "caution" ? "#F1E3D8" : "#dde4ec"
+  const background =
+    tone === "avoid"
+      ? "var(--ss-chip-avoid-bg)"
+      : tone === "caution"
+        ? "var(--ss-chip-caution-bg)"
+        : "var(--ss-chip-info-bg)"
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`Explain ${label}`}
+      aria-label={busy ? `Loading ${label}` : `Explain ${label}`}
+      aria-busy={busy}
+      disabled={busy}
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        gap: 8,
         padding: "10px 14px",
         minHeight: 44,
-        borderRadius: 12,
+        borderRadius: 8,
         border: "none",
         background,
         color,
         fontSize: 14,
-        fontWeight: 700,
+        fontWeight: 600,
         fontFamily: SOFT_SLATE.fontFamily,
-        cursor: "pointer",
+        cursor: busy ? "wait" : "pointer",
         whiteSpace: "nowrap",
         maxWidth: "100%",
+        opacity: busy ? 0.8 : 1,
       }}
     >
-      {tone === "info" ? (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+      {busy ? (
+        <span className="scanity-spinner" style={{ width: 14, height: 14 }} aria-hidden="true" />
+      ) : tone === "info" ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
-          <path d="M12 10v6" />
-          <path d="M12 7h.01" />
+          <path d="M12 8h.01" />
+          <path d="M11 12h1v4h1" />
         </svg>
       ) : tone === "caution" ? (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path d="M12 9v4" />
           <path d="M12 17h.01" />
-          <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
         </svg>
       ) : (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
-          <path d="M8 8l8 8" />
+          <path d="M15 9l-6 6" />
+          <path d="M9 9l6 6" />
         </svg>
       )}
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{busy ? "Looking this up…" : label}</span>
     </button>
   )
 }
@@ -8471,6 +8600,7 @@ function AllergySignalsCard({
   reason,
   labelInsights,
   onOpenIngredient,
+  loadingIngredient,
 }: {
   signals: AllergySignal[]
   allergens: string[]
@@ -8478,6 +8608,7 @@ function AllergySignalsCard({
   reason: string
   labelInsights: LabelInsight[]
   onOpenIngredient: (item: IngredientSheetPayload) => void
+  loadingIngredient?: string | null
 }) {
   const derived: AllergySignal[] =
     signals.length > 0
@@ -8504,13 +8635,13 @@ function AllergySignalsCard({
       }}
     >
       <div>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>Allergy signals</h3>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>Allergy signals</h3>
         <p style={{ margin: "6px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
-          Flagged means we could not fully confirm an ingredient against your allergies yet. Avoid means it matches your saved allergies. Tap a chip for details.
+          Flagged needs a quick check. Avoid matches your saved allergies. Tap an ingredient for details.
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 12 }}>
         <div style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: SOFT_SLATE.caution }} />
@@ -8546,6 +8677,7 @@ function AllergySignalsCard({
                     key={`flag-${item.name}`}
                     label={item.name}
                     tone="caution"
+                    busy={loadingIngredient === item.name}
                     onClick={() =>
                       onOpenIngredient({
                         name: item.name,
@@ -8572,6 +8704,7 @@ function AllergySignalsCard({
                     key={`avoid-${item.name}`}
                     label={item.name}
                     tone="avoid"
+                    busy={loadingIngredient === item.name}
                     onClick={() =>
                       onOpenIngredient({
                         name: item.name,
@@ -8608,6 +8741,7 @@ function AllergySignalsCard({
                 key={`insight-${insight.title}`}
                 label={insight.title}
                 tone="info"
+                busy={loadingIngredient === (insight.ingredient || insight.title)}
                 onClick={() =>
                   onOpenIngredient({
                     name: insight.ingredient || insight.title,
@@ -8641,6 +8775,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   const scan = loadActiveScan()
   const [saved, setSaved] = useState(Boolean(scan?.favorite))
+  const [saveNotice, setSaveNotice] = useState(Boolean(scan?.favorite) ? "This product has been saved in your profile" : "")
   const [chatOpen, setChatOpen] = useState(false)
   const [chatInput, setChatInput] = useState("")
   const [chatBusy, setChatBusy] = useState(false)
@@ -8704,25 +8839,29 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     if (!message || chatBusy) return
     setChatError("")
     setChatBusy(true)
+    const activeScan = loadActiveScan()
     const nextHistory = [...messages, { role: "user" as const, content: message }]
     setMessages(nextHistory)
     setChatInput("")
     try {
       const reply = await askAiAboutProduct({
         message,
-        scan,
-        history: nextHistory,
+        scan: activeScan,
+        history: nextHistory.filter((item) => item.role === "user" || item.role === "assistant"),
       })
       setMessages([...nextHistory, { role: "assistant", content: reply || "I could not answer that just now." }])
     } catch (error) {
       setChatError(error instanceof Error ? error.message : "AI assistant is unavailable right now.")
+      const fallbackName = activeScan?.name || "this product"
+      const fallbackFlags = (activeScan?.allergens || []).slice(0, 3).join(", ")
       setMessages([
         ...nextHistory,
         {
           role: "assistant",
           content:
-            scan?.explanation ||
-            "I could not reach the AI coach right now. The safety score and allergy signals above are still your main guide - confirm the package label.",
+            activeScan
+              ? `${activeScan.verdict ? activeScan.verdict[0].toUpperCase() + activeScan.verdict.slice(1) : "Caution"} for ${fallbackName}.${fallbackFlags ? ` Flagged on this scan: ${fallbackFlags}.` : ""} I could not reach the live coach just now. Use the safety score and allergy signals on this page, and confirm the package.`
+              : "Scan a product first, then ask about that specific label.",
         },
       ])
     } finally {
@@ -8735,7 +8874,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     setReportBusy(true)
     setChatError("")
     try {
-      const report = await requestSafetyReport({ scan, focus })
+      const report = await requestSafetyReport({ scan: loadActiveScan(), focus })
       setReportText(report)
       setChatOpen(true)
       setMessages((prev) => [
@@ -8806,7 +8945,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               Product Result
             </h1>
             <p style={{ margin: "6px 0 0", fontSize: 14, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>
-              Personalized safety + nutrition quality
+              Safety for your profile, plus nutrition quality
             </p>
           </div>
         </div>
@@ -8858,7 +8997,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>AI explanation</h3>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>Why this result</h3>
                 <span
                   style={{
                     fontSize: 12,
@@ -8925,7 +9064,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 : "Nutrition grade unavailable for this product. Your allergy safety score above still applies."}
             </p>
             {nutrients.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginTop: 18 }}>
                 {nutrients.map((row) => (
                   <div key={row.label} style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: SOFT_SLATE.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{row.label}</div>
@@ -8947,6 +9086,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             reason={avoidSummary}
             labelInsights={labelInsights}
             onOpenIngredient={setIngredientSheet}
+            loadingIngredient={ingredientSheet?.name || null}
           />
 
           <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 14, marginBottom: 18 }}>
@@ -8975,22 +9115,24 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 if (!scan) return
                 markScanFavorite(scan.id, true)
                 setSaved(true)
+                setSaveNotice("This product has been saved in your profile")
               }}
+              aria-pressed={saved}
               style={{
                 flex: 1,
-                minHeight: 54,
+                minHeight: 48,
                 border: "none",
-                borderRadius: 16,
+                borderRadius: 10,
                 background: SOFT_SLATE.bg,
                 color: SOFT_SLATE.green,
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 700,
                 cursor: "pointer",
                 boxShadow: SOFT_SLATE.raisedBtn,
               }}
             >
-              {saved ? "Saved" : "Save"}
+              {saved ? "Saved" : "Save to profile"}
             </button>
             <button
               type="button"
@@ -9012,6 +9154,44 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               Compare
             </button>
           </div>
+
+          {saveNotice && (
+            <div
+              role="status"
+              style={{
+                marginBottom: 16,
+                padding: "12px 14px",
+                borderRadius: 10,
+                boxShadow: SOFT_SLATE.insetSm,
+                fontSize: 14,
+                color: SOFT_SLATE.green,
+                fontWeight: 600,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <span>This product has been saved in your profile</span>
+              <button
+                type="button"
+                onClick={() => openSavedProducts(go)}
+                style={{
+                  alignSelf: "flex-start",
+                  border: "none",
+                  background: "none",
+                  color: SOFT_SLATE.green,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  minHeight: 44,
+                  padding: 0,
+                  textDecoration: "underline",
+                }}
+              >
+                Open saved products
+              </button>
+            </div>
+          )}
 
           {reportText && !chatOpen && (
             <div style={{ marginBottom: 20, padding: 16, borderRadius: 18, boxShadow: SOFT_SLATE.insetSm, fontSize: 13.5, color: SOFT_SLATE.textPrimary }}>
@@ -9067,7 +9247,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             maxHeight: "min(72vh, 640px)",
             background: SOFT_SLATE.bg,
             borderRadius: 24,
-            boxShadow: "16px 16px 34px #b8bfc8, -16px -16px 34px #ffffff",
+            boxShadow: "var(--ss-chat-shadow)",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -9143,8 +9323,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
 
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
             {messages.length === 0 && (
-              <div style={{ padding: 14, borderRadius: 16, boxShadow: SOFT_SLATE.insetSm, fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
-                Ask anything about this product for your allergies and health notes. I will keep it clear and careful - and I will not override the scan result.
+              <div style={{ padding: 14, borderRadius: 12, boxShadow: SOFT_SLATE.insetSm, fontSize: 14, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                {scan
+                  ? `Ask about ${scan.name}. Answers use this scan, your allergies, and the ingredients on this label.`
+                  : "Scan a product first, then ask about ingredients and allergy flags."}
               </div>
             )}
             {messages.map((item, index) => (
@@ -9165,6 +9347,12 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 {item.role === "assistant" ? renderCoachMarkdown(item.content) : item.content}
               </div>
             ))}
+            {chatBusy && (
+              <div role="status" style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: SOFT_SLATE.textMuted }}>
+                <span className="scanity-spinner" style={{ width: 16, height: 16 }} aria-hidden="true" />
+                Writing an answer for this product…
+              </div>
+            )}
             <div ref={chatEndRef} />
           </div>
 
@@ -9253,7 +9441,7 @@ const GRADE_COLORS: Record<NutritionGrade, string> = {
 
 function gradeColor(grade: NutritionGrade | null): string {
   if (grade === null) {
-    return "rgba(26,18,9,0.35)"
+    return "var(--scanity-gray)"
   }
 
   return GRADE_COLORS[grade]
@@ -9284,10 +9472,10 @@ function GradeBadge({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: grade === null ? "rgba(26,18,9,0.08)" : color,
+        background: grade === null ? "rgb(from var(--ss-text-primary) r g b / 0.08)" : color,
         border:
           grade === null
-            ? "1.5px dashed rgba(26,18,9,0.25)"
+            ? "1.5px dashed rgb(from var(--ss-text-primary) r g b / 0.25)"
             : "none",
       }}
     >
@@ -9296,7 +9484,7 @@ function GradeBadge({
           fontFamily: FONT_HEAD,
           fontWeight: 800,
           fontSize: grade === null ? size * 0.16 : size * 0.42,
-          color: grade === null ? "rgba(26,18,9,0.4)" : C.white,
+          color: grade === null ? "var(--ss-ink-faint)" : C.onAccent,
           lineHeight: 1,
         }}
       >
@@ -9332,7 +9520,7 @@ function GradeScale({ grade }: { grade: NutritionGrade | null }) {
                 background: color,
                 opacity: active ? 1 : 0.32,
                 boxShadow: active
-                  ? `0 0 0 2px ${C.white}, 0 0 0 3.5px ${color}`
+                  ? `0 0 0 2px var(--ss-bg), 0 0 0 3.5px ${color}`
                   : "none",
               }}
             />
@@ -9342,7 +9530,7 @@ function GradeScale({ grade }: { grade: NutritionGrade | null }) {
                 fontFamily: FONT_HEAD,
                 fontWeight: active ? 800 : 600,
                 fontSize: 10,
-                color: active ? color : "rgba(26,18,9,0.4)",
+                color: active ? color : "var(--ss-ink-faint)",
               }}
             >
               {g.toUpperCase()}
@@ -9505,8 +9693,8 @@ function StatusBadge({
               : "10px 10px"
             : "9px 12px",
           borderRadius: C.radiusMd ?? 14,
-          background: "rgba(26,18,9,0.05)",
-          border: "1.5px dashed rgba(26,18,9,0.26)",
+          background: "rgb(from var(--ss-text-primary) r g b / 0.05)",
+          border: "1.5px dashed rgb(from var(--ss-text-primary) r g b / 0.26)",
         }}
       >
         <div
@@ -9514,7 +9702,7 @@ function StatusBadge({
             width: dot,
             height: dot,
             borderRadius: C.radiusFull ?? "50%",
-            background: "rgba(26,18,9,0.12)",
+            background: "rgb(from var(--ss-text-primary) r g b / 0.12)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -9523,7 +9711,7 @@ function StatusBadge({
         >
           <span
             style={{
-              color: "rgba(26,18,9,0.55)",
+              color: "var(--ss-ink-mid)",
               fontFamily: FONT_HEAD,
               fontWeight: 800,
               fontSize: big
@@ -9548,7 +9736,7 @@ function StatusBadge({
                   ? 14.5
                   : 12.5
                 : 12.5,
-              color: "rgba(26,18,9,0.78)",
+              color: "var(--ss-ink-strong)",
             }}
           >
             Verdict unavailable
@@ -9564,7 +9752,7 @@ function StatusBadge({
                   : 10.5
                 : 11,
               lineHeight: 1.5,
-              color: "rgba(26,18,9,0.52)",
+              color: "var(--ss-ink-mid)",
             }}
           >
             Not enough data to determine a verdict.
@@ -9647,7 +9835,7 @@ function StatusBadge({
                   : 10.5
                 : 11,
               lineHeight: 1.5,
-              color: "rgba(26,18,9,0.72)",
+              color: "var(--ss-ink-strong)",
             }}
           >
             {reason}
@@ -9677,8 +9865,8 @@ function AllergenList({
           fontWeight: 600,
           fontStyle: "italic",
           background: "transparent",
-          border: "1px dashed rgba(26,18,9,0.28)",
-          color: "rgba(26,18,9,0.5)",
+          border: "1px dashed rgb(from var(--ss-text-primary) r g b / 0.28)",
+          color: "var(--ss-ink-mid)",
         }}
       >
         Allergen data unavailable
@@ -9837,7 +10025,7 @@ function IngredientBreakdown({
         style={{
           fontFamily: FONT_BODY,
           fontSize: 11.5,
-          color: "rgba(26,18,9,0.5)",
+          color: "var(--ss-ink-mid)",
           fontStyle: "italic",
           margin: 0,
         }}
@@ -9908,7 +10096,7 @@ function IngredientBreakdown({
         style={{
           borderRadius: 12,
           overflow: "hidden",
-          border: "1px solid rgba(26,18,9,0.10)",
+          border: "1px solid rgb(from var(--ss-text-primary) r g b / 0.10)",
         }}
       >
         {visible.map((item, index) => {
@@ -9929,7 +10117,7 @@ function IngredientBreakdown({
                 background: flag
                   ? "rgba(232,69,60,0.10)"
                   : index % 2 === 0
-                    ? "rgba(26,18,9,0.03)"
+                    ? "rgb(from var(--ss-text-primary) r g b / 0.03)"
                     : "transparent",
                 borderLeft: flag
                   ? `3px solid ${C.statusDanger}`
@@ -9937,7 +10125,7 @@ function IngredientBreakdown({
                 borderTop:
                   index === 0
                     ? "none"
-                    : "1px solid rgba(26,18,9,0.07)",
+                    : "1px solid rgb(from var(--ss-text-primary) r g b / 0.07)",
               }}
             >
               <span
@@ -9947,7 +10135,7 @@ function IngredientBreakdown({
                   lineHeight: 1.4,
                   color: flag
                     ? C.statusDanger
-                    : "rgba(26,18,9,0.8)",
+                    : "var(--ss-ink-strong)",
                   textTransform: "capitalize",
                 }}
               >
@@ -10083,7 +10271,7 @@ function NutritionTable({
           fontWeight: 800,
           letterSpacing: "0.07em",
           textTransform: "uppercase",
-          color: "rgba(26,18,9,0.62)",
+          color: "var(--ss-ink-mid)",
         }}
       >
         Nutrition Comparison - per 100g
@@ -10107,7 +10295,7 @@ function NutritionTable({
                   fontFamily: FONT_HEAD,
                   fontSize: 11.5,
                   fontWeight: 700,
-                  color: "rgba(26,18,9,0.65)",
+                  color: "var(--ss-ink-mid)",
                   paddingBottom: 10,
                 }}
               >
@@ -10120,7 +10308,7 @@ function NutritionTable({
                   fontFamily: FONT_HEAD,
                   fontSize: 11.5,
                   fontWeight: 700,
-                  color: "rgba(26,18,9,0.65)",
+                  color: "var(--ss-ink-mid)",
                   paddingBottom: 10,
                 }}
               >
@@ -10140,10 +10328,10 @@ function NutritionTable({
                     style={{
                       padding: "10px 10px 10px 0",
                       borderTop:
-                        "1px solid rgba(26,18,9,0.08)",
+                        "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
                       fontFamily: FONT_BODY,
                       fontSize: 12.5,
-                      color: "rgba(26,18,9,0.75)",
+                      color: "var(--ss-ink-strong)",
                     }}
                   >
                     {row.label}
@@ -10153,7 +10341,7 @@ function NutritionTable({
                     style={{
                       padding: "10px",
                       borderTop:
-                        "1px solid rgba(26,18,9,0.08)",
+                        "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
                       textAlign: "right",
                       fontFamily: FONT_BODY,
                       fontSize: 13,
@@ -10162,7 +10350,7 @@ function NutritionTable({
                         av === undefined ? 400 : 700,
                       color:
                         av === undefined
-                          ? "rgba(26,18,9,0.45)"
+                          ? "var(--ss-ink-faint)"
                           : C.black,
                       fontStyle:
                         av === undefined
@@ -10179,7 +10367,7 @@ function NutritionTable({
                     style={{
                       padding: "10px",
                       borderTop:
-                        "1px solid rgba(26,18,9,0.08)",
+                        "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
                       textAlign: "right",
                       fontFamily: FONT_BODY,
                       fontSize: 13,
@@ -10188,7 +10376,7 @@ function NutritionTable({
                         bv === undefined ? 400 : 700,
                       color:
                         bv === undefined
-                          ? "rgba(26,18,9,0.45)"
+                          ? "var(--ss-ink-faint)"
                           : C.black,
                       fontStyle:
                         bv === undefined
@@ -10226,7 +10414,7 @@ function CmpLabel({
         fontWeight: 800,
         letterSpacing: "0.07em",
         textTransform: "uppercase",
-        color: "rgba(26,18,9,0.5)",
+        color: "var(--ss-ink-mid)",
       }}
     >
       {children}
@@ -10422,7 +10610,7 @@ function ProductHeaderCard({
             fontFamily: FONT_HEAD,
             fontWeight: 800,
             fontSize: isDesktop ? 11 : 9.5,
-            color: C.white,
+            color: C.onAccent,
             flexShrink: 0,
           }}
         >
@@ -10436,7 +10624,7 @@ function ProductHeaderCard({
             fontWeight: 700,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: "rgba(26,18,9,0.55)",
+            color: "var(--ss-ink-mid)",
           }}
         >
           Product {label}
@@ -10475,7 +10663,7 @@ function ProductHeaderCard({
               margin: "5px 0 0",
               fontFamily: FONT_BODY,
               fontSize: isDesktop ? 12 : 10,
-              color: "rgba(26,18,9,0.58)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
             }}
           >
             {[
@@ -10509,7 +10697,7 @@ function ProductHeaderCard({
               fontWeight: 700,
               letterSpacing: "0.05em",
               textTransform: "uppercase",
-              color: "rgba(26,18,9,0.42)",
+              color: "var(--ss-ink-faint)",
             }}
           >
             grade
@@ -10540,7 +10728,7 @@ function CmpSection({
         paddingTop: first ? 0 : 32,
         borderTop: first
           ? "none"
-          : "1px solid rgba(26,18,9,0.08)",
+          : "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
       }}
     >
       <div style={{ marginBottom: 18 }}>
@@ -10563,7 +10751,7 @@ function CmpSection({
               fontFamily: FONT_BODY,
               fontSize: 12.5,
               lineHeight: 1.55,
-              color: "rgba(26,18,9,0.6)",
+              color: "var(--ss-ink-mid)",
             }}
           >
             {description}
@@ -10580,9 +10768,9 @@ function cmpGrid(isDesktop: boolean): CSSProperties {
   return {
     display: "grid",
     gridTemplateColumns: isDesktop
-      ? "repeat(auto-fit, minmax(260px, 1fr))"
-      : "1fr 1fr",
-    gap: isDesktop ? 22 : 10,
+      ? "repeat(2, minmax(0, 1fr))"
+      : "1fr",
+    gap: isDesktop ? 20 : 16,
   }
 }
 
@@ -10713,7 +10901,7 @@ function KeyInsightsCard({
         background: C.white,
         border: `1.5px solid ${
           recommendation === "none"
-            ? "rgba(26,18,9,0.16)"
+            ? "rgb(from var(--ss-text-primary) r g b / 0.16)"
             : C.green
         }`,
         boxShadow: cardShadow,
@@ -10741,7 +10929,7 @@ function KeyInsightsCard({
             justifyContent: "center",
             background:
               recommendation === "none"
-                ? "rgba(26,18,9,0.08)"
+                ? "rgb(from var(--ss-text-primary) r g b / 0.08)"
                 : `linear-gradient(135deg, ${C.green}, ${C.greenMid})`,
           }}
         >
@@ -10751,7 +10939,7 @@ function KeyInsightsCard({
               height="18"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="rgba(26,18,9,0.65)"
+              stroke="var(--ss-ink-mid)"
               strokeWidth="2"
               strokeLinecap="round"
             >
@@ -10806,7 +10994,7 @@ function KeyInsightsCard({
               fontFamily: FONT_BODY,
               fontSize: 12.5,
               lineHeight: 1.55,
-              color: "rgba(26,18,9,0.65)",
+              color: "var(--ss-ink-mid)",
             }}
           >
             {recommendation === "none"
@@ -10823,7 +11011,7 @@ function KeyInsightsCard({
             fontFamily: FONT_BODY,
             fontSize: 12.5,
             lineHeight: 1.55,
-            color: "rgba(26,18,9,0.78)",
+            color: "var(--ss-ink-strong)",
           }}
         >
           {insights.join(" ")}
@@ -10888,7 +11076,7 @@ function ProductCompareScreen({
     useState<CompareScenario>(history.length >= 2 ? "success-a" : "initial")
 
 
-  const H_PAD = isDesktop ? 40 : 20
+  const H_PAD = isDesktop ? 40 : 16
 
   // ── Neumorphic styles ─────────────────────────────────────────────────────
 
@@ -11025,10 +11213,10 @@ function ProductCompareScreen({
         style={{
           ...raisedCard,
           position: "relative",
-          padding: isDesktop ? 22 : 15,
+          padding: isDesktop ? 22 : 18,
           display: "flex",
           flexDirection: "column",
-          gap: isDesktop ? 15 : 11,
+          gap: isDesktop ? 15 : 14,
           boxSizing: "border-box",
           minWidth: 0,
 
@@ -11063,22 +11251,17 @@ function ProductCompareScreen({
 
               fontFamily: SOFT_SLATE.fontFamily,
               fontWeight: 800,
-              fontSize: isDesktop ? 9.5 : 8,
-              letterSpacing: "0.05em",
+              fontSize: 11,
+              letterSpacing: "0.04em",
               textTransform: "uppercase",
               color: SOFT_SLATE.green,
 
               zIndex: 2,
             }}
           >
-            <span
-              style={{
-                fontSize: isDesktop ? 12 : 10,
-              }}
-            >
-              ★
-            </span>
-
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2.5 14.9 8.6 21.5 9.5 16.7 14.1 17.9 20.6 12 17.4 6.1 20.6 7.3 14.1 2.5 9.5 9.1 8.6Z" />
+            </svg>
             Best choice
           </div>
         )}
@@ -11119,9 +11302,9 @@ function ProductCompareScreen({
           <span
             style={{
               fontFamily: SOFT_SLATE.fontFamily,
-              fontSize: isDesktop ? 10 : 9,
-              fontWeight: 800,
-              letterSpacing: "0.08em",
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
               textTransform: "uppercase",
               color: SOFT_SLATE.textMuted,
             }}
@@ -11207,7 +11390,7 @@ function ProductCompareScreen({
 
                 fontFamily: SOFT_SLATE.fontFamily,
                 fontWeight: 800,
-                fontSize: isDesktop ? 17 : 13,
+                fontSize: isDesktop ? 17 : 16,
                 lineHeight: 1.25,
 
                 color: SOFT_SLATE.textPrimary,
@@ -11224,7 +11407,7 @@ function ProductCompareScreen({
                 margin: "5px 0 0",
 
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: isDesktop ? 11.5 : 9.5,
+                fontSize: isDesktop ? 13 : 13,
 
                 color: SOFT_SLATE.textSecondary,
               }}
@@ -11266,7 +11449,7 @@ function ProductCompareScreen({
             <span
               style={{
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: isDesktop ? 8.5 : 7,
+                fontSize: isDesktop ? 11 : 11,
                 fontWeight: 800,
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
@@ -11294,11 +11477,11 @@ function ProductCompareScreen({
       style={{
         ...raisedCard,
 
-        padding: isDesktop ? 20 : 14,
+        padding: isDesktop ? 20 : 16,
 
         display: "flex",
         flexDirection: "column",
-        gap: isDesktop ? 16 : 11,
+        gap: isDesktop ? 16 : 14,
 
         boxShadow: accent
           ? `
@@ -11343,7 +11526,7 @@ function ProductCompareScreen({
 
             fontFamily: SOFT_SLATE.fontFamily,
             fontWeight: 800,
-            fontSize: isDesktop ? 18 : 16,
+            fontSize: isDesktop ? 20 : 18,
 
             color: SOFT_SLATE.textPrimary,
 
@@ -11359,8 +11542,8 @@ function ProductCompareScreen({
               margin: "5px 0 0",
 
               fontFamily: SOFT_SLATE.fontFamily,
-              fontSize: 12,
-              lineHeight: 1.55,
+              fontSize: 14,
+              lineHeight: 1.5,
 
               color: SOFT_SLATE.textSecondary,
             }}
@@ -11374,26 +11557,22 @@ function ProductCompareScreen({
     </section>
   )
 
-  const compareNavItems = [
-    DASHBOARD_RAIL_ITEMS[0],
-    {
-      screen: "productCompare" as Screen,
-      label: "Compare Products",
-      path: (
-        <>
-          <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
-          <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
-          <path d="M7 21h10" />
-          <path d="M12 3v18" />
-          <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
-        </>
-      ),
-    },
-    { screen: "history" as Screen, label: "Scan History", path: CLOCK_ICON_PATH },
-    DASHBOARD_RAIL_ITEMS[1],
-    DASHBOARD_RAIL_ITEMS[2],
-    DASHBOARD_RAIL_ITEMS[3],
-  ]
+  const compareEntry = {
+    screen: "productCompare" as Screen,
+    label: "Compare Products",
+    path: (
+      <>
+        <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+        <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+        <path d="M7 21h10" />
+        <path d="M12 3v18" />
+        <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+      </>
+    ),
+  }
+  const compareNavItems = isDesktop
+    ? [DASHBOARD_RAIL_ITEMS[0], compareEntry, ...DASHBOARD_RAIL_ITEMS.slice(1)]
+    : [DASHBOARD_RAIL_ITEMS[0], compareEntry, DASHBOARD_RAIL_ITEMS[2]]
 
   const CompareLayout = ({ children }: { children: ReactNode }) => (
     <div
@@ -11470,7 +11649,7 @@ function ProductCompareScreen({
                 margin: 0,
                 fontFamily: SOFT_SLATE.fontFamily,
                 fontWeight: 800,
-                fontSize: 23,
+                fontSize: isDesktop ? 26 : 22,
                 color: SOFT_SLATE.textPrimary,
               }}
             >
@@ -11566,7 +11745,7 @@ function ProductCompareScreen({
                   margin: 0,
                   fontFamily: SOFT_SLATE.fontFamily,
                   fontWeight: 800,
-                  fontSize: 23,
+                  fontSize: isDesktop ? 26 : 22,
                   color: SOFT_SLATE.textPrimary,
                 }}
               >
@@ -11597,27 +11776,7 @@ function ProductCompareScreen({
                   gap: 15,
                 }}
               >
-                <div
-                  style={{
-                    width: 62,
-                    height: 62,
-                    borderRadius: "50%",
-
-                    background: SOFT_SLATE.bg,
-
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-
-                    boxShadow: SOFT_SLATE.insetMd,
-
-                    color: SOFT_SLATE.green,
-
-                    fontSize: 25,
-                  }}
-                >
-                  ⟳
-                </div>
+                    <div className="scanity-spinner" aria-hidden="true" />
 
                 <h3
                   style={{
@@ -11681,7 +11840,7 @@ function ProductCompareScreen({
                   margin: 0,
                   fontFamily: SOFT_SLATE.fontFamily,
                   fontWeight: 800,
-                  fontSize: 23,
+                  fontSize: isDesktop ? 26 : 22,
                   color: SOFT_SLATE.textPrimary,
                 }}
               >
@@ -11837,13 +11996,10 @@ function ProductCompareScreen({
               <h1
                 style={{
                   margin: 0,
-
                   fontFamily: SOFT_SLATE.fontFamily,
                   fontWeight: 800,
-                  fontSize: 23,
-
+                  fontSize: isDesktop ? 26 : 22,
                   color: SOFT_SLATE.textPrimary,
-
                   letterSpacing: "-0.02em",
                 }}
               >
@@ -11852,15 +12008,14 @@ function ProductCompareScreen({
 
               <p
                 style={{
-                  margin: "5px 0 0",
-
+                  margin: "6px 0 0",
                   fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 12.5,
-
+                  fontSize: 14,
+                  lineHeight: 1.45,
                   color: SOFT_SLATE.textSecondary,
                 }}
               >
-                Side-by-side ingredient, nutrition, and allergy comparison.
+                Nutrition, ingredients, and allergy safety side by side.
               </p>
             </div>
           </div>
@@ -11969,8 +12124,8 @@ function ProductCompareScreen({
                   display: "grid",
                   gridTemplateColumns: isDesktop
                     ? "repeat(2, minmax(0, 1fr))"
-                    : "1fr 1fr",
-                  gap: isDesktop ? 22 : 11,
+                    : "1fr",
+                  gap: isDesktop ? 22 : 16,
                 }}
               >
                 <ProductCard
@@ -11998,8 +12153,8 @@ function ProductCompareScreen({
                   display: "grid",
                   gridTemplateColumns: isDesktop
                     ? "repeat(2, minmax(0, 1fr))"
-                    : "1fr 1fr",
-                  gap: isDesktop ? 22 : 11,
+                    : "1fr",
+                  gap: isDesktop ? 22 : 16,
                 }}
               >
                 <CompareCard
@@ -12079,8 +12234,8 @@ function ProductCompareScreen({
                   display: "grid",
                   gridTemplateColumns: isDesktop
                     ? "repeat(2, minmax(0, 1fr))"
-                    : "1fr 1fr",
-                  gap: isDesktop ? 22 : 11,
+                    : "1fr",
+                  gap: isDesktop ? 22 : 16,
                 }}
               >
                 <CompareCard>
@@ -12141,196 +12296,77 @@ function ProductCompareScreen({
 
             {/* ── Nutrition ──────────────────────────────────────────────── */}
 
-            <Section title="Nutrition Comparison">
+            <Section title="Nutrition">
               <div
                 style={{
                   ...raisedCard,
-
-                  padding: isDesktop ? 22 : 14,
-
-                  overflow: "hidden",
+                  padding: isDesktop ? 22 : 16,
                 }}
               >
                 <p
                   style={{
-                    margin: "0 0 15px",
-
+                    margin: "0 0 16px",
                     fontFamily: SOFT_SLATE.fontFamily,
-                    fontSize: 11,
-                    fontWeight: 800,
-                    letterSpacing: "0.07em",
-                    textTransform: "uppercase",
-
+                    fontSize: 13,
+                    fontWeight: 600,
                     color: SOFT_SLATE.textMuted,
                   }}
                 >
-                  Nutrition Comparison - per 100g
+                  Per 100g
                 </p>
-
-                <div
-                  style={{
-                    ...insetCard,
-
-                    padding: isDesktop ? 12 : 8,
-
-                    overflowX: "auto",
-                  }}
-                >
-                  <table
-                    style={{
-                      width: "100%",
-                      minWidth: 500,
-
-                      borderCollapse: "separate",
-                      borderSpacing: "0 5px",
-
-                      fontFamily: SOFT_SLATE.fontFamily,
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {NUTRITION_ROWS.map((row) => {
+                    const av = a.nutrition?.[row.key]
+                    const bv = b.nutrition?.[row.key]
+                    const fmt = (value: number | undefined) =>
+                      value === undefined ? "Not listed" : `${value}${row.unit}`
+                    return (
+                      <div
+                        key={row.key}
+                        style={{
+                          ...insetCard,
+                          padding: isDesktop ? "12px 14px" : "12px 12px",
+                          display: "grid",
+                          gridTemplateColumns: isDesktop ? "minmax(120px, 0.8fr) 1fr 1fr" : "1fr",
+                          gap: isDesktop ? 12 : 8,
+                        }}
+                      >
+                        <div
                           style={{
-                            textAlign: "left",
-                            padding: "7px 10px",
-
-                            fontSize: 10,
-                            fontWeight: 800,
-
-                            color: SOFT_SLATE.textMuted,
-                          }}
-                        >
-                          Nutrition
-                        </th>
-
-                        <th
-                          style={{
-                            textAlign: "right",
-                            padding: "7px 10px",
-
-                            fontSize: 10.5,
-                            fontWeight: 800,
-
+                            fontSize: 14,
+                            fontWeight: 700,
                             color: SOFT_SLATE.textPrimary,
                           }}
                         >
-                          {a.name}
-                        </th>
-
-                        <th
-                          style={{
-                            textAlign: "right",
-                            padding: "7px 10px",
-
-                            fontSize: 10.5,
-                            fontWeight: 800,
-
-                            color: SOFT_SLATE.textPrimary,
-                          }}
-                        >
-                          {b.name}
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {NUTRITION_ROWS.map((row) => {
-                        const av =
-                          a.nutrition?.[row.key]
-
-                        const bv =
-                          b.nutrition?.[row.key]
-
-                        return (
-                          <tr key={row.key}>
-                            <td
-                              style={{
-                                padding: "10px",
-
-                                background: SOFT_SLATE.bg,
-
-                                borderRadius: 10,
-
-                                fontSize: 12,
-                                color: SOFT_SLATE.textSecondary,
-
-                                boxShadow:
-                                  SOFT_SLATE.raisedSm,
-                              }}
-                            >
-                              {row.label}
-                            </td>
-
-                            <td
-                              style={{
-                                padding: "10px",
-
-                                textAlign: "right",
-
-                                background: SOFT_SLATE.bg,
-
-                                fontSize: 12.5,
-                                fontWeight:
-                                  av === undefined
-                                    ? 400
-                                    : 800,
-
-                                color:
-                                  av === undefined
-                                    ? SOFT_SLATE.textMuted
-                                    : SOFT_SLATE.textPrimary,
-
-                                fontStyle:
-                                  av === undefined
-                                    ? "italic"
-                                    : "normal",
-
-                                boxShadow:
-                                  SOFT_SLATE.raisedSm,
-                              }}
-                            >
-                              {av === undefined
-                                ? " - "
-                                : `${av}${row.unit}`}
-                            </td>
-
-                            <td
-                              style={{
-                                padding: "10px",
-
-                                textAlign: "right",
-
-                                background: SOFT_SLATE.bg,
-
-                                fontSize: 12.5,
-                                fontWeight:
-                                  bv === undefined
-                                    ? 400
-                                    : 800,
-
-                                color:
-                                  bv === undefined
-                                    ? SOFT_SLATE.textMuted
-                                    : SOFT_SLATE.textPrimary,
-
-                                fontStyle:
-                                  bv === undefined
-                                    ? "italic"
-                                    : "normal",
-
-                                boxShadow:
-                                  SOFT_SLATE.raisedSm,
-                              }}
-                            >
-                              {bv === undefined
-                                ? " - "
-                                : `${bv}${row.unit}`}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                          {row.label}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
+                          <span style={{ color: SOFT_SLATE.textMuted, minWidth: 0 }}>{a.name}</span>
+                          <span
+                            style={{
+                              fontWeight: av === undefined ? 500 : 700,
+                              color: av === undefined ? SOFT_SLATE.textMuted : SOFT_SLATE.textPrimary,
+                              textAlign: "right",
+                            }}
+                          >
+                            {fmt(av)}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
+                          <span style={{ color: SOFT_SLATE.textMuted, minWidth: 0 }}>{b.name}</span>
+                          <span
+                            style={{
+                              fontWeight: bv === undefined ? 500 : 700,
+                              color: bv === undefined ? SOFT_SLATE.textMuted : SOFT_SLATE.textPrimary,
+                              textAlign: "right",
+                            }}
+                          >
+                            {fmt(bv)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </Section>
@@ -12539,6 +12575,7 @@ function ProductCompareScreen({
 // Same data the Dashboard panel reads from - no separate placeholder set.
 function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   const [query, setQuery] = useState("")
+  const [filter, setFilter] = useState<"all" | "saved">(() => loadHistoryFilter())
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isDesktop = useIsDesktop()
   const [recentScans, setRecentScans] = useState<ScanRecord[]>(() => loadScanRecords())
@@ -12551,13 +12588,19 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   useEffect(() => {
     setRecentScans(loadScanRecords())
     const refresh = () => setRecentScans(loadScanRecords())
+    const onFilter = (event: Event) => {
+      const detail = (event as CustomEvent<"all" | "saved">).detail
+      if (detail === "all" || detail === "saved") setFilter(detail)
+    }
     window.addEventListener("focus", refresh)
     window.addEventListener("storage", refresh)
     window.addEventListener("scanity-history-updated", refresh)
+    window.addEventListener("scanity-history-filter", onFilter as EventListener)
     return () => {
       window.removeEventListener("focus", refresh)
       window.removeEventListener("storage", refresh)
       window.removeEventListener("scanity-history-updated", refresh)
+      window.removeEventListener("scanity-history-filter", onFilter as EventListener)
       if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current)
     }
   }, [])
@@ -12580,9 +12623,11 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
     setUndoToast(null)
   }
 
-  const scans = recentScans.filter((scan) =>
-    scan.name.toLowerCase().includes(query.toLowerCase()),
-  )
+  const scans = recentScans.filter((scan) => {
+    const matchesQuery = scan.name.toLowerCase().includes(query.toLowerCase())
+    const matchesFilter = filter === "all" || Boolean(scan.favorite)
+    return matchesQuery && matchesFilter
+  })
 
   // Rail geometry mirrors DashboardScreen's own fixed positioning exactly
   // (top/left/bottom 22/26/22, width 80) so the two screens line up pixel
@@ -12629,7 +12674,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
             zIndex: 5,
           }}
         >
-        <DashboardIconRail go={go} isDesktop />
+        <DashboardIconRail go={go} isDesktop active="history" savedActive={filter === "saved"} />
 
         </div>
       )}
@@ -12719,18 +12764,52 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                 lineHeight: 1.2,
               }}
             >
-              Scan History
+              {filter === "saved" ? "Saved products" : "Scan History"}
             </h1>
             <p
               style={{
-                margin: "0 0 28px",
+                margin: "0 0 20px",
                 color: SOFT_SLATE.textMuted,
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 13.5,
+                fontSize: 15,
+                lineHeight: 1.5,
               }}
             >
-              Everything you've scanned, newest first.
+              {filter === "saved"
+                ? "Products you bookmarked from a scan result. Open one to see the full safety summary."
+                : "Everything you've scanned, newest first."}
             </p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              {(["all", "saved"] as const).map((option) => {
+                const active = filter === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setFilter(option)
+                      saveHistoryFilter(option)
+                    }}
+                    aria-pressed={active}
+                    style={{
+                      minHeight: 44,
+                      padding: "10px 16px",
+                      border: "none",
+                      borderRadius: 10,
+                      background: SOFT_SLATE.bg,
+                      color: active ? SOFT_SLATE.green : SOFT_SLATE.textSecondary,
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      boxShadow: active ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {option === "all" ? "All scans" : "Saved"}
+                  </button>
+                )
+              })}
+            </div>
 
             {/* SEARCH - inset (pressed-in) like a Soft Slate field, rather
                 than the raised look used for buttons/cards. */}
@@ -12795,7 +12874,9 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                   >
                     {query.trim()
                       ? "No scans match that search."
-                      : "No scans yet. Scan a barcode or nutrition label to start your history."}
+                      : filter === "saved"
+                        ? "No saved products yet. Open a product result and tap Save to keep it here."
+                        : "No scans yet. Scan a barcode or nutrition label to start your history."}
                   </p>
                 </div>
               ) : (
@@ -13131,7 +13212,7 @@ function OtherChip({
             fontFamily: FONT_BODY,
             fontWeight: 500,
             fontSize: 12.5,
-            color: "rgba(26,26,26,0.7)",
+            color: "rgb(from var(--ss-text-primary) r g b / 0.7)",
           }}
         >
           Other
@@ -13151,7 +13232,7 @@ function OtherChip({
             style={{
               border: "none",
               background: "none",
-              color: "rgba(26,26,26,0.4)",
+              color: "var(--ss-ink-faint)",
               cursor: "pointer",
               padding: 0,
               display: "flex",
@@ -13183,7 +13264,7 @@ const PRF_EYEBROW: CSSProperties = {
   fontWeight: 800,
   letterSpacing: "0.09em",
   textTransform: "uppercase",
-  color: "rgba(26,26,26,0.4)",
+  color: "var(--ss-ink-faint)",
 }
 
 const PRF_HEADING: CSSProperties = {
@@ -13199,7 +13280,7 @@ const PRF_SUPPORTING: CSSProperties = {
   fontFamily: FONT_BODY,
   fontSize: 11.5,
   lineHeight: 1.5,
-  color: "rgba(26,26,26,0.55)",
+  color: "rgb(from var(--ss-text-primary) r g b / 0.55)",
   maxWidth: 440,
 }
 
@@ -14074,6 +14155,67 @@ function ProfileScreen({
                     <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{lastScanLabel}</div>
                   </div>
                 </div>
+
+                {loadScanRecords().filter((scan) => scan.favorite).length > 0 ? (
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>Saved products</div>
+                    <p style={{ margin: "4px 0 12px", fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                      Bookmarked from product results. Tap to reopen a scan.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {loadScanRecords()
+                        .filter((scan) => scan.favorite)
+                        .slice(0, 8)
+                        .map((scan) => (
+                          <button
+                            key={scan.id || scan.name}
+                            type="button"
+                            onClick={() => openStoredScan(scan.id, go)}
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              border: "none",
+                              borderRadius: 12,
+                              padding: "14px 16px",
+                              minHeight: 48,
+                              background: SOFT_SLATE.bg,
+                              boxShadow: SOFT_SLATE.insetSm,
+                              cursor: "pointer",
+                              fontFamily: SOFT_SLATE.fontFamily,
+                            }}
+                          >
+                            <div style={{ fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{scan.name}</div>
+                            <div style={{ marginTop: 4, fontSize: 13, color: SOFT_SLATE.textMuted }}>
+                              {scan.date} · {scan.method}
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openSavedProducts(go)}
+                      style={{
+                        marginTop: 12,
+                        border: "none",
+                        background: "none",
+                        color: SOFT_SLATE.green,
+                        fontWeight: 700,
+                        fontSize: 14,
+                        cursor: "pointer",
+                        minHeight: 44,
+                      }}
+                    >
+                      View all saved products
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>Saved products</div>
+                    <p style={{ margin: "4px 0 0", fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                      After you scan a product, tap Save on the result. It will show up here and under Saved in Scan History.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* ── RIGHT - preferences ─────────────────────────────────── */}
@@ -14353,7 +14495,7 @@ function InfoHeader({
               margin: "4px 0 0",
               fontFamily: FONT_BODY,
               fontSize: 12,
-              color: "rgba(26,26,26,0.58)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
             }}
           >
             {subtitle}
@@ -15207,7 +15349,7 @@ function LegacyAboutScreen({ go }: { go: (s: Screen) => void }) {
                       fontFamily: FONT_HEAD,
                       fontWeight: 800,
                       fontSize: 18,
-                      color: C.white,
+                      color: C.onAccent,
                     }}
                   >
                     Know what is in your food.
@@ -15395,7 +15537,7 @@ function LegacyAboutScreen({ go }: { go: (s: Screen) => void }) {
                   border: "none",
                   borderRadius: 10,
                   background: PALETTE.green,
-                  color: C.white,
+                  color: C.onAccent,
                   fontFamily: FONT_HEAD,
                   fontWeight: 700,
                   fontSize: 11,
@@ -15923,7 +16065,7 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
               <Row
                 onClick={toggleTheme}
                 label="Dark mode"
-                sub={theme === "dark" ? "On — easier on the eyes at night" : "Off — bright Soft Slate look"}
+                sub={theme === "dark" ? "On — chosen by you" : "Off by default. Light until you turn this on."}
                 right={
                   <span
                     aria-hidden
@@ -16634,7 +16776,7 @@ function ForgotPasswordScreen({
             height: isDesktop ? 42 : 38,
             borderRadius: isDesktop ? 12 : 10,
             border: "1px solid rgba(224,167,46,0.30)",
-            background: "rgba(26,26,26,0.08)",
+            background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
             color: PALETTE.textDark,
             display: "flex",
             alignItems: "center",
@@ -16645,11 +16787,11 @@ function ForgotPasswordScreen({
             transition: "background 0.15s ease, transform 0.15s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(26,26,26,0.14)"
+            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.14)"
             e.currentTarget.style.transform = "translateX(-2px)"
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(26,26,26,0.08)"
+            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.08)"
             e.currentTarget.style.transform = "translateX(0)"
           }}
         >
@@ -16688,7 +16830,7 @@ function ForgotPasswordScreen({
                   border: "1px solid rgba(224,167,46,0.20)",
                   borderRadius: 28,
                   boxShadow:
-                    "0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgba(26,26,26,0.06)",
+                    "0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgb(from var(--ss-text-primary) r g b / 0.06)",
                   backdropFilter: "blur(24px)",
                   WebkitBackdropFilter: "blur(24px)",
                 }
@@ -16707,7 +16849,7 @@ function ForgotPasswordScreen({
               background: "rgba(224,167,46,0.12)",
               border: "1.5px solid rgba(224,167,46,0.45)",
               boxShadow:
-                "0 0 30px rgba(224,167,46,0.10), inset 0 1px rgba(26,26,26,0.08)",
+                "0 0 30px rgba(224,167,46,0.10), inset 0 1px rgb(from var(--ss-text-primary) r g b / 0.08)",
               marginBottom: 22,
               flexShrink: 0,
             }}
@@ -16741,7 +16883,7 @@ function ForgotPasswordScreen({
               maxWidth: isDesktop ? 340 : 260,
               fontSize: isDesktop ? 13 : 10,
               lineHeight: isDesktop ? "20px" : "15px",
-              color: "rgba(26,26,26,0.58)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
               textAlign: "center",
             }}
           >
@@ -16779,10 +16921,10 @@ function ForgotPasswordScreen({
                 padding: "0 16px",
                 boxSizing: "border-box",
                 borderRadius: 14,
-                background: "rgba(26,26,26,0.08)",
+                background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
                 border: email
                   ? "1px solid rgba(224,167,46,0.75)"
-                  : "1px solid rgba(26,26,26,0.14)",
+                  : "1px solid rgb(from var(--ss-text-primary) r g b / 0.14)",
                 boxShadow: email
                   ? "0 0 15px rgba(224,167,46,0.08)"
                   : "none",
@@ -16839,7 +16981,7 @@ function ForgotPasswordScreen({
               background: pressed
                 ? C.mochaLight
                 : "linear-gradient(135deg, #E0A72E 0%, #C98A1F 100%)",
-              color: C.white,
+              color: C.onAccent,
               fontFamily: FONT_HEAD,
               fontSize: isDesktop ? 15 : 16,
               fontWeight: 700,
@@ -16862,7 +17004,7 @@ function ForgotPasswordScreen({
               marginTop: 22,
               border: "none",
               background: "transparent",
-              color: "rgba(26,26,26,0.55)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.55)",
               fontFamily: FONT_BODY,
               fontSize: isDesktop ? 12 : 10,
               cursor: "pointer",
@@ -16885,7 +17027,7 @@ function ForgotPasswordScreen({
               margin: isDesktop ? "32px 0 0" : "24px 0 0",
               textAlign: "center",
               fontSize: isDesktop ? 12 : 10,
-              color: "rgba(26,26,26,0.35)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.35)",
             }}
           >
             Scanity • See It. Know It. Eat It.
@@ -16978,7 +17120,7 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
             height: isDesktop ? 42 : 38,
             borderRadius: 12,
             border: "1px solid rgba(224,167,46,0.30)",
-            background: "rgba(26,26,26,0.08)",
+            background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
             color: PALETTE.textDark,
             display: "flex",
             alignItems: "center",
@@ -16989,11 +17131,11 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
             transition: "background 0.15s ease, transform 0.15s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(26,26,26,0.14)"
+            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.14)"
             e.currentTarget.style.transform = "translateX(-2px)"
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(26,26,26,0.08)"
+            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.08)"
             e.currentTarget.style.transform = "translateX(0)"
           }}
         >
@@ -17032,7 +17174,7 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
                   border: "1px solid rgba(224,167,46,0.20)",
                   borderRadius: 28,
                   boxShadow:
-                    "0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgba(26,26,26,0.06)",
+                    "0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgb(from var(--ss-text-primary) r g b / 0.06)",
                   backdropFilter: "blur(24px)",
                   WebkitBackdropFilter: "blur(24px)",
                 }
@@ -17051,7 +17193,7 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
               background: "rgba(224,167,46,0.12)",
               border: "1.5px solid rgba(224,167,46,0.45)",
               boxShadow:
-                "0 0 30px rgba(224,167,46,0.10), inset 0 1px rgba(26,26,26,0.08)",
+                "0 0 30px rgba(224,167,46,0.10), inset 0 1px rgb(from var(--ss-text-primary) r g b / 0.08)",
               marginBottom: 22,
               flexShrink: 0,
             }}
@@ -17084,7 +17226,7 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
               maxWidth: isDesktop ? 340 : 260,
               fontSize: isDesktop ? 13 : 10,
               lineHeight: isDesktop ? "20px" : "15px",
-              color: "rgba(26,26,26,0.58)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
               textAlign: "center",
             }}
           >
@@ -17122,10 +17264,10 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
                 padding: "0 16px",
                 boxSizing: "border-box",
                 borderRadius: 14,
-                background: "rgba(26,26,26,0.08)",
+                background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
                 border: password
                   ? "1px solid rgba(224,167,46,0.75)"
-                  : "1px solid rgba(26,26,26,0.14)",
+                  : "1px solid rgb(from var(--ss-text-primary) r g b / 0.14)",
                 boxShadow: password
                   ? "0 0 15px rgba(224,167,46,0.08)"
                   : "none",
@@ -17170,7 +17312,7 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
                   style={{
                     border: "none",
                     background: "transparent",
-                    color: "rgba(26,26,26,0.5)",
+                    color: "rgb(from var(--ss-text-primary) r g b / 0.5)",
                     cursor: "pointer",
                     padding: 2,
                     flexShrink: 0,
@@ -17219,12 +17361,12 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
                 padding: "0 16px",
                 boxSizing: "border-box",
                 borderRadius: 14,
-                background: "rgba(26,26,26,0.08)",
+                background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
                 border: confirmPassword
                   ? passwordsMatch
                     ? "1px solid rgba(224,167,46,0.75)"
                     : "1px solid rgba(220,80,80,0.65)"
-                  : "1px solid rgba(26,26,26,0.14)",
+                  : "1px solid rgb(from var(--ss-text-primary) r g b / 0.14)",
                 boxShadow:
                   confirmPassword && passwordsMatch
                     ? "0 0 15px rgba(224,167,46,0.08)"
@@ -17272,7 +17414,7 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
                   style={{
                     border: "none",
                     background: "transparent",
-                    color: "rgba(26,26,26,0.5)",
+                    color: "rgb(from var(--ss-text-primary) r g b / 0.5)",
                     cursor: "pointer",
                     padding: 2,
                     flexShrink: 0,
@@ -17331,12 +17473,12 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
               border: "1px solid rgba(224,167,46,0.55)",
               borderRadius: 14,
               background: !passwordsMatch
-                ? "rgba(26,26,26,0.12)"
+                ? "rgb(from var(--ss-text-primary) r g b / 0.12)"
                 : pressed
                   ? C.mochaLight
                   : "linear-gradient(135deg, #E0A72E 0%, #C98A1F 100%)",
               color: !passwordsMatch
-                ? "rgba(26,26,26,0.35)"
+                ? "rgb(from var(--ss-text-primary) r g b / 0.35)"
                 : C.white,
               fontFamily: FONT_HEAD,
               fontSize: isDesktop ? 15 : 16,
@@ -17364,7 +17506,7 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
               margin: isDesktop ? "32px 0 0" : "24px 0 0",
               textAlign: "center",
               fontSize: isDesktop ? 12 : 10,
-              color: "rgba(26,26,26,0.35)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.35)",
             }}
           >
             Scanity • See It. Know It. Eat It.
@@ -17451,7 +17593,7 @@ function ConfirmationPasswordScreen({
           className="fa fa-check"
           style={{
             fontSize: isDesktop ? 48 : 42,
-            color: C.white,
+            color: C.onAccent,
           }}
         />
       </div>
@@ -17481,7 +17623,7 @@ function ConfirmationPasswordScreen({
           textAlign: "center",
           fontSize: isDesktop ? 12 : 10,
           lineHeight: isDesktop ? "18px" : "15px",
-          color: "rgba(26,26,26,0.55)",
+          color: "rgb(from var(--ss-text-primary) r g b / 0.55)",
           position: "relative",
           zIndex: 2,
         }}
@@ -17510,7 +17652,7 @@ function ConfirmationPasswordScreen({
             border: "none",
             borderRadius: 12,
             background: C.greenLight,
-            color: C.white,
+            color: C.onAccent,
             fontFamily: FONT_HEAD,
             fontWeight: 700,
             fontSize: isDesktop ? 16 : 14,
@@ -17538,7 +17680,7 @@ function ConfirmationPasswordScreen({
           margin: isDesktop ? "30px 0 0" : "24px 0 0",
           textAlign: "center",
           fontSize: isDesktop ? 11 : 9,
-          color: "rgba(26,26,26,0.35)",
+          color: "rgb(from var(--ss-text-primary) r g b / 0.35)",
           position: "relative",
           zIndex: 2,
         }}
@@ -17671,7 +17813,7 @@ function LanguageScreen({ go }: { go: (s: Screen) => void }) {
             height="16"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="rgba(26,26,26,0.4)"
+            stroke="var(--ss-ink-faint)"
             strokeWidth="2"
           >
             <circle cx="11" cy="11" r="8" />
@@ -17702,7 +17844,7 @@ function LanguageScreen({ go }: { go: (s: Screen) => void }) {
                 background: "none",
                 border: "none",
                 cursor: "pointer",
-                color: "rgba(26,26,26,0.4)",
+                color: "var(--ss-ink-faint)",
                 fontSize: 16,
                 padding: 0,
                 lineHeight: 1,
@@ -17755,7 +17897,7 @@ function LanguageScreen({ go }: { go: (s: Screen) => void }) {
                     margin: 0,
                     fontFamily: FONT_BODY,
                     fontSize: 12,
-                    color: "rgba(26,26,26,0.45)",
+                    color: "var(--ss-ink-faint)",
                     marginTop: 2,
                   }}
                 >
@@ -17768,7 +17910,7 @@ function LanguageScreen({ go }: { go: (s: Screen) => void }) {
                   height: 22,
                   borderRadius: "50%",
                   border: `2px solid ${
-                    active ? C.greenLight : "rgba(26,26,26,0.3)"
+                    active ? C.greenLight : "var(--ss-ink-faint)"
                   }`,
                   display: "flex",
                   alignItems: "center",
@@ -17795,7 +17937,7 @@ function LanguageScreen({ go }: { go: (s: Screen) => void }) {
           <p
             style={{
               textAlign: "center",
-              color: "rgba(26,26,26,0.35)",
+              color: "rgb(from var(--ss-text-primary) r g b / 0.35)",
               fontFamily: FONT_BODY,
               fontSize: 13,
               marginTop: 32,

@@ -17,14 +17,17 @@ def _template_chat(message: str, product: dict, profile: dict) -> str:
     allergies = ", ".join(profile.get("allergies") or []) or "your saved allergies"
     flags = product.get("allergy_flags") or []
     lines = [
-        f"**{verdict}** for **{name}**, checked against {allergies}.",
+        f"{verdict} for {name}, checked against {allergies}.",
     ]
     if flags:
         for item in flags[:4]:
-            lines.append(f"- Flagged item: **{item}** (from the scan result).")
+            lines.append(f"- Flagged on this scan: {item}.")
     else:
         lines.append("- No avoid-level allergy flags were recorded for this scan.")
-    lines.append("- I can explain ingredients in plain words, but I am not a doctor - confirm the package.")
+    score = product.get("safety_score")
+    if score is not None:
+        lines.append(f"- Allergy safety score on this scan: {score}/100.")
+    lines.append("- I can explain these ingredients in plain words, but I am not a doctor - confirm the package.")
     return "\n".join(lines)
 
 
@@ -36,12 +39,12 @@ def _template_report(product: dict, profile: dict) -> str:
     conditions = ", ".join(profile.get("conditions") or []) or "none saved"
     flags = product.get("allergy_flags") or []
     lines = [
-        f"**{verdict}**. **{name}** was checked against your profile ({allergies}; health notes: {conditions}).",
+        f"{verdict}. {name} was checked against your profile ({allergies}; health notes: {conditions}).",
     ]
     if score is not None:
-        lines.append(f"- Safety score: **{score}/100**.")
+        lines.append(f"- Safety score: {score}/100.")
     if flags:
-        lines.append(f"- Avoid / flagged: **{', '.join(str(item) for item in flags[:5])}**.")
+        lines.append(f"- Avoid / flagged on this label: {', '.join(str(item) for item in flags[:5])}.")
     else:
         lines.append("- No avoid-level allergy flags were recorded for this scan.")
     lines.append("- Nutri-Score is nutrition quality only and does not change the allergy result.")

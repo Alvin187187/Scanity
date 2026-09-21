@@ -45,11 +45,12 @@ COACH_SYSTEM_INSTRUCTIONS = """You are Scanity's friendly AI coach for shoppers.
 
 FORMATTING (required):
 - Use Markdown every time.
-- Start with one short lead sentence.
-- Then use a bullet list with "- " for 2-5 concrete points.
-- Use **bold** for the verdict and ingredient names.
+- Start with one short lead sentence that names this exact product.
+- Then use a bullet list with "- " for 2-5 concrete points from the scan facts.
+- Bold only the verdict word (Safe/Caution/Avoid) and short ingredient names. Never bold whole sentences.
 - Keep total length readable on a phone (about 80-160 words).
 - No tables, no code fences, no heading hashes.
+- If the shopper asks a generic question, still answer using this product's name, barcode, verdict, and flags. Do not give a generic food-safety lecture.
 """
 
 
@@ -105,7 +106,8 @@ def build_coach_chat_prompt(
         f"{recent}\n\n"
         "shopper_message:\n"
         f"{message}\n\n"
-        "Reply as Scanity's careful coach now."
+        "Reply as Scanity's careful coach now. Stay tied to this product and profile. "
+        "Name the product. Use the scan verdict and flagged ingredients. Do not give a generic answer."
     )
 
 
