@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from ai.gemini_client import FALLBACK_TEXT, call_hosted_ai
 from ai.prompt import (
     COACH_SYSTEM_INSTRUCTIONS,
@@ -11,44 +13,114 @@ from ai.prompt import (
 from ai.rag_layer import enrich_prompt_with_rag
 
 
+def _friendly_name(product: dict) -> str:
+    return str(product.get("product_name") or "this product").strip() or "this product"
+
+
+def _verdict_label(product: dict) -> str:
+    return (str(product.get("verdict") or "caution").strip() or "caution").capitalize()
+
+
 def _template_chat(message: str, product: dict, profile: dict) -> str:
-    name = product.get("product_name") or "this product"
-    verdict = (product.get("verdict") or "caution").capitalize()
-    allergies = ", ".join(profile.get("allergies") or []) or "your saved allergies"
-    flags = product.get("allergy_flags") or []
+    """Answer the shopper's question in plain words — never dump the same blurb."""
+    name = _friendly_name(product)
+    verdict = _verdict_label(product)
+    flags = [str(item) for item in (product.get("allergy_flags") or []) if str(item).strip()]
+    allergies = [str(item) for item in (profile.get("allergies") or []) if str(item).strip()]
+    q = (message or "").strip().lower()
+
+    # Ingredient / "what is" questions
+    what_match = re.search(
+        r"(?:what(?:'s| is| are)?|explain|tell me about|define)\s+(.+?)(?:\?|$)",
+        q,
+    )
+    if what_match or any(word in q for word in ("ingredient", "additive", "e-number", "enumber")):
+        focus = (what_match.group(1).strip() if what_match else "").strip(" .?")
+        if focus and focus not in {"it", "this", "that", "the ingredient"}:
+            return (
+                f"**{focus.title()}** is one of the names on **{name}**'s label.\n"
+                f"- Scanity's result for this product is still **{verdict}**.\n"
+                "- Open the ingredient chip on the result for a short plain-language note.\n"
+                "- This is consumer guidance, not medical advice."
+            )
+        if flags:
+            bullets = "\n".join(f"- **{item}** showed up in your scan notes." for item in flags[:4])
+            return (
+                f"Here's what stood out on **{name}**:\n{bullets}\n"
+                f"- Overall result: **{verdict}**."
+            )
+
+    # Can I eat / is it safe
+    if any(
+        phrase in q
+        for phrase in (
+            "can i eat",
+            "can i drink",
+            "is it safe",
+            "is this safe",
+            "should i avoid",
+            "okay for me",
+            "ok for me",
+            "safe for me",
+        )
+    ):
+        allergy_bit = ", ".join(allergies[:3]) if allergies else "your saved allergies"
+        if verdict == "Avoid":
+            lead = f"**Better to skip** **{name}** for now — it lined up with **{allergy_bit}**."
+        elif verdict == "Safe":
+            lead = f"**Looks okay** for **{allergy_bit}** based on this label check of **{name}**."
+        else:
+            lead = f"**Take a closer look** at **{name}** — Scanity marked it **{verdict}** for your profile."
+        lines = [lead]
+        if flags:
+            lines.append("- Watch for: " + ", ".join(f"**{item}**" for item in flags[:4]) + ".")
+        lines.append("- Double-check the package if anything looks different. Not medical advice.")
+        return "\n".join(lines)
+
+    # Sugar / diabetes style
+    if any(word in q for word in ("sugar", "diabetes", "sweet", "carb")):
+        return (
+            f"About sugar in **{name}**:\n"
+            f"- Scanity's allergy result is **{verdict}** (separate from nutrition).\n"
+            "- Check the nutrition panel for sugars if you manage blood sugar.\n"
+            "- I can explain a specific ingredient if you name it."
+        )
+
+    # Default: short, question-aware acknowledgment + only needed context
     lines = [
-        f"{verdict} for {name}, checked against {allergies}.",
+        f"On {name}, Scanity's result is {verdict}.",
     ]
     if flags:
-        for item in flags[:4]:
-            lines.append(f"- Flagged on this scan: {item}.")
-    else:
-        lines.append("- No avoid-level allergy flags were recorded for this scan.")
+        lines.append("- Notable items: " + ", ".join(flags[:4]) + ".")
+    elif allergies:
+        lines.append(f"- Checked against: {', '.join(allergies[:3])}.")
     score = product.get("safety_score")
     if score is not None:
         lines.append(f"- Allergy safety score on this scan: {score}/100.")
-    lines.append("- I can explain these ingredients in plain words, but I am not a doctor - confirm the package.")
+    lines.append("- Ask me about a specific ingredient, or whether this looks okay for you.")
     return "\n".join(lines)
 
 
 def _template_report(product: dict, profile: dict) -> str:
-    name = product.get("product_name") or "This product"
-    verdict = (product.get("verdict") or "caution").capitalize()
+    name = _friendly_name(product)
+    verdict = _verdict_label(product)
     score = product.get("safety_score")
-    allergies = ", ".join(profile.get("allergies") or []) or "no saved allergies"
-    conditions = ", ".join(profile.get("conditions") or []) or "none saved"
-    flags = product.get("allergy_flags") or []
+    allergies = ", ".join(str(item) for item in (profile.get("allergies") or [])[:4]) or "no saved allergies"
+    conditions = ", ".join(str(item) for item in (profile.get("conditions") or [])[:4]) or "none saved"
+    flags = [str(item) for item in (product.get("allergy_flags") or []) if str(item).strip()]
     lines = [
-        f"{verdict}. {name} was checked against your profile ({allergies}; health notes: {conditions}).",
+        f"{verdict} for {name}.",
+        f"- Checked with your notes: {allergies}"
+        + (f"; health notes: {conditions}." if conditions != "none saved" else "."),
     ]
     if score is not None:
         lines.append(f"- Safety score: {score}/100.")
     if flags:
-        lines.append(f"- Avoid / flagged on this label: {', '.join(str(item) for item in flags[:5])}.")
+        lines.append("- Watch-outs: " + ", ".join(str(item) for item in flags[:5]) + ".")
     else:
-        lines.append("- No avoid-level allergy flags were recorded for this scan.")
-    lines.append("- Nutri-Score is nutrition quality only and does not change the allergy result.")
-    lines.append("- This is a careful consumer summary, not medical advice - confirm ingredients on the package.")
+        lines.append("- No avoid-level allergy flags on this scan.")
+    lines.append("- Nutri-Score is about nutrition quality, not allergy safety.")
+    lines.append("- Consumer summary only — not medical advice.")
     return "\n".join(lines)
 
 
@@ -69,12 +141,12 @@ def answer_product_question(
         ]
         if part
     )
-    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=6)
+    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=4)
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
-        max_output_tokens=280,
-        temperature=0.35,
+        max_output_tokens=320,
+        temperature=0.45,
     )
     if text and text != FALLBACK_TEXT:
         return text
@@ -97,12 +169,12 @@ def build_safety_report(
         ]
         if part
     )
-    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=6)
+    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=5)
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
         max_output_tokens=420,
-        temperature=0.3,
+        temperature=0.35,
     )
     if text and text != FALLBACK_TEXT:
         return text

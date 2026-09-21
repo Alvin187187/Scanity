@@ -174,6 +174,30 @@ def _normalize_allergy_category(raw_category) -> str:
     return CATEGORY_SYNONYMS.get(normalized, normalized)
 
 
+def _friendly_allergy_label(raw_category) -> str:
+    """Shopper-facing allergy name (no underscores / jargon)."""
+    slug = _normalize_allergy_category(raw_category)
+    labels = {
+        "milk": "dairy / milk",
+        "egg": "egg",
+        "peanut": "peanut",
+        "tree_nuts": "tree nuts",
+        "soy": "soy",
+        "wheat": "wheat / gluten",
+        "fish": "fish",
+        "shellfish": "shellfish",
+        "sesame": "sesame",
+        "mustard": "mustard",
+        "celery": "celery",
+        "sulphites": "sulphites",
+        "lactose": "lactose / dairy",
+        "diabetes": "added sugars",
+    }
+    if slug in labels:
+        return labels[slug]
+    return (raw_category or slug or "this allergen").replace("_", " ").strip()
+
+
 def _is_benign_pantry_ingredient(ingredient_text) -> bool:
     normalized = _normalize(ingredient_text)
     if not normalized:
@@ -301,7 +325,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "status": "caution",
                 "matched_category": None,
                 "matched_kb_entry": None,
-                "reason": "Ingredient entry was not valid text and could not be checked.",
+                "reason": "This ingredient entry was not readable, so Scanity could not check it.",
             })
             continue
 
@@ -311,7 +335,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "status": "safe",
                 "matched_category": None,
                 "matched_kb_entry": None,
-                "reason": "Inert carrier (e.g. water/gas) - not a major allergen risk.",
+                "reason": "A simple carrier (like water) — not a major allergen on its own.",
                 "plain_explanation": "A carrier ingredient that is not a major allergen by itself.",
             })
             continue
@@ -331,14 +355,14 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "affects_allergens": list((knowledge or {}).get("affects_allergens") or []),
                 "affects_diets": list((knowledge or {}).get("affects_diets") or []),
                 "possible_effects": (knowledge or {}).get("possible_effects") or "",
-                "reason": "Common pantry ingredient - not an allergy match for your profile.",
-                "plain_explanation": (knowledge or {}).get("possible_effects")
-                or (knowledge or {}).get("what_it_is")
-                or "Everyday ingredient. Tap the chip for what it is and when to be careful.",
+                "reason": "Everyday pantry item — not linked to your saved allergies.",
+                "plain_explanation": (knowledge or {}).get("what_it_is")
+                or (knowledge or {}).get("possible_effects")
+                or "A common food ingredient.",
             })
             continue
 
-        kb_entry, match_type = _match_ingredient(
+        kb_entry, _match_type = _match_ingredient(
             ingredient,
             name_lookup,
             alias_lookup,
@@ -364,6 +388,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                     if _normalize_allergy_category(item) in user_allergies_normalized
                 ]
                 if hit_allergens:
+                    label = _friendly_allergy_label(hit_allergens[0])
                     flags.append({
                         "ingredient": ingredient,
                         "status": "avoid",
@@ -373,11 +398,11 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                         "affects_diets": affects_diets,
                         "possible_effects": knowledge.get("possible_effects") or "",
                         "reason": (
-                            f"Feature flag match: {hit_allergens[0]} overlaps your saved allergies."
+                            f"This looks like **{label}**, which you asked Scanity to watch for."
                         ),
-                        "plain_explanation": knowledge.get("possible_effects")
-                        or knowledge.get("what_it_is")
-                        or "Tap the chip for details.",
+                        "plain_explanation": knowledge.get("what_it_is")
+                        or knowledge.get("possible_effects")
+                        or f"**{ingredient}** is listed on this label.",
                     })
                     continue
 
@@ -389,10 +414,10 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                     "affects_allergens": affects_allergens,
                     "affects_diets": affects_diets,
                     "possible_effects": knowledge.get("possible_effects") or "",
-                    "reason": "Identified in Scanity ingredient knowledge - not an allergy match for your profile.",
+                    "reason": "Recognized on the label — not linked to your saved allergies.",
                     "plain_explanation": knowledge.get("what_it_is")
                     or knowledge.get("possible_effects")
-                    or "Tap the chip for what this is and when to be careful.",
+                    or f"**{ingredient}** is a known label ingredient.",
                 })
                 continue
 
@@ -405,10 +430,10 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "affects_allergens": [],
                 "affects_diets": [],
                 "possible_effects": "",
-                "reason": "Could not confirm this against your allergy profile yet - flagged for a quick check.",
+                "reason": "Scanity could not fully confirm this ingredient yet — worth a closer look.",
                 "plain_explanation": (
-                    "We could not fully match this ingredient to your saved allergies, "
-                    "so it is flagged. Tap for details and confirm the package."
+                    f"**{ingredient}** showed up on the label, but Scanity could not fully "
+                    "match it to your saved allergies yet."
                 ),
             })
             continue
@@ -423,6 +448,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
         ]
         if category_normalized in user_allergies_normalized or profile_hits:
             matched = profile_hits[0] if profile_hits else kb_entry["allergen_category"]
+            label = _friendly_allergy_label(matched)
             flags.append({
                 "ingredient": ingredient,
                 "status": "avoid",
@@ -432,12 +458,12 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "affects_diets": affects_diets,
                 "possible_effects": plain,
                 "reason": (
-                    f"Matches your declared {matched} allergy "
-                    f"(matched via {match_type} to '{kb_entry['ingredient_name']}')."
+                    f"This looks like **{label}**, which you asked Scanity to watch for."
                 ),
-                "plain_explanation": plain,
+                "plain_explanation": plain or f"**{ingredient}** is linked to {label}.",
             })
         else:
+            label = _friendly_allergy_label(kb_entry["allergen_category"])
             flags.append({
                 "ingredient": ingredient,
                 "status": "safe",
@@ -447,8 +473,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "affects_diets": affects_diets,
                 "possible_effects": plain,
                 "reason": (
-                    f"Identified as {kb_entry['allergen_category']}, which is not in your "
-                    "declared allergies."
+                    f"Identified as {label}, which is not in your saved allergies."
                 ),
                 "plain_explanation": plain,
             })
