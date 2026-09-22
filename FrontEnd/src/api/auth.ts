@@ -21,11 +21,20 @@ export const PRODUCTION_API_BASE_URL =
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 
+function pageIsLocal() {
+  if (typeof window === "undefined") return false
+  return /localhost|127\.0\.0\.1/.test(window.location.hostname)
+}
+
 const API_BASE_URL = trimTrailingSlash(
-  configuredBaseUrl ||
-    (import.meta.env.DEV
-      ? "http://localhost:8000/api/v1"
-      : PRODUCTION_API_BASE_URL),
+  configuredBaseUrl &&
+    /localhost|127\.0\.0\.1/.test(configuredBaseUrl) &&
+    !pageIsLocal()
+    ? PRODUCTION_API_BASE_URL
+    : configuredBaseUrl ||
+        (import.meta.env.DEV && pageIsLocal()
+          ? "http://localhost:8000/api/v1"
+          : PRODUCTION_API_BASE_URL),
 )
 
 const AUTH_FETCH_TIMEOUT_MS = 45_000
@@ -212,7 +221,10 @@ async function authedFetch(path: string, method: string, body?: Record<string, u
 }
 
 export async function requestPasswordReset(email: string) {
-  const response = await authFetch("/auth/password-reset/request", { email })
+  const response = await authFetch("/auth/password-reset/request", {
+    email,
+    redirect_origin: window.location.origin,
+  })
   const result = await response.json().catch(() => null)
   if (!response.ok) {
     throw new Error(errorMessageFromBody(result, "Could not send the reset email."))

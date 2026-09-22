@@ -141,6 +141,17 @@ def _fetch_allergies(db: Session, user_id: uuid.UUID) -> list[AllergyItem]:
     ]
 
 
+def _custom_names(rows: list, prefix: str = "other:") -> list[str]:
+    names: list[str] = []
+    for row in rows:
+        raw = getattr(row, "allergen_name", None) or getattr(row, "condition_name", None) or ""
+        if raw.startswith(prefix):
+            name = raw[len(prefix) :].strip()
+            if name:
+                names.extend(part.strip() for part in name.split("\n") if part.strip())
+    return names
+
+
 def _fetch_other_allergy(db: Session, user_id: uuid.UUID) -> str | None:
     rows = db.execute(
         select(AllergyType.allergen_name)
@@ -150,11 +161,8 @@ def _fetch_other_allergy(db: Session, user_id: uuid.UUID) -> str | None:
         )
         .where(user_allergies.c.user_id == user_id)
     ).all()
-    for row in rows:
-        name = row.allergen_name or ""
-        if name.startswith("other:"):
-            return name[len("other:") :].strip() or None
-    return None
+    names = _custom_names(rows)
+    return "\n".join(names) if names else None
 
 
 def _fetch_health_conditions(db: Session, user_id: uuid.UUID) -> list[str]:
@@ -187,11 +195,8 @@ def _fetch_other_condition(db: Session, user_id: uuid.UUID) -> str | None:
         )
         .where(user_health_conditions.c.user_id == user_id)
     ).all()
-    for row in rows:
-        name = row.condition_name or ""
-        if name.startswith("other:"):
-            return name[len("other:") :].strip() or None
-    return None
+    names = _custom_names(rows)
+    return "\n".join(names) if names else None
 
 
 def _profile_response(db: Session, user: User) -> UserProfileResponse:
@@ -262,8 +267,12 @@ async def update_profile(
                     "severity": (item.severity or "moderate")[:20],
                 }
             )
-        other = (request.other_allergy or "").strip()
-        if other:
+        other_names = [
+            part.strip()
+            for part in (request.other_allergy or "").split("\n")
+            if part.strip()
+        ]
+        for other in other_names:
             other_type_id = _ensure_allergen_type(db, f"other:{other}"[:50])
             rows.append(
                 {
@@ -295,8 +304,12 @@ async def update_profile(
                     "condition_type_id": condition_type_id,
                 }
             )
-        other = (request.other_condition or "").strip()
-        if other:
+        other_names = [
+            part.strip()
+            for part in (request.other_condition or "").split("\n")
+            if part.strip()
+        ]
+        for other in other_names:
             condition_type_id = _ensure_condition_type(db, f"other:{other}"[:100])
             rows.append(
                 {

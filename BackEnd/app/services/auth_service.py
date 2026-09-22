@@ -157,8 +157,26 @@ def logout_user(access_token: str) -> None:
         raise AuthError(str(e))
 
 
-def request_password_reset(email: str) -> None:
-    redirect = f"{settings.FRONTEND_URL.rstrip('/')}/"
+def _reset_redirect(origin: str | None) -> str:
+    configured = settings.FRONTEND_URL.rstrip("/")
+    allowed = {item.rstrip("/") for item in settings.cors_origin_list}
+    allowed.add(configured)
+    public = [
+        item
+        for item in allowed
+        if "localhost" not in item and "127.0.0.1" not in item
+    ]
+    candidate = (origin or "").strip().rstrip("/")
+    if candidate in allowed:
+        return f"{candidate}/"
+    fallback = public[0] if "localhost" in configured or "127.0.0.1" in configured else configured
+    if not fallback and public:
+        fallback = public[0]
+    return f"{(fallback or configured).rstrip('/')}/"
+
+
+def request_password_reset(email: str, redirect_origin: str | None = None) -> None:
+    redirect = _reset_redirect(redirect_origin)
     try:
         supabase.auth.reset_password_for_email(
             email,
