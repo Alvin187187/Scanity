@@ -100,6 +100,8 @@ def _merge_live_fields(base: dict, mapped: dict) -> dict:
         enriched["ingredients_raw_text"] = mapped.get("ingredients_raw_text")
     if mapped.get("ingredients") and not enriched.get("ingredients"):
         enriched["ingredients"] = mapped.get("ingredients")
+    if mapped.get("nutriscore_grade"):
+        enriched["nutriscore_grade"] = mapped.get("nutriscore_grade")
     return enriched
 
 
@@ -166,6 +168,25 @@ def _get_local_product(db, barcode: str) -> Optional[dict]:
     }
 
 
+def _off_nutri_grade(raw: dict) -> str | None:
+    grade = str(raw.get("nutriscore_grade") or raw.get("nutrition_grades") or "").strip().lower()
+    letter = grade[:1]
+    return letter if letter in {"a", "b", "c", "d", "e"} else None
+
+
+def _energy_kj(nutriments: dict) -> float | None:
+    kj = nutriments.get("energy-kj_100g")
+    if kj is not None:
+        return kj
+    kcal = nutriments.get("energy-kcal_100g")
+    if kcal is not None:
+        try:
+            return float(kcal) * 4.184
+        except (TypeError, ValueError):
+            return None
+    return nutriments.get("energy_100g")
+
+
 def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
     """
     Normalizes OpenFoodFacts' raw response into Scanity's Product schema.
@@ -174,7 +195,9 @@ def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
     nutriments = raw.get("nutriments", {}) or {}
     brand = raw.get("brands", "").split(",")[0].strip() if raw.get("brands") else None
     category = raw.get("categories", "").split(",")[0].strip() if raw.get("categories") else None
-    ingredients_raw = raw.get("ingredients_text") or raw.get("ingredients_text_en") or ""
+    from app.services.ingredient_language import prefer_english_ingredients_text
+
+    ingredients_raw, _translated = prefer_english_ingredients_text(raw)
 
     mapped_ingredients = _map_ingredients(raw.get("ingredients") or [])
     if not mapped_ingredients and ingredients_raw:
@@ -188,7 +211,7 @@ def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
     return {
         "barcode": barcode,
         "product_name": _clip(
-            raw.get("product_name") or raw.get("product_name_en") or "Unknown product",
+            raw.get("product_name_en") or raw.get("product_name") or "Unknown product",
             _MAX_PRODUCT_NAME,
         )
         or "Unknown product",
@@ -197,8 +220,10 @@ def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
         "image_url": raw.get("image_url") or raw.get("image_front_url"),
         "ingredients_raw_text": ingredients_raw,
         "ingredients": mapped_ingredients,
+        "nutriscore_grade": _off_nutri_grade(raw),
         "nutrition": {
-            "energy_kj": nutriments.get("energy-kj_100g") or nutriments.get("energy_100g"),
+            "energy_kj": _energy_kj(nutriments),
+            "energy_kcal": nutriments.get("energy-kcal_100g"),
             "sugars_g": nutriments.get("sugars_100g"),
             "sat_fat_g": nutriments.get("saturated-fat_100g"),
             "sodium_mg": nutriments.get("sodium_100g", 0) * 1000
@@ -212,9 +237,12 @@ def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
 
 def _map_ingredients(raw_ingredients: list) -> list[dict]:
     """Maps OpenFoodFacts' ingredient list to our Ingredient schema, flagging known allergens."""
+    from app.services.ingredient_language import prefer_english_ingredient
+
     mapped = []
     for ing in raw_ingredients:
-        name = _clip((ing.get("text") or ing.get("id") or "").strip(), _MAX_INGREDIENT_NAME)
+        english_name, _translated = prefer_english_ingredient(ing)
+        name = _clip(english_name or str(ing.get("id") or ""), _MAX_INGREDIENT_NAME)
         if not name:
             continue
         mapped.append(

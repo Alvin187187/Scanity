@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = Field(repr=False)
     SUPABASE_SERVICE_ROLE_KEY: str | None = Field(default=None, repr=False)
     SUPABASE_JWT_SECRET: str = Field(default="", repr=False)
+    # Where password-reset and email-confirmation links should return.
+    FRONTEND_URL: str = "https://scanity-eta.vercel.app"
 
     SECRET_KEY: str = Field(repr=False)
     JWT_ALGORITHM: str = "ES256"

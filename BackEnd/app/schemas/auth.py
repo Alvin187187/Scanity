@@ -12,6 +12,7 @@ class RegisterResponse(BaseModel):
     user_id: str
     full_name: str
     email: EmailStr
+    email_confirmed: bool = True
     # Never includes password or password hash
 
 
@@ -41,7 +42,14 @@ class PasswordResetRequest(BaseModel):
 
 
 class PasswordResetConfirm(BaseModel):
-    reset_token: str
+    reset_token: str = ""
+    access_token: str = ""
+    refresh_token: str = ""
+    new_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
     new_password: str
 
 
