@@ -220,10 +220,19 @@ async function authedFetch(path: string, method: string, body?: Record<string, u
   return result
 }
 
+const PUBLIC_APP_ORIGIN = "https://scanity-eta.vercel.app"
+
+function passwordResetOrigin() {
+  if (typeof window === "undefined" || pageIsLocal()) return PUBLIC_APP_ORIGIN
+  const origin = window.location.origin.replace(/\/$/, "")
+  if (origin === PUBLIC_APP_ORIGIN || origin.endsWith(".vercel.app")) return origin
+  return PUBLIC_APP_ORIGIN
+}
+
 export async function requestPasswordReset(email: string) {
   const response = await authFetch("/auth/password-reset/request", {
     email,
-    redirect_origin: window.location.origin,
+    redirect_origin: passwordResetOrigin(),
   })
   const result = await response.json().catch(() => null)
   if (!response.ok) {

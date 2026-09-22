@@ -5532,6 +5532,54 @@ const STATUS_TINTS = {
   unsafe: { fg: SOFT_SLATE.unsafe, bg: "var(--ss-status-avoid-bg)" },
 }
 
+let pendingScanPhoto: File | null = null
+
+async function shrinkPhoto(file: File, maxSide: number): Promise<HTMLCanvasElement> {
+  const bitmap = await createImageBitmap(file)
+  try {
+    const longest = Math.max(bitmap.width, bitmap.height) || 1
+    const scale = Math.min(1, maxSide / longest)
+    const canvas = document.createElement("canvas")
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext("2d")
+    if (!context) throw new Error("Could not read this photo.")
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    return canvas
+  } finally {
+    bitmap.close()
+  }
+}
+
+async function barcodeFromCanvas(canvas: HTMLCanvasElement): Promise<string | null> {
+  const Detector = (
+    window as Window & {
+      BarcodeDetector?: new (options?: { formats?: string[] }) => {
+        detect: (source: CanvasImageSource) => Promise<Array<{ rawValue?: string }>>
+      }
+    }
+  ).BarcodeDetector
+  if (typeof Detector === "function") {
+    try {
+      const detector = new Detector({
+        formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "itf"],
+      })
+      const codes = await detector.detect(canvas)
+      const value = codes.map((code) => (code.rawValue || "").trim()).find(Boolean)
+      if (value) return value
+    } catch {
+      // The browser detector can be missing even when the constructor exists.
+    }
+  }
+  try {
+    const reader = new BrowserMultiFormatReader()
+    const result = reader.decodeFromCanvas(canvas)
+    return result.getText().trim() || null
+  } catch {
+    return null
+  }
+}
+
 function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   // ── UI STATE ──────────────────────────────────────────────────────────────
   const [showHelp, setShowHelp] = useState(false)
@@ -5916,21 +5964,37 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   }
 
   // ── GALLERY ───────────────────────────────────────────────────────────────
-  const handleGallery = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGallery = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
+    event.target.value = ""
     if (!file) return
     if (!isLikelyImageFile(file)) {
-      setErrorMessage("Please select a photo of the barcode. JPG and PNG work best.")
+      setErrorMessage("Please select a photo of the barcode or label. JPG and PNG work best.")
+      setScanStatus("invalid")
+      return
+    }
+    setErrorMessage("")
+    setScanStatus("scanning")
+    await new Promise((resolve) => window.setTimeout(resolve, 30))
+    let canvas: HTMLCanvasElement
+    try {
+      canvas = await shrinkPhoto(file, 900)
+    } catch (error) {
+      console.error("Photo prepare error:", error)
+      setErrorMessage("Could not read this photo. Try a JPG or PNG.")
       setScanStatus("invalid")
       return
     }
     if (galleryObjectUrlRef.current) URL.revokeObjectURL(galleryObjectUrlRef.current)
-    const imageUrl = URL.createObjectURL(file)
-    galleryObjectUrlRef.current = imageUrl
-    setGalleryImage(imageUrl)
-    setErrorMessage("")
-    setScanStatus("ready")
-    event.target.value = ""
+    const preview = canvas.toDataURL("image/jpeg", 0.82)
+    setGalleryImage(preview)
+    const code = await barcodeFromCanvas(canvas)
+    if (code) {
+      await processBarcode(code)
+      return
+    }
+    pendingScanPhoto = file
+    go("ocr")
   }
 
   // ── RETRY / RESCAN ────────────────────────────────────────────────────────
@@ -7164,7 +7228,8 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           : (image as HTMLImageElement).height || (image as HTMLCanvasElement).height
       if (!sourceWidth || !sourceHeight) return typeof source === "string" ? source : source
 
-      const scale = sourceWidth < 1400 ? 2 : 1.4
+      const maxSide = 1400
+      const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight))
       const canvas = document.createElement("canvas")
       canvas.width = Math.round(sourceWidth * scale)
       canvas.height = Math.round(sourceHeight * scale)
@@ -7290,6 +7355,15 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       processingRef.current = false
     }
   }
+
+  useEffect(() => {
+    const file = pendingScanPhoto
+    if (!file) return
+    pendingScanPhoto = null
+    const imageUrl = URL.createObjectURL(file)
+    setGalleryImage(imageUrl)
+    void processOCR(file)
+  }, [])
 
   const handleCapture = async () => {
     if (processingRef.current) return
@@ -8781,7 +8855,6 @@ function IngredientChip({
       onClick={onClick}
       aria-label={busy ? `Loading ${label}` : `Explain ${label}`}
       aria-busy={busy}
-      disabled={busy}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -9358,9 +9431,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               type="button"
               onClick={() => {
                 if (!scan) return
-                markScanFavorite(scan.id, true)
-                setSaved(true)
-                setSaveNotice("This product has been saved in your profile")
+                const next = !saved
+                markScanFavorite(scan.id, next)
+                setSaved(next)
+                setSaveNotice(next ? "This product has been saved in your profile" : "")
               }}
               aria-pressed={saved}
               style={{
@@ -9377,7 +9451,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 boxShadow: SOFT_SLATE.raisedBtn,
               }}
             >
-              {saved ? "Saved" : "Save to profile"}
+              {saved ? "Unsave" : "Save to profile"}
             </button>
             <button
               type="button"
@@ -10099,6 +10173,7 @@ function AllergenList({
 }: {
   allergens?: string[]
 }) {
+  const [sheet, setSheet] = useState<IngredientSheetPayload | null>(null)
   if (allergens === undefined) {
     return (
       <span
@@ -10169,8 +10244,16 @@ function AllergenList({
       }}
     >
       {allergens.map((allergen) => (
-        <span
+        <button
+          type="button"
           key={allergen}
+          onClick={() =>
+            setSheet({
+              name: allergen,
+              status: "avoid",
+              reason: `Flagged because this product lists ${allergen}.`,
+            })
+          }
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -10183,6 +10266,7 @@ function AllergenList({
             background: "rgba(232,69,60,0.12)",
             border: "1px solid rgba(232,69,60,0.4)",
             color: C.statusDanger,
+            cursor: "pointer",
           }}
         >
           <svg
@@ -10207,8 +10291,9 @@ function AllergenList({
           Contains{" "}
           {allergen.charAt(0).toUpperCase() +
             allergen.slice(1)}
-        </span>
+        </button>
       ))}
+      <IngredientExplainSheet item={sheet} onClose={() => setSheet(null)} />
     </div>
   )
 }
@@ -10264,6 +10349,7 @@ function IngredientBreakdown({
   product: CompareProduct
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [sheet, setSheet] = useState<IngredientSheetPayload | null>(null)
 
   if (product.ingredientsText === undefined) {
     return (
@@ -10374,8 +10460,23 @@ function IngredientBreakdown({
                     : "1px solid rgb(from var(--ss-text-primary) r g b / 0.07)",
               }}
             >
-              <span
+              <button
+                type="button"
+                onClick={() =>
+                  setSheet({
+                    name: item,
+                    status: flag ? "avoid" : "info",
+                    reason: flag ? `Flagged because this ingredient matches ${flag}.` : undefined,
+                  })
+                }
                 style={{
+                  flex: 1,
+                  minWidth: 0,
+                  padding: 0,
+                  border: "none",
+                  background: "transparent",
+                  textAlign: "left",
+                  cursor: "pointer",
                   fontFamily: FONT_BODY,
                   fontSize: 15,
                   lineHeight: 1.4,
@@ -10386,10 +10487,18 @@ function IngredientBreakdown({
                 }}
               >
                 {item}
-              </span>
+              </button>
 
               {flag && (
-                <span
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSheet({
+                      name: flag,
+                      status: "avoid",
+                      reason: `Flagged because this product lists ${item}.`,
+                    })
+                  }
                   style={{
                     flexShrink: 0,
                     display: "inline-flex",
@@ -10397,6 +10506,7 @@ function IngredientBreakdown({
                     gap: 4,
                     padding: "3px 9px",
                     borderRadius: 999,
+                    border: "1px solid rgba(232,69,60,0.45)",
                     background: "rgba(232,69,60,0.16)",
                     fontFamily: FONT_HEAD,
                     fontSize: 12,
@@ -10405,10 +10515,11 @@ function IngredientBreakdown({
                     textTransform: "uppercase",
                     color: C.statusDanger,
                     whiteSpace: "nowrap",
+                    cursor: "pointer",
                   }}
                 >
                   {flag}
-                </span>
+                </button>
               )}
             </div>
           )
@@ -10438,6 +10549,7 @@ function IngredientBreakdown({
             : `Show ${hiddenCount} more ingredients`}
         </button>
       )}
+      <IngredientExplainSheet item={sheet} onClose={() => setSheet(null)} productName={product.name} />
     </div>
   )
 }

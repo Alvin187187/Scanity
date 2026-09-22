@@ -2,7 +2,7 @@ import urllib.error
 import urllib.request
 import uuid
 
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 from sqlalchemy.exc import SQLAlchemyError
 from supabase import create_client, Client
 
@@ -60,11 +60,32 @@ class LocalUserSyncError(AuthError):
     pass
 
 
+_user_columns_widened = False
+
+
+def _ensure_user_columns(db) -> None:
+    """Live Postgres still has varchar(35) email / varchar(25) name until migrated."""
+    global _user_columns_widened
+    if _user_columns_widened:
+        return
+    bind = db.get_bind()
+    if bind.dialect.name != "postgresql":
+        _user_columns_widened = True
+        return
+    try:
+        db.execute(text("ALTER TABLE users ALTER COLUMN email TYPE VARCHAR(255)"))
+        db.execute(text("ALTER TABLE users ALTER COLUMN full_name TYPE VARCHAR(120)"))
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+    _user_columns_widened = True
+
+
 def register_user(db, full_name: str, email: str, password: str) -> dict:
     issue = password_issue(password)
     if issue:
         raise AuthError(issue)
-    redirect = f"{settings.FRONTEND_URL.rstrip('/')}/"
+    redirect = _public_app_url()
     try:
         result = supabase.auth.sign_up({
             "email": email,
@@ -80,26 +101,43 @@ def register_user(db, full_name: str, email: str, password: str) -> dict:
     if result.user is None:
         raise AuthError("Registration failed")
 
+    confirmed = bool(
+        getattr(result.user, "email_confirmed_at", None)
+        or getattr(result.user, "confirmed_at", None)
+        or result.session is not None
+    )
+    user_id = uuid.UUID(result.user.id)
+    stored_email = (result.user.email or email or "").strip()[:255]
+    stored_name = (full_name or "").strip()[:120] or None
+    _ensure_user_columns(db)
+
+    existing = db.query(User).filter(User.user_id == user_id).one_or_none()
+    if existing is not None:
+        return {
+            "user_id": str(existing.user_id),
+            "full_name": existing.full_name,
+            "email": existing.email,
+            "email_confirmed": confirmed,
+        }
+
     try:
         local_user = User(
-            user_id=uuid.UUID(result.user.id),
-            full_name=full_name,
-            email=result.user.email,
+            user_id=user_id,
+            full_name=stored_name,
+            email=stored_email,
         )
         db.add(local_user)
         db.commit()
         db.refresh(local_user)
     except SQLAlchemyError:
         db.rollback()
-        raise LocalUserSyncError(
-            "Account was created but the local user profile could not be saved."
-        )
+        existing = db.query(User).filter(User.user_id == user_id).one_or_none()
+        if existing is None:
+            raise LocalUserSyncError(
+                "Account was created but the local user profile could not be saved."
+            )
+        local_user = existing
 
-    confirmed = bool(
-        getattr(result.user, "email_confirmed_at", None)
-        or getattr(result.user, "confirmed_at", None)
-        or result.session is not None
-    )
     return {
         "user_id": str(local_user.user_id),
         "full_name": local_user.full_name,
@@ -157,22 +195,32 @@ def logout_user(access_token: str) -> None:
         raise AuthError(str(e))
 
 
-def _reset_redirect(origin: str | None) -> str:
-    configured = settings.FRONTEND_URL.rstrip("/")
-    allowed = {item.rstrip("/") for item in settings.cors_origin_list}
-    allowed.add(configured)
-    public = [
-        item
-        for item in allowed
-        if "localhost" not in item and "127.0.0.1" not in item
-    ]
+PUBLIC_APP_URL = "https://scanity-eta.vercel.app"
+
+
+def _public_app_url(origin: str | None = None) -> str:
+    """Reset and confirmation emails must open the hosted app.
+
+    A localhost redirect is only useful on the machine that sent the email.
+    Supabase then drops the person on localhost when they open the link.
+    """
     candidate = (origin or "").strip().rstrip("/")
-    if candidate in allowed:
+    if candidate.startswith("https://") and (
+        candidate == PUBLIC_APP_URL or candidate.endswith(".vercel.app")
+    ):
         return f"{candidate}/"
-    fallback = public[0] if "localhost" in configured or "127.0.0.1" in configured else configured
-    if not fallback and public:
-        fallback = public[0]
-    return f"{(fallback or configured).rstrip('/')}/"
+    configured = (settings.FRONTEND_URL or "").strip().rstrip("/")
+    if (
+        configured.startswith("https://")
+        and "localhost" not in configured
+        and "127.0.0.1" not in configured
+    ):
+        return f"{configured}/"
+    return f"{PUBLIC_APP_URL}/"
+
+
+def _reset_redirect(origin: str | None) -> str:
+    return _public_app_url(origin)
 
 
 def request_password_reset(email: str, redirect_origin: str | None = None) -> None:
