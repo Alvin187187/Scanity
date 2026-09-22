@@ -39,6 +39,7 @@ class RefreshResponse(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
+    redirect_origin: Optional[str] = None
 
 
 class PasswordResetConfirm(BaseModel):

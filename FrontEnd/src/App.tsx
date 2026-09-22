@@ -247,6 +247,14 @@ function Center({
 }
 
 // ── App shell ─────────────────────────────────────────────────────────────────
+function isLikelyImageFile(file: File) {
+  if (file.type.startsWith("image/")) return true
+  if (!file.type || file.type === "application/octet-stream") {
+    return /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i.test(file.name)
+  }
+  return false
+}
+
 function AppFrame({ children }: { children: ReactNode }) {
   return (
     <div
@@ -2697,7 +2705,10 @@ const ALLERGY_LIST = [
 function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
   const existing = loadHealthProfile()
   const [selected, setSelected] = useState<Set<string>>(new Set(existing.allergies))
-  const [otherText, setOtherText] = useState(existing.otherAllergy || "")
+  const [otherText, setOtherText] = useState((existing.otherAllergy || "").split("\n")[0] || "")
+  const [extraOthers, setExtraOthers] = useState<string[]>(() =>
+    (existing.otherAllergy || "").split("\n").slice(1).map((item) => item.trim()).filter(Boolean),
+  )
   const [buttonActive, setButtonActive] = useState(false)
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -2929,24 +2940,62 @@ function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
                 />
               </span>
               {selected.has("other") ? (
-                <input
-                  autoFocus
-                  value={otherText}
-                  onChange={(e) => setOtherText(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder="Please specify"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    fontFamily: FONT_BODY,
-                    fontWeight: 500,
-                    fontSize: 13,
-                    color: C.textOnDark,
-                  }}
-                />
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    autoFocus
+                    value={otherText}
+                    onChange={(e) => setOtherText(e.target.value)}
+                    placeholder="Please specify"
+                    style={{
+                      width: "100%",
+                      background: "transparent",
+                      border: "none",
+                      outline: "none",
+                      fontFamily: FONT_BODY,
+                      fontWeight: 500,
+                      fontSize: 16,
+                      color: C.textOnDark,
+                    }}
+                  />
+                  {extraOthers.map((item, index) => (
+                    <input
+                      key={`extra-other-${index}`}
+                      value={item}
+                      onChange={(e) => {
+                        const next = [...extraOthers]
+                        next[index] = e.target.value
+                        setExtraOthers(next)
+                      }}
+                      placeholder="Add another"
+                      style={{
+                        width: "100%",
+                        background: "transparent",
+                        border: "none",
+                        outline: "none",
+                        fontFamily: FONT_BODY,
+                        fontWeight: 500,
+                        fontSize: 16,
+                        color: C.textOnDark,
+                      }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setExtraOthers((items) => [...items, ""])}
+                    style={{
+                      alignSelf: "flex-start",
+                      border: "none",
+                      background: "transparent",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    Add another
+                  </button>
+                </div>
               ) : (
                 <span
                   style={{
@@ -2991,7 +3040,7 @@ function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
               const next = {
                 ...profile,
                 allergies: Array.from(nextAllergies),
-                otherAllergy: otherText.trim(),
+                otherAllergy: [otherText, ...extraOthers].map((item) => item.trim()).filter(Boolean).join("\n"),
               }
               saveHealthProfile(next)
               void persistHealthProfile(next).catch((error) => {
@@ -3036,7 +3085,10 @@ const HEALTH_LIST = [
 function HealthScreen({ go }: { go: (s: Screen) => void }) {
   const existing = loadHealthProfile()
   const [selected, setSelected] = useState<Set<string>>(new Set(existing.conditions))
-  const [otherText, setOtherText] = useState(existing.otherCondition || "")
+  const [otherText, setOtherText] = useState((existing.otherCondition || "").split("\n")[0] || "")
+  const [extraOthers, setExtraOthers] = useState<string[]>(() =>
+    (existing.otherCondition || "").split("\n").slice(1).map((item) => item.trim()).filter(Boolean),
+  )
   const [buttonActive, setButtonActive] = useState(false)
   const toggle = (item: string) => {
     setSelected((prev) => {
@@ -3289,24 +3341,62 @@ function HealthScreen({ go }: { go: (s: Screen) => void }) {
                 />
               </span>
               {selected.has("other") ? (
-                <input
-                  autoFocus
-                  value={otherText}
-                  onChange={(e) => setOtherText(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder="Please specify"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    fontFamily: FONT_BODY,
-                    fontWeight: 500,
-                    fontSize: 13,
-                    color: C.textOnDark,
-                  }}
-                />
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    autoFocus
+                    value={otherText}
+                    onChange={(e) => setOtherText(e.target.value)}
+                    placeholder="Please specify"
+                    style={{
+                      width: "100%",
+                      background: "transparent",
+                      border: "none",
+                      outline: "none",
+                      fontFamily: FONT_BODY,
+                      fontWeight: 500,
+                      fontSize: 16,
+                      color: C.textOnDark,
+                    }}
+                  />
+                  {extraOthers.map((item, index) => (
+                    <input
+                      key={`extra-other-${index}`}
+                      value={item}
+                      onChange={(e) => {
+                        const next = [...extraOthers]
+                        next[index] = e.target.value
+                        setExtraOthers(next)
+                      }}
+                      placeholder="Add another"
+                      style={{
+                        width: "100%",
+                        background: "transparent",
+                        border: "none",
+                        outline: "none",
+                        fontFamily: FONT_BODY,
+                        fontWeight: 500,
+                        fontSize: 16,
+                        color: C.textOnDark,
+                      }}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setExtraOthers((items) => [...items, ""])}
+                    style={{
+                      alignSelf: "flex-start",
+                      border: "none",
+                      background: "transparent",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    Add another
+                  </button>
+                </div>
               ) : (
                 <span
                   style={{
@@ -3349,7 +3439,7 @@ function HealthScreen({ go }: { go: (s: Screen) => void }) {
               const next = {
                 ...profile,
                 conditions: Array.from(otherText.trim() ? new Set([...selected, "other"]) : selected),
-                otherCondition: otherText.trim(),
+                otherCondition: [otherText, ...extraOthers].map((item) => item.trim()).filter(Boolean).join("\n"),
               }
               saveHealthProfile(next)
               void persistHealthProfile(next).catch((error) => {
@@ -4673,13 +4763,28 @@ function DashboardIconRail({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          padding: 24,
           background: "rgba(20,20,20,0.45)",
-          color: "#fff",
           fontFamily: SOFT_SLATE.fontFamily,
-          fontWeight: 700,
         }}
       >
-        Logging out...
+        <div
+          style={{
+            width: "min(320px, 100%)",
+            padding: "28px 22px 22px",
+            borderRadius: 24,
+            background: SOFT_SLATE.bg,
+            boxShadow: SOFT_SLATE.raisedLg,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Logging out</div>
+          <p style={{ margin: "8px 0 16px", fontSize: 13, color: SOFT_SLATE.textSecondary }}>Please wait a moment.</p>
+          <div style={{ height: 8, borderRadius: 8, overflow: "hidden", background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetSm }}>
+            <div style={{ height: "100%", width: "0%", borderRadius: 8, background: SOFT_SLATE.green, animation: "logoutProgress 0.9s ease forwards" }} />
+          </div>
+        </div>
+        <style>{`@keyframes logoutProgress { from { width: 0%; } to { width: 100%; } }`}</style>
       </div>
     )}
     </>
@@ -5814,8 +5919,8 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const handleGallery = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith("image/")) {
-      setErrorMessage("Please select a valid image.")
+    if (!isLikelyImageFile(file)) {
+      setErrorMessage("Please select a photo of the barcode. JPG and PNG work best.")
       setScanStatus("invalid")
       return
     }
@@ -6448,7 +6553,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                 >
                   <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
                   <div style={{ marginTop: 6, fontWeight: 600, fontSize: 9 }}>Gallery</div>
-                  <input type="file" accept="image/*" onChange={handleGallery} style={{ display: "none" }} />
+                  <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif" onChange={handleGallery} style={{ display: "none" }} />
                 </label>
               </div>
 
@@ -7206,8 +7311,8 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   const handleGallery = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith("image/")) {
-      setErrorMessage("Please select a valid image.")
+    if (!isLikelyImageFile(file)) {
+      setErrorMessage("Please select a photo of the label. JPG and PNG work best.")
       event.target.value = ""
       return
     }
@@ -7854,7 +7959,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   >
                     <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
                     <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Gallery</div>
-                    <input type="file" accept="image/*" onChange={handleGallery} disabled={scannerBusy} style={{ display: "none" }} />
+                    <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif" onChange={handleGallery} disabled={scannerBusy} style={{ display: "none" }} />
                   </label>
 
                   <button
@@ -13305,49 +13410,50 @@ function ProfileScreen({
     const file = e.target.files?.[0]
 
     if (!file) return
-    if (!file.type.startsWith("image/")) {
-      setAvatarError("Please choose an image file.")
+    if (!isLikelyImageFile(file)) {
+      setAvatarError("Choose a JPG, PNG, or HEIC photo.")
+      e.target.value = ""
+      return
+    }
+    if (file.size > 12_000_000) {
+      setAvatarError("That photo is too large. Choose one under 12 MB.")
       e.target.value = ""
       return
     }
 
-    const reader = new FileReader()
-
-    reader.onload = () => {
-      const dataUrl = String(reader.result || "")
-      // Downscale large photos so localStorage can keep them.
-      const image = new Image()
-      image.onload = () => {
-        const maxSide = 512
-        const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
-        const width = Math.max(1, Math.round(image.width * scale))
-        const height = Math.max(1, Math.round(image.height * scale))
-        const canvas = document.createElement("canvas")
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext("2d")
-        if (!ctx) {
-          setAvatarError("Could not process this photo.")
-          return
-        }
-        ctx.drawImage(image, 0, 0, width, height)
-        const compressed = canvas.toDataURL("image/jpeg", 0.82)
-        try {
-          saveProfileAvatar(compressed, email)
-          setAvatarUrl(compressed)
-          setAvatarError("")
-        } catch (error) {
-          setAvatarError(error instanceof Error ? error.message : "Could not save profile picture.")
-        }
+    setAvatarError("")
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => {
+      const maxSide = 512
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+      const width = Math.max(1, Math.round(image.width * scale))
+      const height = Math.max(1, Math.round(image.height * scale))
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext("2d")
+      URL.revokeObjectURL(objectUrl)
+      if (!ctx) {
+        setAvatarError("Could not process this photo.")
+        return
       }
-      image.onerror = () => setAvatarError("Could not read this photo.")
-      image.src = dataUrl
+      ctx.drawImage(image, 0, 0, width, height)
+      const compressed = canvas.toDataURL("image/jpeg", 0.82)
+      try {
+        saveProfileAvatar(compressed, email)
+        setAvatarUrl(compressed)
+        setAvatarError("")
+      } catch (error) {
+        setAvatarError(error instanceof Error ? error.message : "Could not save profile picture.")
+      }
     }
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      setAvatarError("Could not read this photo. Try a JPG or PNG.")
+    }
+    image.src = objectUrl
 
-    reader.onerror = () => setAvatarError("Could not read this photo.")
-    reader.readAsDataURL(file)
-
-    // Allow re-selecting the same file later
     e.target.value = ""
   }
 
@@ -13515,13 +13621,13 @@ function ProfileScreen({
   const avoidsLabel =
     [
       ...ALLERGY_LIST.filter((i) => i.id !== "other" && savedAllergies.has(i.id)).map((i) => i.label),
-      ...(savedOtherAllergy.trim() ? [savedOtherAllergy.trim()] : []),
+      ...savedOtherAllergy.split("\n").map((item) => item.trim()).filter(Boolean),
     ].join(", ") || "Nothing saved yet"
 
   const watchingLabel =
     [
       ...HEALTH_LIST.filter((i) => i.id !== "other" && i.id !== "none" && savedHealth.has(i.id)).map((i) => i.label),
-      ...(savedOtherHealth.trim() ? [savedOtherHealth.trim()] : []),
+      ...savedOtherHealth.split("\n").map((item) => item.trim()).filter(Boolean),
     ].join(", ") || "Nothing saved yet"
 
   const historyRecords = loadScanRecords()
@@ -13692,7 +13798,7 @@ function ProfileScreen({
                     <input
                       ref={avatarInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
                       onChange={handleAvatarChange}
                       style={{ display: "none" }}
                     />
@@ -14073,11 +14179,55 @@ function ProfileScreen({
                     ))}
                     <SoftSlateOtherChip
                       active={allergies.has("other")}
-                      value={otherAllergy}
-                      onToggle={() => toggleAllergy("other")}
-                      onChangeText={setOtherAllergy}
+                      value={otherAllergy.split("\n")[0] || ""}
+                      onToggle={() => {
+                        if (allergies.has("other")) setOtherAllergy("")
+                        toggleAllergy("other")
+                      }}
+                      onChangeText={(text) => {
+                        const lines = otherAllergy.split("\n")
+                        lines[0] = text
+                        setOtherAllergy(lines.join("\n"))
+                        if (text.trim() && !allergies.has("other")) toggleAllergy("other")
+                      }}
                       placeholder="Name an allergy"
                     />
+                    {otherAllergy.split("\n").slice(1).map((item, index) => (
+                      <SoftSlateOtherChip
+                        key={`allergy-extra-${index}`}
+                        active
+                        value={item}
+                        placeholder="Add another allergy"
+                        onToggle={() => {
+                          const lines = otherAllergy.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
+                          setOtherAllergy(lines.join("\n"))
+                        }}
+                        onChangeText={(text) => {
+                          const lines = otherAllergy.split("\n")
+                          lines[index + 1] = text
+                          setOtherAllergy(lines.join("\n"))
+                        }}
+                      />
+                    ))}
+                    {(allergies.has("other") || otherAllergy.trim()) && (
+                      <button
+                        type="button"
+                        onClick={() => setOtherAllergy(otherAllergy.trim() ? `${otherAllergy}\n` : otherAllergy)}
+                        style={{
+                          border: "none",
+                          borderRadius: 999,
+                          background: SOFT_SLATE.bg,
+                          boxShadow: SOFT_SLATE.raisedSm,
+                          color: SOFT_SLATE.green,
+                          fontWeight: 700,
+                          fontSize: 12.5,
+                          padding: "9px 12px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Add another
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -14101,11 +14251,55 @@ function ProfileScreen({
                     ))}
                     <SoftSlateOtherChip
                       active={health.has("other")}
-                      value={otherHealth}
-                      onToggle={() => toggleHealth("other")}
-                      onChangeText={setOtherHealth}
+                      value={otherHealth.split("\n")[0] || ""}
+                      onToggle={() => {
+                        if (health.has("other")) setOtherHealth("")
+                        toggleHealth("other")
+                      }}
+                      onChangeText={(text) => {
+                        const lines = otherHealth.split("\n")
+                        lines[0] = text
+                        setOtherHealth(lines.join("\n"))
+                        if (text.trim() && !health.has("other")) toggleHealth("other")
+                      }}
                       placeholder="Name a condition"
                     />
+                    {otherHealth.split("\n").slice(1).map((item, index) => (
+                      <SoftSlateOtherChip
+                        key={`health-extra-${index}`}
+                        active
+                        value={item}
+                        placeholder="Add another condition"
+                        onToggle={() => {
+                          const lines = otherHealth.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
+                          setOtherHealth(lines.join("\n"))
+                        }}
+                        onChangeText={(text) => {
+                          const lines = otherHealth.split("\n")
+                          lines[index + 1] = text
+                          setOtherHealth(lines.join("\n"))
+                        }}
+                      />
+                    ))}
+                    {(health.has("other") || otherHealth.trim()) && (
+                      <button
+                        type="button"
+                        onClick={() => setOtherHealth(otherHealth.trim() ? `${otherHealth}\n` : otherHealth)}
+                        style={{
+                          border: "none",
+                          borderRadius: 999,
+                          background: SOFT_SLATE.bg,
+                          boxShadow: SOFT_SLATE.raisedSm,
+                          color: SOFT_SLATE.green,
+                          fontWeight: 700,
+                          fontSize: 12.5,
+                          padding: "9px 12px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Add another
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -14313,7 +14507,34 @@ function InfoHeader({
    HELP & FAQ
    ========================================================= */
 
-function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
+function ScreenBackButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      style={{
+        width: 44,
+        height: 44,
+        marginBottom: 12,
+        borderRadius: "50%",
+        border: "none",
+        background: SOFT_SLATE.bg,
+        boxShadow: SOFT_SLATE.raisedSm,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+    </button>
+  )
+}
+
+function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => void }) {
   const isDesktop = useIsDesktop()
   const [openQuestion, setOpenQuestion] = useState(0)
 
@@ -14360,8 +14581,8 @@ function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
           >
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="help" />}
 
-            {/* Header */}
             <div>
+              <ScreenBackButton onClick={goBack} label="Back" />
               <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
                 Help &amp; FAQ
               </div>
@@ -14543,7 +14764,7 @@ function HelpFaqScreen({ go }: { go: (s: Screen) => void }) {
    ABOUT
    ========================================================= */
 
-function AboutScreen({ go }: { go: (s: Screen) => void }) {
+function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => void }) {
   const isDesktop = useIsDesktop()
 
   const features = [
@@ -14693,8 +14914,8 @@ function AboutScreen({ go }: { go: (s: Screen) => void }) {
           >
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="about" />}
 
-            {/* Header */}
             <div>
+              <ScreenBackButton onClick={goBack} label="Back" />
               <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
                 About Us
               </div>
@@ -15535,9 +15756,11 @@ function LegacyAboutScreen({ go }: { go: (s: Screen) => void }) {
 
 function LegalScreen({
   go,
+  goBack,
   kind,
 }: {
   go: (s: Screen) => void
+  goBack: () => void
   kind: "privacy" | "terms"
 }) {
   const privacy = kind === "privacy"
@@ -15621,8 +15844,8 @@ function LegalScreen({
               <div>
                 <button
                   type="button"
-                  onClick={() => go("settings")}
-                  aria-label="Back to Settings"
+                  onClick={goBack}
+                  aria-label="Back"
                   style={{
                     width: 40,
                     height: 40,
@@ -16225,9 +16448,9 @@ function ChangePasswordScreen({
             </div>
 
             <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 16 }}>
-              <Field label="Current Password" value={currentPassword} onChange={setCurrentPassword} />
-              <Field label="New Password" value={newPassword} onChange={setNewPassword} />
-              <Field label="Confirm New Password" value={confirmPassword} onChange={setConfirmPassword} />
+              {Field({ label: "Current Password", value: currentPassword, onChange: setCurrentPassword })}
+              {Field({ label: "New Password", value: newPassword, onChange: setNewPassword })}
+              {Field({ label: "Confirm New Password", value: confirmPassword, onChange: setConfirmPassword })}
             </div>
             {formError ? (
               <p style={{ margin: "14px 0 0", fontSize: 13, color: SOFT_SLATE.unsafe }}>{formError}</p>
@@ -16621,18 +16844,16 @@ function ForgotPasswordScreen({
         minHeight: "100%",
         position: "relative",
         overflow: "hidden",
-        background: PALETTE.page,
-        fontFamily: FONT_BODY,
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
       }}
     >
-      {/* Background */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background:
-            "radial-gradient(circle at 20% 15%, rgba(224,167,46,0.14), transparent 35%)," +
-            "radial-gradient(circle at 85% 80%, rgba(23,107,58,0.08), transparent 40%)",
+          background: SOFT_SLATE.bg,
         }}
       />
 
@@ -16981,18 +17202,16 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
         minHeight: "100%",
         position: "relative",
         overflow: "hidden",
-        background: PALETTE.page,
-        fontFamily: FONT_BODY,
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
       }}
     >
-      {/* Background */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background:
-            "radial-gradient(circle at 20% 15%, rgba(224,167,46,0.14), transparent 35%)," +
-            "radial-gradient(circle at 85% 80%, rgba(23,107,58,0.08), transparent 40%)",
+          background: SOFT_SLATE.bg,
         }}
       />
 
@@ -18096,10 +18315,10 @@ export default function App() {
     dashboard: <DashboardScreen go={go} />,
     history: <ScanHistoryScreen go={go} />,
     profile: <ProfileScreen go={go} />,
-    help: <HelpFaqScreen go={go} />,
-    about: <AboutScreen go={go} />,
-    privacy: <LegalScreen go={go} kind="privacy" />,
-    terms: <LegalScreen go={go} kind="terms" />,
+    help: <HelpFaqScreen go={go} goBack={goBack} />,
+    about: <AboutScreen go={go} goBack={goBack} />,
+    privacy: <LegalScreen go={go} goBack={goBack} kind="privacy" />,
+    terms: <LegalScreen go={go} goBack={goBack} kind="terms" />,
     barcode: <BarcodeScannerScreen go={go} />,
     ocr: <OCRScannerScreen go={go} />,
     settings: <SettingsScreen go={go} />,
@@ -18111,5 +18330,11 @@ export default function App() {
     productResult: <ProductResultScreen go={go} />,
     productCompare: <ProductCompareScreen go={go} goBack={goBack} />,
   }
-  return <AppFrame>{screenMap[screen]}</AppFrame>
+  return (
+    <AppFrame>
+      <div key={screen} className="scanity-screen">
+        {screenMap[screen]}
+      </div>
+    </AppFrame>
+  )
 }

@@ -51,11 +51,19 @@ export function saveHealthProfile(profile: HealthProfile) {
   window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
 }
 
+export function splitCustomList(value?: string): string[] {
+  if (!value?.trim()) return []
+  return value
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export function allergyCategoriesForApi(profile = loadHealthProfile()): string[] {
   const mapped = profile.allergies
     .map((id) => ALLERGY_CATEGORY[id] || id)
-    .filter(Boolean)
-  if (profile.otherAllergy?.trim()) mapped.push(profile.otherAllergy.trim())
+    .filter((id) => id && id !== "other")
+  mapped.push(...splitCustomList(profile.otherAllergy))
   // Lactose intolerance is stored as a condition in the UI, but dairy matching
   // also needs the milk allergy category so scans treat dairy correctly.
   if (profile.conditions.includes("lactose")) mapped.push("milk")
@@ -65,7 +73,7 @@ export function allergyCategoriesForApi(profile = loadHealthProfile()): string[]
 
 export function conditionsForApi(profile = loadHealthProfile()): string[] {
   const mapped = profile.conditions.filter((id) => id && id !== "none" && id !== "other")
-  if (profile.otherCondition?.trim()) mapped.push(profile.otherCondition.trim())
+  mapped.push(...splitCustomList(profile.otherCondition))
   return Array.from(new Set(mapped))
 }
 

@@ -57,7 +57,7 @@ async def logout(current_user: dict = Depends(get_current_user)):
 
 @router.post("/password-reset/request", response_model=MessageResponse)
 async def password_reset_request(request: PasswordResetRequest):
-    request_password_reset(request.email)
+    request_password_reset(request.email, request.redirect_origin)
     # Always the same response, regardless of whether the email exists —
     # per the API contract's deliberate non-revealing design
     return MessageResponse(message="If the email exists, a reset link was sent")
