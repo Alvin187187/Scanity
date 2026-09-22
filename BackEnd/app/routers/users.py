@@ -65,14 +65,17 @@ def _as_uuid(value: str | uuid.UUID) -> uuid.UUID:
 
 
 def _ensure_user(db: Session, current_user: dict) -> User:
+    from app.services.auth_service import _ensure_user_columns
+
+    _ensure_user_columns(db)
     user_id = _as_uuid(current_user["user_id"])
     user = db.execute(select(User).where(User.user_id == user_id)).scalar_one_or_none()
     if user is not None:
         return user
 
     email = (current_user.get("email") or "").strip() or f"{user_id}@users.scanity.local"
-    full_name = (email.split("@")[0] or "Scanity user")[:25]
-    user = User(user_id=user_id, email=email[:35], full_name=full_name)
+    full_name = (email.split("@")[0] or "Scanity user")[:120]
+    user = User(user_id=user_id, email=email[:255], full_name=full_name)
     db.add(user)
     db.flush()
     return user
@@ -250,7 +253,7 @@ async def update_profile(
     _ensure_health_profile(db, user.user_id)
 
     if request.full_name is not None:
-        user.full_name = request.full_name.strip()[:25]
+        user.full_name = request.full_name.strip()[:120]
 
     if request.allergies is not None or request.other_allergy is not None:
         db.execute(delete(user_allergies).where(user_allergies.c.user_id == user.user_id))

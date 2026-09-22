@@ -91,6 +91,7 @@
 
   /* Soft Slate surfaces (dashboard / history / scanners) */
   --ss-bg: #e6ebf1;
+  --ss-edge: rgba(36, 41, 47, 0.16);
   --ss-raised-lg: 9px 9px 22px #c4cad3, -9px -9px 22px #ffffff;
   --ss-raised-md: 8px 8px 20px #c4cad3, -8px -8px 20px #ffffff;
   --ss-raised-sm: 5px 5px 12px #c4cad3, -5px -5px 12px #ffffff;
@@ -173,15 +174,16 @@
   --scanity-sidebar-dark: #162e23;
 
   --ss-bg: #1a1f26;
-  --ss-raised-lg: 0 2px 8px rgba(0, 0, 0, 0.32);
-  --ss-raised-md: 0 2px 6px rgba(0, 0, 0, 0.28);
-  --ss-raised-sm: 0 1px 4px rgba(0, 0, 0, 0.24);
-  --ss-raised-btn: 0 1px 4px rgba(0, 0, 0, 0.24);
-  --ss-raised-btn-alt: 0 1px 4px rgba(0, 0, 0, 0.24);
-  --ss-raised-icon: 0 1px 4px rgba(0, 0, 0, 0.24);
-  --ss-inset-lg: inset 0 1px 4px rgba(0, 0, 0, 0.38);
-  --ss-inset-md: inset 0 1px 3px rgba(0, 0, 0, 0.32);
-  --ss-inset-sm: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+  --ss-edge: rgba(244, 241, 234, 0.42);
+  --ss-raised-lg: 0 0 0 1.5px var(--ss-edge), 0 8px 18px rgba(0, 0, 0, 0.5);
+  --ss-raised-md: 0 0 0 1.5px var(--ss-edge), 0 6px 14px rgba(0, 0, 0, 0.46);
+  --ss-raised-sm: 0 0 0 1.5px var(--ss-edge), 0 3px 8px rgba(0, 0, 0, 0.4);
+  --ss-raised-btn: 0 0 0 1.5px rgba(244, 241, 234, 0.38), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --ss-raised-btn-alt: 0 0 0 1.5px rgba(244, 241, 234, 0.38), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --ss-raised-icon: 0 0 0 1.5px rgba(244, 241, 234, 0.38), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --ss-inset-lg: inset 0 0 0 1.5px rgba(244, 241, 234, 0.28), inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  --ss-inset-md: inset 0 0 0 1.5px rgba(244, 241, 234, 0.24), inset 0 1px 4px rgba(0, 0, 0, 0.46);
+  --ss-inset-sm: inset 0 0 0 1.5px rgba(244, 241, 234, 0.22), inset 0 1px 3px rgba(0, 0, 0, 0.42);
   --ss-text-primary: #f2f5f8;
   --ss-text-secondary: #c2c8d0;
   --ss-text-muted: #a7afb9;
