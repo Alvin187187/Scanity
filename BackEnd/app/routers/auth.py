@@ -7,10 +7,12 @@ from app.schemas.auth import (
     LoginRequest, TokenResponse,
     RefreshRequest, RefreshResponse,
     PasswordResetRequest, PasswordResetConfirm, MessageResponse,
+    ChangePasswordRequest,
 )
 from app.services.auth_service import (
     register_user, login_user, refresh_token, logout_user,
-    request_password_reset, confirm_password_reset, AuthError, LocalUserSyncError,
+    request_password_reset, confirm_password_reset, change_password,
+    delete_auth_user, delete_local_user, AuthError, LocalUserSyncError,
 )
 from app.dependencies.auth import get_current_user
 from app.database.session import get_db
@@ -64,7 +66,42 @@ async def password_reset_request(request: PasswordResetRequest):
 @router.post("/password-reset/confirm", response_model=MessageResponse)
 async def password_reset_confirm(request: PasswordResetConfirm):
     try:
-        confirm_password_reset(request.reset_token, request.new_password)
+        confirm_password_reset(
+            request.new_password,
+            reset_token=request.reset_token,
+            access_token=request.access_token,
+            refresh_token=request.refresh_token,
+        )
     except AuthError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return MessageResponse(message="Password updated")
+
+
+@router.post("/password/change", response_model=TokenResponse)
+async def password_change(
+    request: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    email = (current_user.get("email") or "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Signed-in email is missing")
+    try:
+        result = change_password(email, request.current_password, request.new_password)
+    except AuthError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return TokenResponse(**result)
+
+
+@router.delete("/account", status_code=204)
+async def delete_account(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        delete_auth_user(current_user["access_token"])
+        delete_local_user(db, current_user["user_id"])
+    except AuthError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Account could not be deleted")
+    return None

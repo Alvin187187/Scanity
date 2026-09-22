@@ -1,3 +1,5 @@
+import { getAccessToken } from "./session"
+
 export type LoginCredentials = {
   identifier: string
   password: string
@@ -188,4 +190,73 @@ export async function loginUser(credentials: LoginCredentials) {
     console.error("Login request failed:", error)
     throw toAuthError(error)
   }
+}
+
+async function authedFetch(path: string, method: string, body?: Record<string, unknown>) {
+  const token = getAccessToken()
+  if (!token) throw new Error("Please sign in again.")
+  const response = await fetch(`${requireApiBaseUrl()}${path}`, {
+    method,
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(errorMessageFromBody(result, "Request failed"))
+  }
+  return result
+}
+
+export async function requestPasswordReset(email: string) {
+  const response = await authFetch("/auth/password-reset/request", { email })
+  const result = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(errorMessageFromBody(result, "Could not send the reset email."))
+  }
+  return result
+}
+
+export async function confirmPasswordReset(input: {
+  newPassword: string
+  accessToken?: string
+  refreshToken?: string
+  resetToken?: string
+}) {
+  const response = await authFetch("/auth/password-reset/confirm", {
+    new_password: input.newPassword,
+    access_token: input.accessToken || "",
+    refresh_token: input.refreshToken || "",
+    reset_token: input.resetToken || "",
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(errorMessageFromBody(result, "Could not reset your password."))
+  }
+  return result
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  return authedFetch("/auth/password/change", "POST", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  })
+}
+
+export async function deleteAccount() {
+  const token = getAccessToken()
+  if (!token) throw new Error("Please sign in again.")
+  const response = await fetch(`${requireApiBaseUrl()}/auth/account`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  if (response.status === 204) return
+  const result = await response.json().catch(() => null)
+  throw new Error(errorMessageFromBody(result, "Account could not be deleted."))
 }

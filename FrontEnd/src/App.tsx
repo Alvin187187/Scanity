@@ -16,7 +16,16 @@ import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
 import { askAiAboutProduct, explainIngredientWithAi, requestSafetyReport, type AiChatMessage } from "./api/ai"
-import { loginUser, registerUser, wakeApi, requireApiBaseUrl } from "./api/auth"
+import {
+  changePassword,
+  confirmPasswordReset,
+  deleteAccount,
+  loginUser,
+  registerUser,
+  requestPasswordReset,
+  wakeApi,
+  requireApiBaseUrl,
+} from "./api/auth"
 import { lookupBarcodeProduct } from "./api/scan"
 import { analyzeOcrText, extractOcrImage } from "./api/ocr"
 import {
@@ -162,6 +171,7 @@ type Screen =
   | "splash"
   | "login"
   | "register"
+  | "verifyEmail"
   | "success"
   | "allergies"
   | "health"
@@ -1673,9 +1683,14 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
           "Our login server is waking up or temporarily unavailable. Wait a few seconds and try again.",
         )
       } else {
-        setLoginError(
-          "Incorrect email/username or password.",
-        )
+        const message = error instanceof Error ? error.message : ""
+        if (/email not confirmed|verify your email/i.test(message)) {
+          setLoginError("Verify your email before signing in. Open the link we sent you.")
+        } else if (message && message !== "Invalid email or password") {
+          setLoginError(message)
+        } else {
+          setLoginError("Incorrect email/username or password.")
+        }
       }
     } finally {
       setIsLoading(false)
@@ -2040,7 +2055,7 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
       setPasswordError("Password must be at least 8 characters.")
       valid = false
     } else if (!/\d/.test(password)) {
-      setPasswordError("Password must contain at least 1 number.")
+      setPasswordError("Password must contain at least 1 number. Other characters can be anything.")
       valid = false
     }
 
@@ -2070,6 +2085,16 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
         email: email.trim(),
         password,
       })
+      if (result?.email_confirmed === false) {
+        try {
+          window.sessionStorage.setItem("scanity_pending_email", email.trim())
+        } catch {
+          // ignore
+        }
+        go("verifyEmail")
+        return
+      }
+
       saveSessionUser(
         sessionUserFromRegister(result, name.trim(), email.trim()),
       )
@@ -2093,8 +2118,11 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
       ) {
         setEmailError("An account with this email already exists.")
       } else {
+        const message = error instanceof Error ? error.message : ""
         setRegisterError(
-          "Unable to create your account. Please check your details and try again.",
+          message && !/registration failed/i.test(message)
+            ? message
+            : "Unable to create your account. Use at least 8 characters and 1 number. Letters are optional.",
         )
       }
     } finally {
@@ -2328,6 +2356,11 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
               {field.error && (
                 <p style={{ margin: "0 0 8px 18px", color: C.statusDanger, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500 }}>
                   {field.error}
+                </p>
+              )}
+              {field.id === "register-password" && !field.error && (
+                <p style={{ margin: "-8px 0 12px 18px", color: SOFT_SLATE.textMuted, fontSize: 11 }}>
+                  At least 8 characters and 1 number. Letters are optional.
                 </p>
               )}
             </div>
@@ -2953,9 +2986,11 @@ function AllergiesScreen({ go }: { go: (s: Screen) => void }) {
           <button
             onClick={() => {
               const profile = loadHealthProfile()
+              const nextAllergies = new Set(selected)
+              if (otherText.trim()) nextAllergies.add("other")
               const next = {
                 ...profile,
-                allergies: Array.from(selected),
+                allergies: Array.from(nextAllergies),
                 otherAllergy: otherText.trim(),
               }
               saveHealthProfile(next)
@@ -3313,7 +3348,7 @@ function HealthScreen({ go }: { go: (s: Screen) => void }) {
               const profile = loadHealthProfile()
               const next = {
                 ...profile,
-                conditions: Array.from(selected),
+                conditions: Array.from(otherText.trim() ? new Set([...selected, "other"]) : selected),
                 otherCondition: otherText.trim(),
               }
               saveHealthProfile(next)
@@ -4316,10 +4351,14 @@ const DASHBOARD_RAIL_ITEMS: {
     ),
   },
   {
-    screen: "history",
-    label: "Saved products",
-    path: BOOKMARK_ICON_PATH,
-    openSaved: true,
+    screen: "profile",
+    label: "Profile",
+    path: (
+      <>
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </>
+    ),
   },
   {
     screen: "settings",
@@ -4328,28 +4367,6 @@ const DASHBOARD_RAIL_ITEMS: {
       <>
         <circle cx="12" cy="12" r="3" />
         <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" />
-      </>
-    ),
-  },
-  {
-    screen: "help",
-    label: "Help & FAQ",
-    path: (
-      <>
-        <circle cx="12" cy="12" r="10" />
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-        <path d="M12 17h.01" />
-      </>
-    ),
-  },
-  {
-    screen: "about",
-    label: "About",
-    path: (
-      <>
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 16v-4" />
-        <path d="M12 8h.01" />
       </>
     ),
   },
@@ -4428,34 +4445,33 @@ function DashboardIconRail({
         overflow: "hidden",
       }}
     >
-      {/* Brand leaf mark */}
+      {/* Brand mark uses the Scanity logo */}
       <Tooltip label="Scanity">
-        <div
+        <button
+          type="button"
+          onClick={() => go("dashboard")}
+          aria-label="Scanity home"
           style={{
             width: iconSize,
             height: iconSize,
             borderRadius: 14,
+            border: "none",
             background: SOFT_SLATE.bg,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             boxShadow: SOFT_SLATE.raisedSm,
             flexShrink: 0,
+            cursor: "pointer",
+            padding: 4,
           }}
         >
-          <svg
-            width={isDesktop ? 19 : 16}
-            height={isDesktop ? 19 : 16}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={SOFT_SLATE.green}
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
-            <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
-          </svg>
-        </div>
+          <img
+            src={logoImg}
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          />
+        </button>
       </Tooltip>
 
       {/* Nav icons */}
@@ -6002,7 +6018,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
             }}
           >
             {!isDesktop && (
-              <DashboardIconRail go={go} isDesktop={false} active="barcode" navItems={BARCODE_RAIL_ITEMS} />
+              <DashboardIconRail go={go} isDesktop={false} active="barcode" />
             )}
 
             {/* ── Header ───────────────────────────────────────────────── */}
@@ -8596,7 +8612,7 @@ function IngredientExplainSheet({
             {effectsText ? (
               <div>
                 <div style={sectionLabel}>If not controlled / watch-outs</div>
-                {renderCoachMarkdown(toExplainBullets(effectsText))}
+                {renderCoachMarkdown(toExplainBullets(effectsText, { boldLead: false }))}
               </div>
             ) : null}
             <FeatureFlagRow
@@ -9021,13 +9037,24 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         color: SOFT_SLATE.textPrimary,
       }}
     >
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="dashboard" />
+        </div>
+      )}
       <div
         style={{
           flexShrink: 0,
+          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
           padding: isDesktop ? "28px 48px 16px" : "20px 20px 12px",
-          paddingTop: `calc(${SAFE_TOP} + 10px)`,
+          paddingTop: isDesktop ? 28 : `calc(${SAFE_TOP} + 10px)`,
         }}
       >
+        {!isDesktop && (
+          <div style={{ marginBottom: 14 }}>
+            <DashboardIconRail go={go} isDesktop={false} active="dashboard" />
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 14, maxWidth: 900, margin: "0 auto" }}>
           <button
             type="button"
@@ -9064,7 +9091,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginLeft: isDesktop ? 80 + 26 + 26 : 0 }}>
         <Center maxWidth={isDesktop ? 900 : 640} style={{ padding: isDesktop ? "12px 48px 56px" : "8px 20px 40px" }}>
           <div
             style={{
@@ -9596,7 +9623,7 @@ function GradeBadge({
         style={{
           fontFamily: FONT_HEAD,
           fontWeight: 800,
-          fontSize: grade === null ? size * 0.16 : size * 0.42,
+          fontSize: grade === null ? size * 0.22 : size * 0.42,
           color: grade === null ? "var(--ss-ink-faint)" : C.onAccent,
           lineHeight: 1,
         }}
@@ -9667,6 +9694,7 @@ type CompareProduct = {
   grade: NutritionGrade | null
   verdict: CompareVerdict
   verdictReason?: string
+  score?: number
   allergens?: string[]
   ingredientsText?: string
   nutrition?: {
@@ -9676,7 +9704,7 @@ type CompareProduct = {
     saturatedFat100g?: number
     carbohydrates100g?: number
     proteins100g?: number
-    sodium100g?: number
+    sodiumMg?: number
     fiber100g?: number
   }
   breakdown?: {
@@ -9974,7 +10002,7 @@ function AllergenList({
           padding: "6px 11px",
           borderRadius: 10,
           fontFamily: FONT_BODY,
-          fontSize: 11,
+          fontSize: 15,
           fontWeight: 600,
           fontStyle: "italic",
           background: "transparent",
@@ -10016,7 +10044,7 @@ function AllergenList({
         <span
           style={{
             fontFamily: FONT_BODY,
-            fontSize: 11.5,
+            fontSize: 15,
             fontWeight: 700,
             color: C.greenMid,
           }}
@@ -10045,7 +10073,7 @@ function AllergenList({
             padding: "6px 11px",
             borderRadius: 10,
             fontFamily: FONT_BODY,
-            fontSize: 11.5,
+            fontSize: 15,
             fontWeight: 700,
             background: "rgba(232,69,60,0.12)",
             border: "1px solid rgba(232,69,60,0.4)",
@@ -10193,7 +10221,7 @@ function IngredientBreakdown({
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 11,
+              fontSize: 15,
               fontWeight: 700,
               color: C.statusDanger,
             }}
@@ -10244,7 +10272,7 @@ function IngredientBreakdown({
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 12.5,
+                  fontSize: 15,
                   lineHeight: 1.4,
                   color: flag
                     ? C.statusDanger
@@ -10266,7 +10294,7 @@ function IngredientBreakdown({
                     borderRadius: 999,
                     background: "rgba(232,69,60,0.16)",
                     fontFamily: FONT_HEAD,
-                    fontSize: 9,
+                    fontSize: 12,
                     fontWeight: 800,
                     letterSpacing: "0.04em",
                     textTransform: "uppercase",
@@ -10294,7 +10322,7 @@ function IngredientBreakdown({
             border: "none",
             color: C.greenMid,
             fontFamily: FONT_HEAD,
-            fontSize: 11,
+            fontSize: 15,
             fontWeight: 700,
             cursor: "pointer",
             padding: 0,
@@ -10347,9 +10375,9 @@ const NUTRITION_ROWS: {
     unit: " g",
   },
   {
-    key: "sodium100g",
+    key: "sodiumMg",
     label: "Sodium",
-    unit: " g",
+    unit: " mg",
   },
   {
     key: "fiber100g",
@@ -10358,6 +10386,47 @@ const NUTRITION_ROWS: {
   },
 ]
 
+function asCompareNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value.trim() && !Number.isNaN(Number(value))) {
+    return Number(value)
+  }
+  return undefined
+}
+
+function mapCompareNutrition(
+  raw: Record<string, unknown> | undefined,
+): CompareProduct["nutrition"] {
+  if (!raw) return undefined
+  const energyKj = asCompareNumber(raw.energy_kj) ?? asCompareNumber(raw.energyKj100g)
+  const energyKcal =
+    asCompareNumber(raw.energyKcal100g) ??
+    asCompareNumber(raw.energy_kcal) ??
+    (energyKj != null ? Math.round(energyKj / 4.184) : undefined)
+  const sodiumMg =
+    asCompareNumber(raw.sodiumMg) ??
+    asCompareNumber(raw.sodium_mg) ??
+    (asCompareNumber(raw.sodium100g) != null
+      ? Number(asCompareNumber(raw.sodium100g)) * 1000
+      : undefined)
+  const mapped = {
+    energyKcal100g: energyKcal,
+    sugars100g: asCompareNumber(raw.sugars100g) ?? asCompareNumber(raw.sugars_g),
+    fat100g: asCompareNumber(raw.fat100g) ?? asCompareNumber(raw.fat_g),
+    saturatedFat100g:
+      asCompareNumber(raw.saturatedFat100g) ?? asCompareNumber(raw.sat_fat_g),
+    carbohydrates100g:
+      asCompareNumber(raw.carbohydrates100g) ?? asCompareNumber(raw.carbs_g),
+    proteins100g:
+      asCompareNumber(raw.proteins100g) ??
+      asCompareNumber(raw.protein_g) ??
+      asCompareNumber(raw.proteins),
+    sodiumMg,
+    fiber100g: asCompareNumber(raw.fiber100g) ?? asCompareNumber(raw.fiber_g),
+  }
+  return Object.values(mapped).every((value) => value === undefined) ? undefined : mapped
+}
+
 function NutritionTable({
   a,
   b,
@@ -10365,148 +10434,103 @@ function NutritionTable({
   a: CompareProduct
   b: CompareProduct
 }) {
-  return (
-    <div
-      style={{
-        borderRadius: 16,
-        background: C.white,
-        border: `1.5px solid ${C.border}`,
-        padding: 20,
-        marginTop: 20,
-        boxShadow: cardShadow,
-      }}
-    >
+  const rows = NUTRITION_ROWS.filter((row) => {
+    const av = a.nutrition?.[row.key]
+    const bv = b.nutrition?.[row.key]
+    return av !== undefined || bv !== undefined
+  })
+
+  if (!rows.length) {
+    return (
       <p
         style={{
-          margin: "0 0 14px",
-          fontFamily: FONT_HEAD,
-          fontSize: 11,
-          fontWeight: 800,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
-          color: "var(--ss-ink-mid)",
+          margin: 0,
+          fontFamily: SOFT_SLATE.fontFamily,
+          fontSize: 16,
+          lineHeight: 1.5,
+          color: SOFT_SLATE.textSecondary,
         }}
       >
-        Nutrition Comparison - per 100g
+        Nutrition numbers were not listed on either scan.
       </p>
+    )
+  }
 
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: 12,
-          }}
-        >
-          <thead>
-            <tr>
-              <th />
+  const shortName = (name: string) => {
+    const trimmed = name.trim()
+    return trimmed.length > 22 ? `${trimmed.slice(0, 20)}…` : trimmed
+  }
 
-              <th
-                style={{
-                  textAlign: "right",
-                  fontFamily: FONT_HEAD,
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  color: "var(--ss-ink-mid)",
-                  paddingBottom: 10,
-                }}
-              >
-                {a.name}
-              </th>
+  const formatValue = (value: number | undefined, unit: string) => {
+    if (value === undefined) return "Not listed"
+    const digits = value >= 100 ? 0 : 1
+    return `${Number(value.toFixed(digits))} ${unit}`
+  }
 
-              <th
-                style={{
-                  textAlign: "right",
-                  fontFamily: FONT_HEAD,
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  color: "var(--ss-ink-mid)",
-                  paddingBottom: 10,
-                }}
-              >
-                {b.name}
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {NUTRITION_ROWS.map((row) => {
-              const av = a.nutrition?.[row.key]
-              const bv = b.nutrition?.[row.key]
-
-              return (
-                <tr key={row.key}>
-                  <td
-                    style={{
-                      padding: "10px 10px 10px 0",
-                      borderTop:
-                        "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
-                      fontFamily: FONT_BODY,
-                      fontSize: 12.5,
-                      color: "var(--ss-ink-strong)",
-                    }}
-                  >
-                    {row.label}
-                  </td>
-
-                  <td
-                    style={{
-                      padding: "10px",
-                      borderTop:
-                        "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
-                      textAlign: "right",
-                      fontFamily: FONT_BODY,
-                      fontSize: 13,
-                      fontVariantNumeric: "tabular-nums",
-                      fontWeight:
-                        av === undefined ? 400 : 700,
-                      color:
-                        av === undefined
-                          ? "var(--ss-ink-faint)"
-                          : C.black,
-                      fontStyle:
-                        av === undefined
-                          ? "italic"
-                          : "normal",
-                    }}
-                  >
-                    {av === undefined
-                      ? " - "
-                      : `${av}${row.unit}`}
-                  </td>
-
-                  <td
-                    style={{
-                      padding: "10px",
-                      borderTop:
-                        "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
-                      textAlign: "right",
-                      fontFamily: FONT_BODY,
-                      fontSize: 13,
-                      fontVariantNumeric: "tabular-nums",
-                      fontWeight:
-                        bv === undefined ? 400 : 700,
-                      color:
-                        bv === undefined
-                          ? "var(--ss-ink-faint)"
-                          : C.black,
-                      fontStyle:
-                        bv === undefined
-                          ? "italic"
-                          : "normal",
-                    }}
-                  >
-                    {bv === undefined
-                      ? " - "
-                      : `${bv}${row.unit}`}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr)",
+          gap: 8,
+          alignItems: "end",
+        }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
+          Per 100 g
+        </span>
+        <span title={a.name} style={{ fontSize: 13, fontWeight: 800, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
+          {shortName(a.name)}
+        </span>
+        <span title={b.name} style={{ fontSize: 13, fontWeight: 800, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
+          {shortName(b.name)}
+        </span>
       </div>
+      {rows.map((row) => {
+        const av = a.nutrition?.[row.key]
+        const bv = b.nutrition?.[row.key]
+        const lowerIsBetter = row.key !== "fiber100g" && row.key !== "proteins100g"
+        const aWins =
+          av !== undefined && bv !== undefined && av !== bv
+            ? lowerIsBetter
+              ? av < bv
+              : av > bv
+            : false
+        const bWins =
+          av !== undefined && bv !== undefined && av !== bv
+            ? lowerIsBetter
+              ? bv < av
+              : bv > av
+            : false
+        const valueStyle = (wins: boolean, missing: boolean): CSSProperties => ({
+          textAlign: "right",
+          fontSize: 14,
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: wins ? 800 : 600,
+          color: missing ? SOFT_SLATE.textMuted : wins ? SOFT_SLATE.green : SOFT_SLATE.textPrimary,
+          background: wins ? "rgb(from var(--ss-green, #176b3a) r g b / 0.08)" : "transparent",
+          borderRadius: 10,
+          padding: "8px 10px",
+        })
+        return (
+          <div
+            key={row.key}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr)",
+              gap: 8,
+              alignItems: "center",
+              paddingTop: 8,
+              borderTop: "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 650, color: SOFT_SLATE.textPrimary }}>{row.label}</span>
+            <span style={valueStyle(aWins, av === undefined)}>{formatValue(av, row.unit)}</span>
+            <span style={valueStyle(bWins, bv === undefined)}>{formatValue(bv, row.unit)}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -10946,9 +10970,9 @@ function buildInsights(
   }
 
   compareNutrient(
-    "sodium100g",
+    "sodiumMg",
     "Sodium",
-    "g"
+    "mg"
   )
 
   compareNutrient(
@@ -11240,9 +11264,10 @@ function ProductCompareScreen({
     grade: scan.grade,
     verdict: scan.verdict,
     verdictReason: scan.explanation,
+    score: typeof scan.score === "number" ? scan.score : undefined,
     allergens: scan.allergens,
     ingredientsText: scan.ingredientsText,
-    nutrition: scan.nutrition as CompareProduct["nutrition"],
+    nutrition: mapCompareNutrition(scan.nutrition as Record<string, unknown> | undefined),
     breakdown: null,
   })
 
@@ -11279,35 +11304,24 @@ function ProductCompareScreen({
     | "a"
     | "b"
     | "none" = (() => {
-    if (
-      a.grade === null ||
-      b.grade === null
-    ) {
-      return "none"
+    const rank = (verdict: CompareVerdict) =>
+      verdict === "safe" ? 2 : verdict === "caution" ? 1 : verdict === "avoid" ? 0 : -1
+    const aRank = rank(a.verdict)
+    const bRank = rank(b.verdict)
+    if (aRank !== bRank && aRank >= 0 && bRank >= 0) {
+      return aRank > bRank ? "a" : "b"
     }
-
-    if (
-      a.verdict === "avoid" &&
-      b.verdict !== "avoid"
-    ) {
-      return "b"
+    if (typeof a.score === "number" && typeof b.score === "number" && Math.abs(a.score - b.score) >= 8) {
+      return a.score > b.score ? "a" : "b"
     }
-
-    if (
-      b.verdict === "avoid" &&
-      a.verdict !== "avoid"
-    ) {
-      return "a"
+    if (a.grade && b.grade) {
+      const aGrade = GRADE_ORDER.indexOf(a.grade)
+      const bGrade = GRADE_ORDER.indexOf(b.grade)
+      if (aGrade !== bGrade) {
+        return aGrade < bGrade ? "a" : "b"
+      }
     }
-
-    const aRank = GRADE_ORDER.indexOf(a.grade)
-    const bRank = GRADE_ORDER.indexOf(b.grade)
-
-    if (aRank === bRank) {
-      return "none"
-    }
-
-    return aRank < bRank ? "a" : "b"
+    return "none"
   })()
 
   // ── Product card ──────────────────────────────────────────────────────────
@@ -11403,7 +11417,7 @@ function ProductCompareScreen({
 
               fontFamily: SOFT_SLATE.fontFamily,
               fontWeight: 800,
-              fontSize: isDesktop ? 11 : 9,
+              fontSize: 13,
               color: SOFT_SLATE.green,
 
               flexShrink: 0,
@@ -11415,9 +11429,9 @@ function ProductCompareScreen({
           <span
             style={{
               fontFamily: SOFT_SLATE.fontFamily,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 700,
-              letterSpacing: "0.06em",
+              letterSpacing: "0.04em",
               textTransform: "uppercase",
               color: SOFT_SLATE.textMuted,
             }}
@@ -11562,16 +11576,54 @@ function ProductCompareScreen({
             <span
               style={{
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: isDesktop ? 11 : 11,
-                fontWeight: 800,
-                letterSpacing: "0.05em",
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
                 textTransform: "uppercase",
                 color: SOFT_SLATE.textMuted,
               }}
             >
-              Grade
+              Nutri-Score
             </span>
           </div>
+        </div>
+
+        <StatusBadge
+          verdict={product.verdict}
+          reason={product.verdictReason}
+          size="lg"
+        />
+
+        <p
+          style={{
+            margin: 0,
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontSize: 16,
+            lineHeight: 1.4,
+            color: SOFT_SLATE.textPrimary,
+          }}
+        >
+          {typeof product.score === "number"
+            ? `Safety ${product.score}/100`
+            : "Safety not scored"}
+          {product.grade
+            ? ` · Nutri-Score ${product.grade.toUpperCase()}`
+            : " · Nutri-Score not listed"}
+        </p>
+
+        <div>
+          <p
+            style={{
+              margin: "0 0 8px",
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontSize: 13,
+              fontWeight: 700,
+              color: SOFT_SLATE.textMuted,
+            }}
+          >
+            Allergens on this scan
+          </p>
+          <AllergenList allergens={product.allergens} />
         </div>
       </div>
     )
@@ -11655,10 +11707,7 @@ function ProductCompareScreen({
               margin: "5px 0 0",
 
               fontFamily: SOFT_SLATE.fontFamily,
-              fontSize: 14,
-              lineHeight: 1.5,
-
-              color: SOFT_SLATE.textSecondary,
+              fontSize: 16,
             }}
           >
             {description}
@@ -11670,22 +11719,7 @@ function ProductCompareScreen({
     </section>
   )
 
-  const compareEntry = {
-    screen: "productCompare" as Screen,
-    label: "Compare Products",
-    path: (
-      <>
-        <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
-        <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
-        <path d="M7 21h10" />
-        <path d="M12 3v18" />
-        <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
-      </>
-    ),
-  }
-  const compareNavItems = isDesktop
-    ? [DASHBOARD_RAIL_ITEMS[0], compareEntry, ...DASHBOARD_RAIL_ITEMS.slice(1)]
-    : [DASHBOARD_RAIL_ITEMS[0], compareEntry, DASHBOARD_RAIL_ITEMS[2]]
+  const compareNavItems = DASHBOARD_RAIL_ITEMS
 
   const CompareLayout = ({ children }: { children: ReactNode }) => (
     <div
@@ -12229,9 +12263,60 @@ function ProductCompareScreen({
               </div>
             )}
 
-            {/* ── Product ─────────────────────────────────────────────────── */}
+            {/* ── Verdict ─────────────────────────────────────────────────── */}
 
-            <Section title="Product">
+            <div
+              style={{
+                ...raisedCard,
+                padding: isDesktop ? 22 : 18,
+                marginBottom: 22,
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontWeight: 800,
+                  fontSize: isDesktop ? 22 : 20,
+                  lineHeight: 1.3,
+                  color: SOFT_SLATE.textPrimary,
+                }}
+              >
+                {recommendation === "none"
+                  ? "Close call — check the table below"
+                  : `${recommendation === "a" ? a.name : b.name} is the better pick`}
+              </p>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 16,
+                  lineHeight: 1.5,
+                  color: SOFT_SLATE.textSecondary,
+                }}
+              >
+                {recommendation === "none"
+                  ? "Safety scores and Nutri-Score are too close, or a letter grade is missing. Use the nutrition table and your allergies to decide."
+                  : insights[0] ||
+                    "Based on your allergy verdict first, then safety score, then Nutri-Score."}
+              </p>
+              {insights.slice(1, 3).map((insight) => (
+                <p
+                  key={insight}
+                  style={{
+                    margin: "8px 0 0",
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    lineHeight: 1.5,
+                    color: SOFT_SLATE.textSecondary,
+                  }}
+                >
+                  {insight}
+                </p>
+              ))}
+            </div>
+
+            <Section title="Products">
               <div
                 style={{
                   display: "grid",
@@ -12255,399 +12340,69 @@ function ProductCompareScreen({
               </div>
             </Section>
 
-            {/* ── Allergy & Safety ───────────────────────────────────────── */}
-
             <Section
-              title="Allergy & Safety Verdict"
-              description="Whether each product is safe to eat against your saved allergy and health profile."
+              title="Nutrition"
+              description="Same nutrients, side by side. Lower sugars, fat, and sodium are usually better; higher fiber and protein are usually better."
             >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isDesktop
-                    ? "repeat(2, minmax(0, 1fr))"
-                    : "1fr",
-                  gap: isDesktop ? 22 : 16,
-                }}
-              >
-                <CompareCard
-                  accent={recommendation === "a"}
-                >
-                  <StatusBadge
-                    verdict={a.verdict}
-                    reason={a.verdictReason}
-                    size="lg"
-                  />
-
-                  <div>
-                    <p
-                      style={{
-                        margin: "0 0 10px",
-
-                        fontFamily: SOFT_SLATE.fontFamily,
-                        fontSize: 10.5,
-                        fontWeight: 800,
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-
-                        color: SOFT_SLATE.textMuted,
-                      }}
-                    >
-                      Allergens detected
-                    </p>
-
-                    <AllergenList
-                      allergens={a.allergens}
-                    />
-                  </div>
-                </CompareCard>
-
-                <CompareCard
-                  accent={recommendation === "b"}
-                >
-                  <StatusBadge
-                    verdict={b.verdict}
-                    reason={b.verdictReason}
-                    size="lg"
-                  />
-
-                  <div>
-                    <p
-                      style={{
-                        margin: "0 0 10px",
-
-                        fontFamily: SOFT_SLATE.fontFamily,
-                        fontSize: 10.5,
-                        fontWeight: 800,
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-
-                        color: SOFT_SLATE.textMuted,
-                      }}
-                    >
-                      Allergens detected
-                    </p>
-
-                    <AllergenList
-                      allergens={b.allergens}
-                    />
-                  </div>
-                </CompareCard>
-              </div>
-            </Section>
-
-            {/* ── Ingredients ────────────────────────────────────────────── */}
-
-            <Section
-              title="Ingredient Breakdown"
-              description="Ingredients tied to a flagged allergen are highlighted; the rest are listed for reference."
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isDesktop
-                    ? "repeat(2, minmax(0, 1fr))"
-                    : "1fr",
-                  gap: isDesktop ? 22 : 16,
-                }}
-              >
-                <CompareCard>
-                  <p
-                    style={{
-                      margin: 0,
-
-                      fontFamily: SOFT_SLATE.fontFamily,
-                      fontSize: 11,
-                      fontWeight: 800,
-
-                      color: SOFT_SLATE.textPrimary,
-                    }}
-                  >
-                    {a.name}
-                  </p>
-
-                  <div
-                    style={{
-                      ...insetCard,
-                      padding: 10,
-                    }}
-                  >
-                    <IngredientBreakdown
-                      product={a}
-                    />
-                  </div>
-                </CompareCard>
-
-                <CompareCard>
-                  <p
-                    style={{
-                      margin: 0,
-
-                      fontFamily: SOFT_SLATE.fontFamily,
-                      fontSize: 11,
-                      fontWeight: 800,
-
-                      color: SOFT_SLATE.textPrimary,
-                    }}
-                  >
-                    {b.name}
-                  </p>
-
-                  <div
-                    style={{
-                      ...insetCard,
-                      padding: 10,
-                    }}
-                  >
-                    <IngredientBreakdown
-                      product={b}
-                    />
-                  </div>
-                </CompareCard>
-              </div>
-            </Section>
-
-            {/* ── Nutrition ──────────────────────────────────────────────── */}
-
-            <Section title="Nutrition">
               <div
                 style={{
                   ...raisedCard,
                   padding: isDesktop ? 22 : 16,
                 }}
               >
-                <p
-                  style={{
-                    margin: "0 0 16px",
-                    fontFamily: SOFT_SLATE.fontFamily,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: SOFT_SLATE.textMuted,
-                  }}
-                >
-                  Per 100g
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {NUTRITION_ROWS.map((row) => {
-                    const av = a.nutrition?.[row.key]
-                    const bv = b.nutrition?.[row.key]
-                    const fmt = (value: number | undefined) =>
-                      value === undefined ? "Not listed" : `${value}${row.unit}`
-                    return (
-                      <div
-                        key={row.key}
-                        style={{
-                          ...insetCard,
-                          padding: isDesktop ? "12px 14px" : "12px 12px",
-                          display: "grid",
-                          gridTemplateColumns: isDesktop ? "minmax(120px, 0.8fr) 1fr 1fr" : "1fr",
-                          gap: isDesktop ? 12 : 8,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: SOFT_SLATE.textPrimary,
-                          }}
-                        >
-                          {row.label}
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
-                          <span style={{ color: SOFT_SLATE.textMuted, minWidth: 0 }}>{a.name}</span>
-                          <span
-                            style={{
-                              fontWeight: av === undefined ? 500 : 700,
-                              color: av === undefined ? SOFT_SLATE.textMuted : SOFT_SLATE.textPrimary,
-                              textAlign: "right",
-                            }}
-                          >
-                            {fmt(av)}
-                          </span>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
-                          <span style={{ color: SOFT_SLATE.textMuted, minWidth: 0 }}>{b.name}</span>
-                          <span
-                            style={{
-                              fontWeight: bv === undefined ? 500 : 700,
-                              color: bv === undefined ? SOFT_SLATE.textMuted : SOFT_SLATE.textPrimary,
-                              textAlign: "right",
-                            }}
-                          >
-                            {fmt(bv)}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                <NutritionTable a={a} b={b} />
               </div>
             </Section>
 
-            {/* ── Key Insights ───────────────────────────────────────────── */}
-
             <Section
-              title="Key Insights"
-              description="What stands out between these two products, at a glance."
+              title="Ingredients"
+              description="Flagged allergens are highlighted. Everything else is listed for reference."
             >
               <div
                 style={{
-                  ...raisedCard,
-
-                  padding: isDesktop ? 24 : 16,
-
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 17,
-
-                  boxShadow:
-                    recommendation === "none"
-                      ? SOFT_SLATE.raisedMd
-                      : `
-                        0 0 0 2px ${SOFT_SLATE.green},
-                        ${SOFT_SLATE.raisedMd}
-                      `,
+                  display: "grid",
+                  gridTemplateColumns: isDesktop
+                    ? "repeat(2, minmax(0, 1fr))"
+                    : "1fr",
+                  gap: isDesktop ? 22 : 16,
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 13,
-                  }}
-                >
-                  <div
+                <CompareCard>
+                  <p
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: "50%",
-
-                      flexShrink: 0,
-
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-
-                      background: SOFT_SLATE.bg,
-
-                      boxShadow:
-                        recommendation === "none"
-                          ? SOFT_SLATE.insetMd
-                          : SOFT_SLATE.raisedSm,
-
-                      color:
-                        recommendation === "none"
-                          ? SOFT_SLATE.textMuted
-                          : SOFT_SLATE.green,
-
-                      fontSize: 18,
-                      fontWeight: 900,
+                      margin: 0,
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: SOFT_SLATE.textPrimary,
                     }}
                   >
-                    {recommendation === "none"
-                      ? " - "
-                      : "✓"}
+                    {a.name}
+                  </p>
+                  <div style={{ ...insetCard, padding: 12 }}>
+                    <IngredientBreakdown product={a} />
                   </div>
-
-                  <div>
-                    <p
-                      style={{
-                        margin: 0,
-
-                        fontFamily: SOFT_SLATE.fontFamily,
-                        fontWeight: 800,
-                        fontSize: 16,
-
-                        color: SOFT_SLATE.textPrimary,
-                      }}
-                    >
-                      {recommendation === "none"
-                        ? "No clear recommendation"
-                        : (
-                          <>
-                            <span
-                              style={{
-                                color: SOFT_SLATE.green,
-                              }}
-                            >
-                              {recommendation === "a"
-                                ? a.name
-                                : b.name}
-                            </span>{" "}
-                            is the better choice
-                          </>
-                        )}
-                    </p>
-
-                    <p
-                      style={{
-                        margin: "4px 0 0",
-
-                        fontFamily: SOFT_SLATE.fontFamily,
-                        fontSize: 12,
-                        lineHeight: 1.55,
-
-                        color: SOFT_SLATE.textSecondary,
-                      }}
-                    >
-                      {recommendation === "none"
-                        ? "Both products score too closely, or key data is missing, for Scanity to call a clear winner."
-                        : "Based on nutrition grade, ingredient quality, and your saved health profile."}
-                    </p>
-                  </div>
-                </div>
-
-                {insights.length > 0 && (
-                  <div
+                </CompareCard>
+                <CompareCard>
+                  <p
                     style={{
-                      ...insetCard,
-
-                      padding: 14,
-
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
+                      margin: 0,
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: SOFT_SLATE.textPrimary,
                     }}
                   >
-                    {insights.map(
-                      (insight, index) => (
-                        <div
-                          key={index}
-                          style={{
-                            display: "flex",
-                            gap: 9,
-
-                            fontFamily:
-                              SOFT_SLATE.fontFamily,
-
-                            fontSize: 12,
-                            lineHeight: 1.55,
-
-                            color:
-                              SOFT_SLATE.textSecondary,
-                          }}
-                        >
-                          <span
-                            style={{
-                              color:
-                                SOFT_SLATE.green,
-                              fontWeight: 900,
-                            }}
-                          >
-                            •
-                          </span>
-
-                          <span>{insight}</span>
-                        </div>
-                      )
-                    )}
+                    {b.name}
+                  </p>
+                  <div style={{ ...insetCard, padding: 12 }}>
+                    <IngredientBreakdown product={b} />
                   </div>
-                )}
+                </CompareCard>
               </div>
             </Section>
 
             {/* ── Add another product ────────────────────────────────────── */}
-
             <button
               type="button"
               onClick={() =>
@@ -12669,7 +12424,7 @@ function ProductCompareScreen({
 
                 fontFamily: SOFT_SLATE.fontFamily,
                 fontWeight: 800,
-                fontSize: 13,
+                fontSize: 16,
 
                 boxShadow: SOFT_SLATE.raisedBtn,
 
@@ -12806,50 +12561,9 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
           marginLeft: isDesktop ? RAIL_W + RAIL_SIDE + RAIL_SIDE : 0,
         }}
       >
-        {/* MOBILE MENU BUTTON - the rail stands in for this on desktop */}
         {!isDesktop && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flexShrink: 0,
-              padding: "14px 20px 0",
-            }}
-          >
-            <Tooltip label="Open menu">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open menu"
-                style={{
-                  width: 34,
-                  height: 34,
-                  border: "none",
-                  borderRadius: 12,
-                  background: SOFT_SLATE.bg,
-                  color: SOFT_SLATE.green,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: SOFT_SLATE.raisedSm,
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                >
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              </button>
-            </Tooltip>
+          <div style={{ flexShrink: 0, padding: "14px 14px 0" }}>
+            <DashboardIconRail go={go} isDesktop={false} active="history" savedActive={filter === "saved"} />
           </div>
         )}
 
@@ -13518,8 +13232,8 @@ function SoftSlateOtherChip({
           }}
         />
       ) : (
-        <span style={{ fontFamily: SOFT_SLATE.fontFamily, fontWeight: 600, fontSize: 12.5, color: SOFT_SLATE.textMuted }}>
-          Other
+        <span style={{ fontFamily: SOFT_SLATE.fontFamily, fontWeight: 600, fontSize: 12.5, color: value.trim() ? SOFT_SLATE.textPrimary : SOFT_SLATE.textMuted }}>
+          {value.trim() || "Other"}
         </span>
       )}
 
@@ -13571,7 +13285,6 @@ function ProfileScreen({
     useState(false)
 
   const [draftName, setDraftName] = useState(name)
-  const [draftEmail, setDraftEmail] = useState(email)
 
   // ── Profile picture ──────────────────────────────────────────────────────
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
@@ -13677,10 +13390,14 @@ function ProfileScreen({
       try {
         const remote = await syncHealthProfileFromServer()
         if (cancelled) return
-        setSavedAllergies(new Set(remote.allergies))
-        setAllergies(new Set(remote.allergies))
-        setSavedHealth(new Set(remote.conditions))
-        setHealth(new Set(remote.conditions))
+        const allergyIds = new Set(remote.allergies)
+        if (remote.otherAllergy?.trim()) allergyIds.add("other")
+        const conditionIds = new Set(remote.conditions)
+        if (remote.otherCondition?.trim()) conditionIds.add("other")
+        setSavedAllergies(allergyIds)
+        setAllergies(new Set(allergyIds))
+        setSavedHealth(conditionIds)
+        setHealth(new Set(conditionIds))
         setOtherAllergy(remote.otherAllergy || "")
         setOtherHealth(remote.otherCondition || "")
         setSavedOtherAllergy(remote.otherAllergy || "")
@@ -13781,7 +13498,6 @@ function ProfileScreen({
   // ── Start editing identity ───────────────────────────────────────────────
   const startEditingIdentity = () => {
     setDraftName(name)
-    setDraftEmail(email)
     setEditingIdentity(true)
   }
 
@@ -13797,22 +13513,16 @@ function ProfileScreen({
       : "Getting Started"
 
   const avoidsLabel =
-    ALLERGY_LIST
-      .filter((i) =>
-        savedAllergies.has(i.id)
-      )
-      .map((i) => i.label)
-      .join(", ") ||
-    "Nothing saved yet"
+    [
+      ...ALLERGY_LIST.filter((i) => i.id !== "other" && savedAllergies.has(i.id)).map((i) => i.label),
+      ...(savedOtherAllergy.trim() ? [savedOtherAllergy.trim()] : []),
+    ].join(", ") || "Nothing saved yet"
 
   const watchingLabel =
-    HEALTH_LIST
-      .filter((i) =>
-        savedHealth.has(i.id)
-      )
-      .map((i) => i.label)
-      .join(", ") ||
-    "Nothing saved yet"
+    [
+      ...HEALTH_LIST.filter((i) => i.id !== "other" && i.id !== "none" && savedHealth.has(i.id)).map((i) => i.label),
+      ...(savedOtherHealth.trim() ? [savedOtherHealth.trim()] : []),
+    ].join(", ") || "Nothing saved yet"
 
   const historyRecords = loadScanRecords()
   const lastScan = historyRecords[0]
@@ -13884,33 +13594,7 @@ function ProfileScreen({
               minWidth: 0,
             }}
           >
-            {!isDesktop && (
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open menu"
-                style={{
-                  width: 40,
-                  height: 40,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 12,
-                  border: "none",
-                  background: SOFT_SLATE.bg,
-                  color: SOFT_SLATE.textPrimary,
-                  boxShadow: SOFT_SLATE.raisedSm,
-                  cursor: "pointer",
-                  alignSelf: "flex-start",
-                }}
-              >
-                <svg width={18} height={14} viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <line x1="0" y1="1" x2="24" y2="1" />
-                  <line x1="0" y1="9" x2="24" y2="9" />
-                  <line x1="0" y1="17" x2="24" y2="17" />
-                </svg>
-              </button>
-            )}
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="profile" />}
 
             {/* Header */}
             <div
@@ -14092,13 +13776,13 @@ function ProfileScreen({
 
                     {!editingIdentity && (
                       <Tooltip
-                        label="Edit name and email"
+                        label="Edit username"
                         wrapperStyle={{ position: "absolute", bottom: -2, right: -2 }}
                       >
                         <button
                           type="button"
                           onClick={startEditingIdentity}
-                          aria-label="Edit name and email"
+                          aria-label="Edit username"
                           style={{
                             width: 26,
                             height: 26,
@@ -14146,9 +13830,9 @@ function ProfileScreen({
                     </>
                   ) : (
                     <div style={{ marginTop: 18, width: "100%", maxWidth: 360, textAlign: "left" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
                         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: SOFT_SLATE.textMuted }}>Name</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: SOFT_SLATE.textMuted }}>Username</span>
                           <input
                             autoFocus
                             value={draftName}
@@ -14157,7 +13841,7 @@ function ProfileScreen({
                             style={{
                               fontFamily: SOFT_SLATE.fontFamily,
                               fontWeight: 700,
-                              fontSize: 14,
+                              fontSize: 16,
                               color: SOFT_SLATE.textPrimary,
                               background: SOFT_SLATE.bg,
                               border: "none",
@@ -14170,29 +13854,7 @@ function ProfileScreen({
                             }}
                           />
                         </label>
-
-                        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: SOFT_SLATE.textMuted }}>Email Address</span>
-                          <input
-                            value={draftEmail}
-                            onChange={(e) => setDraftEmail(e.target.value)}
-                            placeholder="you@email.com"
-                            style={{
-                              fontFamily: SOFT_SLATE.fontFamily,
-                              fontWeight: 600,
-                              fontSize: 13,
-                              color: SOFT_SLATE.textPrimary,
-                              background: SOFT_SLATE.bg,
-                              border: "none",
-                              borderRadius: 12,
-                              padding: "10px 12px",
-                              outline: "none",
-                              boxSizing: "border-box",
-                              width: "100%",
-                              boxShadow: SOFT_SLATE.insetSm,
-                            }}
-                          />
-                        </label>
+                        <div style={{ fontSize: 13, color: SOFT_SLATE.textMuted }}>{email || "No email on file"}</div>
                       </div>
 
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
@@ -14201,14 +13863,11 @@ function ProfileScreen({
                           onClick={() => {
                             const nextName =
                               draftName.trim() || name
-                            const nextEmail =
-                              draftEmail.trim() || email
 
                             setName(nextName)
-                            setEmail(nextEmail)
                             saveSessionUser({
                               name: nextName,
-                              email: nextEmail,
+                              email,
                               joinedAt:
                                 storedUser?.joinedAt ||
                                 new Date().toISOString(),
@@ -15960,6 +15619,28 @@ function LegalScreen({
             {/* Header */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
               <div>
+                <button
+                  type="button"
+                  onClick={() => go("settings")}
+                  aria-label="Back to Settings"
+                  style={{
+                    width: 40,
+                    height: 40,
+                    marginBottom: 12,
+                    borderRadius: "50%",
+                    border: "none",
+                    background: SOFT_SLATE.bg,
+                    boxShadow: SOFT_SLATE.raisedSm,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
                 <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
                   {privacy ? "Privacy Policy" : "Terms of Service"}
                 </div>
@@ -16273,6 +15954,30 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
               <Section title="Support & Info" />
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <Row
+                  onClick={() => go("help")}
+                  label="Help & FAQ"
+                  right={<Chevron />}
+                  icon={
+                    <>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <path d="M12 17h.01" />
+                    </>
+                  }
+                />
+                <Row
+                  onClick={() => go("about")}
+                  label="About"
+                  right={<Chevron />}
+                  icon={
+                    <>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 16v-4" />
+                      <path d="M12 8h.01" />
+                    </>
+                  }
+                />
+                <Row
                   onClick={() => go("privacy")}
                   label="Privacy Policy"
                   right={<Chevron />}
@@ -16329,21 +16034,37 @@ function ChangePasswordScreen({
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showSaved, setShowSaved] = useState(false)
+  const [formError, setFormError] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const canSubmit =
     currentPassword.length > 0 &&
     newPassword.length >= 8 &&
-    newPassword === confirmPassword
+    /\d/.test(newPassword) &&
+    newPassword === confirmPassword &&
+    newPassword !== currentPassword &&
+    !saving
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!canSubmit) return
-
-    setShowSaved(true)
-
-    setTimeout(() => {
-      setShowSaved(false)
-      go("settings")
-    }, 1400)
+    setFormError("")
+    setSaving(true)
+    try {
+      const result = await changePassword(currentPassword, newPassword)
+      const session = loadSessionUser()
+      if (session && result?.access_token) {
+        saveSessionUser({ ...session, accessToken: result.access_token })
+      }
+      setShowSaved(true)
+      window.setTimeout(() => {
+        setShowSaved(false)
+        go("settings")
+      }, 900)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Password could not be updated.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const Field = ({
@@ -16385,7 +16106,7 @@ function ChangePasswordScreen({
             background: "none",
             outline: "none",
             fontFamily: SOFT_SLATE.fontFamily,
-            fontSize: 13,
+            fontSize: 16,
             color: SOFT_SLATE.textPrimary,
           }}
         />
@@ -16460,9 +16181,9 @@ function ChangePasswordScreen({
           style={{
             flex: 1,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            padding: 22,
+            padding: "12px 22px 32px",
             boxSizing: "border-box",
           }}
         >
@@ -16508,6 +16229,9 @@ function ChangePasswordScreen({
               <Field label="New Password" value={newPassword} onChange={setNewPassword} />
               <Field label="Confirm New Password" value={confirmPassword} onChange={setConfirmPassword} />
             </div>
+            {formError ? (
+              <p style={{ margin: "14px 0 0", fontSize: 13, color: SOFT_SLATE.unsafe }}>{formError}</p>
+            ) : null}
 
             <button
               type="button"
@@ -16568,6 +16292,7 @@ function DeleteAccountScreen({
 }) {
   const isDesktop = useIsDesktop()
   const [showDeleteLoading, setShowDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState("")
 
   return (
     <div
@@ -16606,13 +16331,34 @@ function DeleteAccountScreen({
         )}
 
         <div style={{ padding: isDesktop ? "22px 40px 8px 0" : "18px 14px 0" }}>
+          <button
+            type="button"
+            onClick={() => go("settings")}
+            aria-label="Back to Settings"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              background: SOFT_SLATE.bg,
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: SOFT_SLATE.raisedSm,
+              cursor: "pointer",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
         </div>
 
         <div
           style={{
             flex: 1,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
             padding: 22,
             boxSizing: "border-box",
@@ -16679,17 +16425,30 @@ function DeleteAccountScreen({
               </svg>
               <span style={{ fontSize: 11.5, color: SOFT_SLATE.textSecondary }}>This action cannot be undone.</span>
             </div>
+            {deleteError ? (
+              <p style={{ margin: "14px 0 0", fontSize: 13, color: SOFT_SLATE.unsafe }}>{deleteError}</p>
+            ) : null}
 
             <button
               type="button"
               disabled={showDeleteLoading}
               onClick={() => {
+                setDeleteError("")
                 setShowDeleteLoading(true)
-
-                setTimeout(() => {
-                  setShowDeleteLoading(false)
-                  go("splash")
-                }, 1800)
+                void deleteAccount()
+                  .then(() => {
+                    clearSessionUser()
+                    try {
+                      window.localStorage.removeItem("scanityHealthProfile")
+                    } catch {
+                      // ignore
+                    }
+                    go("splash")
+                  })
+                  .catch((error) => {
+                    setDeleteError(error instanceof Error ? error.message : "Account could not be deleted.")
+                  })
+                  .finally(() => setShowDeleteLoading(false))
               }}
               style={{
                 width: "100%",
@@ -16850,6 +16609,9 @@ function ForgotPasswordScreen({
 }) {
   const [email, setEmail] = useState("")
   const [pressed, setPressed] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState("")
   const isDesktop = useIsDesktop()
 
   return (
@@ -17030,9 +16792,8 @@ function ForgotPasswordScreen({
               textAlign: "center",
             }}
           >
-            Enter your email and we'll send you a
-            <br />
-            code to reset your password.
+            Enter your email and we will send a reset link.
+            Open that link on this device to choose a new password.
           </p>
 
           {/* Email */}
@@ -17110,9 +16871,16 @@ function ForgotPasswordScreen({
             onTouchStart={() => setPressed(true)}
             onTouchEnd={() => setPressed(false)}
             onClick={() => {
-              if (email.trim()) {
-                go("resetPassword")
-              }
+              const trimmed = email.trim()
+              if (!trimmed || sending) return
+              setSendError("")
+              setSending(true)
+              void requestPasswordReset(trimmed)
+                .then(() => setSent(true))
+                .catch((error) => {
+                  setSendError(error instanceof Error ? error.message : "Could not send the reset email.")
+                })
+                .finally(() => setSending(false))
             }}
             style={{
               width: "100%",
@@ -17136,8 +16904,16 @@ function ForgotPasswordScreen({
               transition: "all 0.12s ease",
             }}
           >
-            Continue
+            {sending ? "Sending…" : sent ? "Reset link sent" : "Send reset link"}
           </button>
+          {sent ? (
+            <p style={{ margin: "14px 0 0", maxWidth: 340, textAlign: "center", fontSize: 13, lineHeight: 1.45, color: PALETTE.textDark }}>
+              Check {email.trim()} and open the link. It brings you back here to set a new password.
+            </p>
+          ) : null}
+          {sendError ? (
+            <p style={{ margin: "12px 0 0", fontSize: 13, color: C.statusDanger }}>{sendError}</p>
+          ) : null}
 
           {/* Login */}
           <button
@@ -17189,6 +16965,8 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [pressed, setPressed] = useState(false)
+  const [resetError, setResetError] = useState("")
+  const [saving, setSaving] = useState(false)
   const isDesktop = useIsDesktop()
 
   const passwordsMatch =
@@ -17604,9 +17382,37 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
             onTouchStart={() => setPressed(true)}
             onTouchEnd={() => setPressed(false)}
             onClick={() => {
-              if (passwordsMatch) {
-                go("confirmationPassword")
+              if (!passwordsMatch || saving) return
+              if (password.length < 8 || !/\d/.test(password)) {
+                setResetError("Use at least 8 characters and 1 number.")
+                return
               }
+              let recovery: { access?: string; refresh?: string; token?: string } = {}
+              try {
+                recovery = JSON.parse(window.sessionStorage.getItem("scanity_recovery") || "{}")
+              } catch {
+                recovery = {}
+              }
+              if (!recovery.access && !recovery.token) {
+                setResetError("Open the reset link from your email first.")
+                return
+              }
+              setSaving(true)
+              setResetError("")
+              void confirmPasswordReset({
+                newPassword: password,
+                accessToken: recovery.access,
+                refreshToken: recovery.refresh,
+                resetToken: recovery.token,
+              })
+                .then(() => {
+                  window.sessionStorage.removeItem("scanity_recovery")
+                  go("confirmationPassword")
+                })
+                .catch((error) => {
+                  setResetError(error instanceof Error ? error.message : "Could not reset your password.")
+                })
+                .finally(() => setSaving(false))
             }}
             style={{
               width: "100%",
@@ -17640,8 +17446,13 @@ function ResetPasswordScreen({ go }: { go: (s: Screen) => void }) {
               transition: "all 0.12s ease",
             }}
           >
-            Continue
+            {saving ? "Saving…" : "Save new password"}
           </button>
+          {resetError ? (
+            <p style={{ margin: "12px 0 0", maxWidth: 340, textAlign: "center", fontSize: 13, color: C.statusDanger }}>
+              {resetError}
+            </p>
+          ) : null}
 
           {/* Footer */}
           <p
@@ -18124,7 +17935,7 @@ function LanguageScreen({ go }: { go: (s: Screen) => void }) {
 const SCREEN_STORAGE_KEY = "scanity_screen"
 const SCREEN_HISTORY_STORAGE_KEY = "scanity_screen_history"
 const VALID_SCREENS: string[] = [
-  "splash", "login", "register", "success", "allergies", "health", "loading",
+  "splash", "login", "register", "verifyEmail", "success", "allergies", "health", "loading",
   "allset", "dashboard", "history", "barcode", "ocr", "profile", "help",
   "about", "privacy", "terms", "settings", "delete", "changePassword", "forgotPassword",
   "resetPassword", "confirmationPassword", "productResult", "productCompare",
@@ -18169,10 +17980,84 @@ function persistScreenHistory(history: Screen[]) {
     // ignore
   }
 }
+function VerifyEmailScreen({ go }: { go: (s: Screen) => void }) {
+  const pending = (() => {
+    try {
+      return window.sessionStorage.getItem("scanity_pending_email") || "your inbox"
+    } catch {
+      return "your inbox"
+    }
+  })()
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background: SOFT_SLATE.bg,
+        fontFamily: SOFT_SLATE.fontFamily,
+        color: SOFT_SLATE.textPrimary,
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 420, textAlign: "center" }}>
+        <img src={logoImg} alt="Scanity logo" style={{ width: 64, height: 64, objectFit: "contain" }} />
+        <h1 style={{ margin: "16px 0 8px", fontSize: 24 }}>Verify your email</h1>
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+          We sent a confirmation link to {pending}. Open it, then come back and sign in.
+        </p>
+        <button
+          type="button"
+          onClick={() => go("login")}
+          style={{
+            marginTop: 24,
+            width: "100%",
+            minHeight: 48,
+            border: "none",
+            borderRadius: 16,
+            background: SOFT_SLATE.green,
+            color: "#fff",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          Go to sign in
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>(readStoredScreen)
   useEffect(() => {
     applyThemeMode(loadThemeMode())
+  }, [])
+  useEffect(() => {
+    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : ""
+    const params = new URLSearchParams(hash || window.location.search)
+    const type = params.get("type")
+    const access = params.get("access_token")
+    const refresh = params.get("refresh_token")
+    const token = params.get("token_hash") || params.get("token")
+    if (type === "recovery" && (access || token)) {
+      try {
+        window.sessionStorage.setItem(
+          "scanity_recovery",
+          JSON.stringify({ access: access || "", refresh: refresh || "", token: token || "" }),
+        )
+      } catch {
+        // ignore
+      }
+      window.history.replaceState(null, "", window.location.pathname)
+      setScreen("resetPassword")
+    }
+    if (type === "signup") {
+      window.history.replaceState(null, "", window.location.pathname)
+      setScreen("login")
+    }
   }, [])
   // Tracks where each `go()` was called from, so a screen that can be
   // reached from more than one place (like Forgot Password, opened from
@@ -18202,6 +18087,7 @@ export default function App() {
     splash: <SplashScreen go={go} />,
     login: <LoginScreen go={go} />,
     register: <RegisterScreen go={go} />,
+    verifyEmail: <VerifyEmailScreen go={go} />,
     success: <SuccessScreen go={go} />,
     allergies: <AllergiesScreen go={go} />,
     health: <HealthScreen go={go} />,
