@@ -1,5 +1,5 @@
 ingredient_name,aliases,category,what_it_is,commonly_seen_in,possible_effects,affects_allergens,affects_diets,source
-Sugar,Sucrose | White sugar | Cane sugar | Beet sugar,sweetener,A common sweetener from sugar cane or sugar beet.,"Drinks, snacks, sauces, desserts",High intake can raise calorie load and blood sugar; not a classic allergen by itself.,,diabetes,Codex / general nutrition references
+Sugar,Sucrose | White sugar | Cane sugar | Beet sugar,sweetener,A common sweetener from sugar cane or sugar beet.,"Drinks, snacks, sauces, desserts",High intake can raise calorie load and blood sugar; not a classic allergen by itself.,,diabetes,World Health Organization and USDA nutrition references
 Glucose,Dextrose | Glucose syrup,sweetener,A simple sugar used for sweetness and browning.,"Candy, baked goods, processed foods",Raises blood sugar quickly; watch if you manage diabetes.,,diabetes,General nutrition references
 Fructose,Fruit sugar,sweetener,A simple sugar naturally in fruit and honey; also added as sweetener.,"Soft drinks, sweets, fruit products",Adds calories and can raise blood sugar load.,,diabetes,General nutrition references
 High fructose corn syrup,HFCS | Corn syrup,sweetener,A sweet syrup made from corn starch.,"Sodas, sauces, packaged sweets",Adds sugars and calories; not an allergen for most people.,,diabetes,General nutrition references
@@ -99,31 +99,31 @@ Vinegar,Acetic acid | E260,acidulant,Sour liquid from fermentation used for tang
 Garlic,,seasoning,Pungent bulb used for savory flavor.,"Sauces, snacks, ready meals",Usually fine; FODMAP-sensitive people may react.,,ibs,General nutrition references
 Onion,,seasoning,Common vegetable seasoning and base flavor.,"Soups, snacks, sauces",Usually fine; FODMAP-sensitive people may react.,,ibs,General nutrition references
 Black pepper,Pepper,seasoning,Dried peppercorn spice.,Savory packaged foods,Usually fine in food amounts.,,,General nutrition references
-Curcumin,E100,colour,Yellow colour from turmeric.,"Processed foods, sauces",Usually fine; rare turmeric sensitivity.,,,Codex / EFSA additive summaries (general)
-Riboflavin,E101,colour,Vitamin B2 used as yellow colour / nutrient.,Fortified foods,Generally safe.,,,Codex / EFSA additive summaries (general)
-E102,Tartrazine,colour,Synthetic yellow azo dye.,"Sweets, drinks",Some people report sensitivity; watch if dye-sensitive.,,,Codex / EFSA additive summaries (general)
-E110,Sunset Yellow,colour,Synthetic orange-yellow azo dye.,"Snacks, drinks",Sensitivity possible in dye-reactive people.,,,Codex / EFSA additive summaries (general)
-Carmine,E120,colour,Red colour from cochineal insects.,"Yogurts, sweets, drinks",Not vegan; rare allergy reports.,,,Codex / EFSA additive summaries (general)
-E129,Allura Red,colour,Synthetic red azo dye.,"Candies, drinks",Sensitivity possible in dye-reactive people.,,,Codex / EFSA additive summaries (general)
-E133,Brilliant Blue,colour,Synthetic blue dye.,"Sweets, drinks",Usually fine; rare sensitivity.,,,Codex / EFSA additive summaries (general)
-E150a,Plain caramel,colour,Browned sugar colour.,"Sodas, sauces",Adds colour; not a classic allergen.,,diabetes,Codex / EFSA additive summaries (general)
-Plain caramel,E150a,colour,Browned sugar colour.,"Sodas, sauces",Adds colour; not a classic allergen.,,diabetes,Codex / EFSA additive summaries (general)
-E150d,Sulphite ammonia caramel,colour,Dark caramel colour used in colas.,"Soft drinks, sauces",May matter if avoiding sulphites.,sulphites,,Codex / EFSA additive summaries (general)
-Sulphite ammonia caramel,E150d,colour,Dark caramel colour used in colas.,"Soft drinks, sauces",May matter if avoiding sulphites.,sulphites,,Codex / EFSA additive summaries (general)
-Carotenes,E160a,colour,Orange colour from carotene.,"Spreads, drinks",Generally safe.,,,Codex / EFSA additive summaries (general)
-E160c,Paprika extract,colour,Natural red-orange colour from paprika.,"Snacks, sauces",Usually fine; nightshade-sensitive people may notice.,,,Codex / EFSA additive summaries (general)
-Paprika extract,E160c,colour,Natural red-orange colour from paprika.,"Snacks, sauces",Usually fine; nightshade-sensitive people may notice.,,,Codex / EFSA additive summaries (general)
-Sorbic acid,E200,preservative,Slows mold and yeast.,"Cheese, baked goods",Safe within limits; rare irritation.,,,Codex / EFSA additive summaries (general)
-Sulphur dioxide,E220,preservative,Preservative / antioxidant; sulphite family.,"Dried fruit, wine, packaged foods",Can trigger asthma in sulphite-sensitive people.,sulphites,,Codex / EFSA additive summaries (general)
-E223,Sodium metabisulphite,preservative,Sulphite preservative.,"Dried fruit, seafood, wine",Avoid if sulphite-sensitive.,sulphites,,Codex / EFSA additive summaries (general)
-Sodium metabisulphite,E223,preservative,Sulphite preservative.,"Dried fruit, seafood, wine",Avoid if sulphite-sensitive.,sulphites,,Codex / EFSA additive summaries (general)
-E251,Sodium nitrate,preservative,Curing agent related to nitrite.,Cured meats,Same caution as cured meats.,,,Codex / EFSA additive summaries (general)
-Sodium nitrate,E251,preservative,Curing agent related to nitrite.,Cured meats,Same caution as cured meats.,,,Codex / EFSA additive summaries (general)
-Diphosphates,E450,emulsifier,Phosphate salts for texture / leavening.,"Processed meats, baking powder",Adds phosphorus; watch if kidney diet restricted.,,,Codex / EFSA additive summaries (general)
-Sodium carbonates,E500,acidity regulator,Baking soda family.,Baked goods,Everyday pantry item.,,,Codex / EFSA additive summaries (general)
-Monosodium glutamate,E621,flavour enhancer,MSG; boosts savory taste.,"Snacks, soups, noodles",Some people report sensitivity; not a classic allergen.,,hypertension,Codex / EFSA additive summaries (general)
-E951,Aspartame,sweetener,Intense low-calorie sweetener.,"Diet drinks, gum",Avoid if you have PKU; otherwise within limits.,,diabetes,Codex / EFSA additive summaries (general)
-E955,Sucralose,sweetener,Intense sweetener.,"Diet drinks, sweets",Generally recognized as safe within limits.,,diabetes,Codex / EFSA additive summaries (general)
+Curcumin,E100,colour,Yellow colour from turmeric.,"Processed foods, sauces",Usually fine; rare turmeric sensitivity.,,,European Food Safety Authority (EFSA) additive summaries
+Riboflavin,E101,colour,Vitamin B2 used as yellow colour / nutrient.,Fortified foods,Generally safe.,,,European Food Safety Authority (EFSA) additive summaries
+E102,Tartrazine,colour,Synthetic yellow azo dye.,"Sweets, drinks",Some people report sensitivity; watch if dye-sensitive.,,,European Food Safety Authority (EFSA) additive summaries
+E110,Sunset Yellow,colour,Synthetic orange-yellow azo dye.,"Snacks, drinks",Sensitivity possible in dye-reactive people.,,,European Food Safety Authority (EFSA) additive summaries
+Carmine,E120,colour,Red colour from cochineal insects.,"Yogurts, sweets, drinks",Not vegan; rare allergy reports.,,,European Food Safety Authority (EFSA) additive summaries
+E129,Allura Red,colour,Synthetic red azo dye.,"Candies, drinks",Sensitivity possible in dye-reactive people.,,,European Food Safety Authority (EFSA) additive summaries
+E133,Brilliant Blue,colour,Synthetic blue dye.,"Sweets, drinks",Usually fine; rare sensitivity.,,,European Food Safety Authority (EFSA) additive summaries
+E150a,Plain caramel,colour,Browned sugar colour.,"Sodas, sauces",Adds colour; not a classic allergen.,,diabetes,European Food Safety Authority (EFSA) additive summaries
+Plain caramel,E150a,colour,Browned sugar colour.,"Sodas, sauces",Adds colour; not a classic allergen.,,diabetes,European Food Safety Authority (EFSA) additive summaries
+E150d,Sulphite ammonia caramel,colour,Dark caramel colour used in colas.,"Soft drinks, sauces",May matter if avoiding sulphites.,sulphites,,European Food Safety Authority (EFSA) additive summaries
+Sulphite ammonia caramel,E150d,colour,Dark caramel colour used in colas.,"Soft drinks, sauces",May matter if avoiding sulphites.,sulphites,,European Food Safety Authority (EFSA) additive summaries
+Carotenes,E160a,colour,Orange colour from carotene.,"Spreads, drinks",Generally safe.,,,European Food Safety Authority (EFSA) additive summaries
+E160c,Paprika extract,colour,Natural red-orange colour from paprika.,"Snacks, sauces",Usually fine; nightshade-sensitive people may notice.,,,European Food Safety Authority (EFSA) additive summaries
+Paprika extract,E160c,colour,Natural red-orange colour from paprika.,"Snacks, sauces",Usually fine; nightshade-sensitive people may notice.,,,European Food Safety Authority (EFSA) additive summaries
+Sorbic acid,E200,preservative,Slows mold and yeast.,"Cheese, baked goods",Safe within limits; rare irritation.,,,European Food Safety Authority (EFSA) additive summaries
+Sulphur dioxide,E220,preservative,Preservative / antioxidant; sulphite family.,"Dried fruit, wine, packaged foods",Can trigger asthma in sulphite-sensitive people.,sulphites,,European Food Safety Authority (EFSA) additive summaries
+E223,Sodium metabisulphite,preservative,Sulphite preservative.,"Dried fruit, seafood, wine",Avoid if sulphite-sensitive.,sulphites,,European Food Safety Authority (EFSA) additive summaries
+Sodium metabisulphite,E223,preservative,Sulphite preservative.,"Dried fruit, seafood, wine",Avoid if sulphite-sensitive.,sulphites,,European Food Safety Authority (EFSA) additive summaries
+E251,Sodium nitrate,preservative,Curing agent related to nitrite.,Cured meats,Same caution as cured meats.,,,European Food Safety Authority (EFSA) additive summaries
+Sodium nitrate,E251,preservative,Curing agent related to nitrite.,Cured meats,Same caution as cured meats.,,,European Food Safety Authority (EFSA) additive summaries
+Diphosphates,E450,emulsifier,Phosphate salts for texture / leavening.,"Processed meats, baking powder",Adds phosphorus; watch if kidney diet restricted.,,,European Food Safety Authority (EFSA) additive summaries
+Sodium carbonates,E500,acidity regulator,Baking soda family.,Baked goods,Everyday pantry item.,,,European Food Safety Authority (EFSA) additive summaries
+Monosodium glutamate,E621,flavour enhancer,MSG; boosts savory taste.,"Snacks, soups, noodles",Some people report sensitivity; not a classic allergen.,,hypertension,European Food Safety Authority (EFSA) additive summaries
+E951,Aspartame,sweetener,Intense low-calorie sweetener.,"Diet drinks, gum",Avoid if you have PKU; otherwise within limits.,,diabetes,European Food Safety Authority (EFSA) additive summaries
+E955,Sucralose,sweetener,Intense sweetener.,"Diet drinks, sweets",Generally recognized as safe within limits.,,diabetes,European Food Safety Authority (EFSA) additive summaries
 Pepperoni,,label ingredient,A food-label ingredient phrase (“pepperoni”) seen in packaged products. Tap AI research for a deeper plain-language note when needed.,Packaged and processed foods,Common label ingredient ingredient. Confirm the package if you are sensitive.,,,Allergen_Datasets - allergies_10k.csv
 Pork,,label ingredient,A food-label ingredient phrase (“pork”) seen in packaged products. Tap AI research for a deeper plain-language note when needed.,Packaged and processed foods,Common label ingredient ingredient. Confirm the package if you are sensitive.,,,Allergen_Datasets - allergies_10k.csv
 Cooked Chicken Meat,Cooked-Chicken-Meat | CookedChickenMeat,label ingredient,A food-label ingredient phrase (“cooked chicken meat”) seen in packaged products. Tap AI research for a deeper plain-language note when needed.,Packaged and processed foods,Common label ingredient ingredient. Confirm the package if you are sensitive.,,,Allergen_Datasets - allergies_10k.csv

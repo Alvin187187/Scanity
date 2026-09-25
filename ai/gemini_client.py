@@ -70,8 +70,12 @@ def _load_local_env() -> None:
     try:
         from app.core.config import settings
 
-        if getattr(settings, "GEMINI_API_KEY", None) and "GEMINI_API_KEY" not in os.environ:
-            os.environ["GEMINI_API_KEY"] = str(settings.GEMINI_API_KEY)
+        settings_key = str(getattr(settings, "GEMINI_API_KEY", "") or "").strip()
+        current_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        if settings_key and not settings_key.startswith("YOUR_") and (
+            not current_key or current_key.startswith("YOUR_")
+        ):
+            os.environ["GEMINI_API_KEY"] = settings_key
         if getattr(settings, "GEMINI_MODEL", None) and not os.environ.get("GEMINI_MODEL"):
             os.environ["GEMINI_MODEL"] = str(settings.GEMINI_MODEL)
         if getattr(settings, "AI_PROVIDER", None) and not os.environ.get("AI_PROVIDER"):
@@ -123,7 +127,12 @@ def _extract_google_text(data: dict) -> str:
         return ""
 
     parts = ((first.get("content") or {}).get("parts")) or []
-    return "".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
+    visible = [
+        part.get("text", "")
+        for part in parts
+        if isinstance(part, dict) and part.get("text") and not part.get("thought")
+    ]
+    return "".join(visible).strip()
 
 
 def _extract_openrouter_text(data: dict) -> str:
