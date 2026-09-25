@@ -150,7 +150,7 @@ def expand(target: int = 5000) -> int:
                     "what_it_is": what,
                     "commonly_seen_in": seen_in,
                     "possible_effects": effects,
-                    "source": "Codex / EFSA additive summaries (general)",
+                    "source": "European Food Safety Authority (EFSA) additive summaries",
                 }
             )
 

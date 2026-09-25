@@ -161,3 +161,43 @@ export async function explainIngredientWithAi(input: {
     ai_source: String(data?.ai_source || "template"),
   }
 }
+
+export type KnowledgeHit = {
+  ingredient_name: string
+  aliases: string[]
+  category: string
+  display_category: string
+  what_it_is: string
+  commonly_seen_in: string
+  possible_effects: string
+  affects_allergens: string[]
+  affects_diets: string[]
+  source: string
+}
+
+export async function searchKnowledge(query: string): Promise<KnowledgeHit[]> {
+  const response = await fetch(
+    `${requireApiBaseUrl()}/knowledge/search?q=${encodeURIComponent(query)}&limit=8`,
+    { headers: authHeaders() },
+  )
+  const data = await response.json().catch(() => null)
+  if (response.status === 401) {
+    throw new Error("Please sign in again to search Scanity.")
+  }
+  if (!response.ok) {
+    throw new Error(readError(data, "Scanity knowledge is unavailable right now."))
+  }
+  const rows = Array.isArray(data?.results) ? data.results : []
+  return rows.map((row: any) => ({
+    ingredient_name: String(row?.ingredient_name || ""),
+    aliases: Array.isArray(row?.aliases) ? row.aliases.map(String) : [],
+    category: String(row?.category || ""),
+    display_category: String(row?.display_category || "Food term"),
+    what_it_is: String(row?.what_it_is || ""),
+    commonly_seen_in: String(row?.commonly_seen_in || ""),
+    possible_effects: String(row?.possible_effects || ""),
+    affects_allergens: Array.isArray(row?.affects_allergens) ? row.affects_allergens.map(String) : [],
+    affects_diets: Array.isArray(row?.affects_diets) ? row.affects_diets.map(String) : [],
+    source: String(row?.source || ""),
+  }))
+}

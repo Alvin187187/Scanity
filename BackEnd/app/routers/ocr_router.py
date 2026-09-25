@@ -37,6 +37,7 @@ def _with_analysis(
             ingredients,
             user_allergies,
             user_conditions=user_conditions or [],
+            use_hosted_ai=True,
         )
     else:
         analysis = {

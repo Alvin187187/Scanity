@@ -14,6 +14,7 @@ from app.services.ai_assistant_service import (
     build_safety_report,
 )
 from app.services.ingredient_explain_service import explain_ingredient
+from seed.ingredient_knowledge_loader import search_ingredient_knowledge
 
 router = APIRouter()
 
@@ -103,6 +104,40 @@ async def ai_safety_report(
         focus=request.focus,
     )
     return SafetyReportResponse(report=report)
+
+
+class KnowledgeSearchHit(BaseModel):
+    ingredient_name: str
+    aliases: list[str] = Field(default_factory=list)
+    category: str = ""
+    display_category: str = "Food term"
+    what_it_is: str = ""
+    commonly_seen_in: str = ""
+    possible_effects: str = ""
+    affects_allergens: list[str] = Field(default_factory=list)
+    affects_diets: list[str] = Field(default_factory=list)
+    source: str = ""
+
+
+class KnowledgeSearchResponse(BaseModel):
+    query: str
+    results: list[KnowledgeSearchHit] = Field(default_factory=list)
+
+
+@router.get("/knowledge/search", response_model=KnowledgeSearchResponse)
+async def knowledge_search(
+    q: str = "",
+    limit: int = 8,
+    _current_user: dict = Depends(get_current_user),
+):
+    query = q.strip()
+    if len(query) < 2:
+        return KnowledgeSearchResponse(query=query, results=[])
+    rows = search_ingredient_knowledge(query, limit=limit)
+    return KnowledgeSearchResponse(
+        query=query,
+        results=[KnowledgeSearchHit(**row) for row in rows],
+    )
 
 
 @router.post("/scan/ai/ingredient-explain", response_model=IngredientExplainResponse)

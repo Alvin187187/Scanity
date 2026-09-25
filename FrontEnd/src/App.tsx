@@ -15,7 +15,7 @@ import orangeJuiceImg from "@/imports/orange_juice_scanity.jpeg"
 import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
-import { askAiAboutProduct, explainIngredientWithAi, requestSafetyReport, type AiChatMessage } from "./api/ai"
+import { askAiAboutProduct, explainIngredientWithAi, requestSafetyReport, searchKnowledge, type AiChatMessage, type KnowledgeHit } from "./api/ai"
 import {
   changePassword,
   confirmPasswordReset,
@@ -181,6 +181,7 @@ type Screen =
   | "history"
   | "barcode"
   | "ocr"
+  | "knowledge"
   | "profile"
   | "help"
   | "about"
@@ -4850,15 +4851,13 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
     path: ReactNode
   }[] = [
     {
-      label: "Scan OCR",
-      description: "Read the label when there is no barcode.",
-      action: () => go("ocr"),
+      label: "Search",
+      description: "Learn about ingredients, allergens, additives, and other food-related terms.",
+      action: () => go("knowledge"),
       path: (
         <>
-          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-          <path d="M14 2v5h6" />
-          <path d="M8 13h8" />
-          <path d="M8 17h5" />
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
         </>
       ),
     },
@@ -6679,7 +6678,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               <div style={{ maxWidth: 560, margin: "26px auto 0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                   <i className="fa fa-keyboard-o" style={{ color: SOFT_SLATE.green, fontSize: 14 }} />
-                  <span style={{ fontWeight: 700, fontSize: 11, color: SOFT_SLATE.textPrimary }}>
+                  <span style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.4, color: SOFT_SLATE.textPrimary }}>
                     Enter barcode manually
                   </span>
                 </div>
@@ -6714,7 +6713,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                       boxShadow: SOFT_SLATE.insetSm,
                       padding: "0 14px",
                       fontFamily: SOFT_SLATE.fontFamily,
-                      fontSize: 11,
+                      fontSize: 16,
                       color: SOFT_SLATE.textPrimary,
                     }}
                   />
@@ -6746,11 +6745,35 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                 </div>
 
                 {scanStatus === "invalid" && (
-                  <p style={{ margin: "9px 0 0", fontSize: 9, color: SOFT_SLATE.unsafe, lineHeight: 1.5 }}>
+                  <p style={{ margin: "12px 0 0", fontSize: 16, color: SOFT_SLATE.unsafe, lineHeight: 1.5 }}>
                     <i className="fa fa-exclamation-circle" style={{ marginRight: 5 }} />
                     {errorMessage}
                   </p>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => go("ocr")}
+                  style={{
+                    marginTop: 16,
+                    minHeight: 44,
+                    padding: "10px 4px",
+                    border: "none",
+                    background: "none",
+                    color: SOFT_SLATE.green,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    lineHeight: 1.4,
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  No barcode? Read the package text
+                </button>
+                <p style={{ margin: "4px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                  Scanity can recognize the product from the words printed on the label.
+                </p>
               </div>
             </div>
           </div>
@@ -7516,7 +7539,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       case "textPreview": return "Review the extracted ingredients before continuing with product analysis."
       case "productProcessing": return "Scanity is analyzing the product, nutrition information, and allergies."
       case "error": return errorMessage || "Please try scanning again."
-      default: return "Scan a nutrition label to extract ingredients and nutritional information."
+      default: return "Point the camera at the product name or ingredient list, then capture."
     }
   }
 
@@ -7583,11 +7606,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             {/* ── Header ──────────────────────────────────────────────── */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
               <div>
-                <div style={{ fontSize: isDesktop ? 26 : 21, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
-                  Nutrition Label Scanner
+                <div style={{ fontSize: isDesktop ? 28 : 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.2, color: SOFT_SLATE.textPrimary }}>
+                  Read the package
                 </div>
-                <div style={{ fontSize: 13, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
-                  Scan a nutrition label to extract ingredients
+                <div style={{ fontSize: 16, color: SOFT_SLATE.textSecondary, marginTop: 8, lineHeight: 1.5, maxWidth: "42ch" }}>
+                  Another way to scan when there is no barcode. Scanity reads the product name and ingredients from the label text.
                 </div>
               </div>
 
@@ -8379,6 +8402,15 @@ function toShopperSource(raw?: string | null): string {
   if (low.includes("openfoodfacts") || low.includes("open food facts")) {
     return "Open Food Facts + Scanity allergen guide"
   }
+  if (low.includes("codex") && low.includes("efsa")) {
+    return "European Food Safety Authority (EFSA) additive summaries"
+  }
+  if (low.includes("codex")) {
+    return "World Health Organization and USDA nutrition references"
+  }
+  if (low.includes("efsa")) {
+    return "European Food Safety Authority (EFSA) additive summaries"
+  }
   return text
 }
 
@@ -8461,7 +8493,7 @@ function renderCoachMarkdown(text: string): ReactNode {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 15, lineHeight: 1.55, fontWeight: 400, color: SOFT_SLATE.textPrimary }}>
+    <div className="scanity-reading" style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 16, lineHeight: 1.6, fontWeight: 400, color: SOFT_SLATE.textPrimary, textAlign: "left" }}>
       {blocks.map((block, blockIndex) => {
         const lines = block.split(/\n/).map((line) => line.trim()).filter(Boolean)
         if (!lines.length) return null
@@ -8473,7 +8505,7 @@ function renderCoachMarkdown(text: string): ReactNode {
           return (
             <div key={`blk-${blockIndex}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {lead.map((line, lineIndex) => (
-                <p key={`lead-${blockIndex}-${lineIndex}`} style={{ margin: 0, fontSize: 16, lineHeight: 1.55 }}>
+                <p key={`lead-${blockIndex}-${lineIndex}`} style={{ margin: "0 0 16px", fontSize: 16, lineHeight: 1.6 }}>
                   {inline(line, `lead-${blockIndex}-${lineIndex}`)}
                 </p>
               ))}
@@ -8481,7 +8513,7 @@ function renderCoachMarkdown(text: string): ReactNode {
                 style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 8 }}
               >
                 {bullets.map((line, lineIndex) => (
-                  <li key={`li-${blockIndex}-${lineIndex}`} style={{ lineHeight: 1.5, fontSize: 15.5 }}>
+                  <li key={`li-${blockIndex}-${lineIndex}`} style={{ lineHeight: 1.6, fontSize: 16 }}>
                     {inline(line.replace(/^[-*•]\s+/, ""), `li-${blockIndex}-${lineIndex}`)}
                   </li>
                 ))}
@@ -8490,7 +8522,7 @@ function renderCoachMarkdown(text: string): ReactNode {
           )
         }
         return (
-          <p key={`p-${blockIndex}`} style={{ margin: 0, lineHeight: 1.55, fontSize: 16 }}>
+          <p key={`p-${blockIndex}`} style={{ margin: "0 0 16px", lineHeight: 1.6, fontSize: 16, maxWidth: "42ch" }}>
             {lines.map((line, lineIndex) => (
               <span key={`ln-${blockIndex}-${lineIndex}`}>
                 {lineIndex > 0 && <br />}
@@ -9259,10 +9291,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             </svg>
           </button>
           <div style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: isDesktop ? 28 : 24, fontWeight: 800, letterSpacing: "-0.03em" }}>
+            <h1 style={{ margin: 0, fontSize: isDesktop ? 32 : 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
               Product Result
             </h1>
-            <p style={{ margin: "6px 0 0", fontSize: 14, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>
+            <p style={{ margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
               Safety for your profile, plus nutrition quality
             </p>
           </div>
@@ -9293,8 +9325,8 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
 
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 18, marginBottom: 26 }}>
             <div style={{ minWidth: 0 }}>
-              <h2 style={{ margin: 0, fontSize: isDesktop ? 26 : 22, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2 }}>{productName}</h2>
-              <p style={{ margin: "8px 0 0", fontSize: 14, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>{productBrand}</p>
+              <h2 style={{ margin: 0, fontSize: isDesktop ? 24 : 22, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.3 }}>{productName}</h2>
+              <p style={{ margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>{productBrand}</p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
               <GradeBadge grade={grade} size={56} />
@@ -9315,7 +9347,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.2 }}>AI explanation</h3>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.3 }}>What this means</h3>
                 <span
                   style={{
                     fontSize: 12,
@@ -13484,6 +13516,262 @@ function SoftSlateOtherChip({
   )
 }
 
+const POPULAR_KNOWLEDGE = ["MSG", "Gluten", "Maltodextrin", "Soy Lecithin", "Tartrazine"]
+
+function KnowledgeFact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>{label}</div>
+      <div style={{ marginTop: 6, fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textPrimary, maxWidth: "46ch" }}>{children}</div>
+    </div>
+  )
+}
+
+function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
+  const isDesktop = useIsDesktop()
+  const [query, setQuery] = useState("")
+  const [submitted, setSubmitted] = useState("")
+  const [status, setStatus] = useState<"idle" | "searching" | "ready" | "error">("idle")
+  const [results, setResults] = useState<KnowledgeHit[]>([])
+  const [error, setError] = useState("")
+  const [picked, setPicked] = useState<string | null>(null)
+  const [showMore, setShowMore] = useState(false)
+
+  useEffect(() => {
+    const term = query.trim()
+    if (term.length < 2) {
+      setStatus("idle")
+      setResults([])
+      setSubmitted("")
+      setPicked(null)
+      setError("")
+      setShowMore(false)
+      return
+    }
+    setStatus("searching")
+    const handle = window.setTimeout(() => {
+      void searchKnowledge(term)
+        .then((rows) => {
+          setResults(rows.filter((row) => row.ingredient_name))
+          setSubmitted(term)
+          setPicked(null)
+          setShowMore(false)
+          setError("")
+          setStatus("ready")
+        })
+        .catch((err: unknown) => {
+          setResults([])
+          setSubmitted(term)
+          setError(err instanceof Error ? err.message : "Scanity knowledge is unavailable right now.")
+          setStatus("error")
+        })
+    }, 280)
+    return () => window.clearTimeout(handle)
+  }, [query])
+
+  const active =
+    results.find((row) => row.ingredient_name === picked) || (results.length === 1 ? results[0] : null)
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", background: SOFT_SLATE.bg }}>
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+          <DashboardIconRail go={go} isDesktop active="knowledge" />
+        </div>
+      )}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          marginLeft: isDesktop ? 132 : 0,
+          paddingTop: isDesktop ? 0 : "env(safe-area-inset-top)",
+        }}
+      >
+        <Center maxWidth={720}>
+          <div className="scanity-profile" style={{ padding: isDesktop ? "24px 24px 48px 0" : "16px 20px 40px", textAlign: "left" }}>
+            {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="knowledge" />}
+            <h1 style={{ margin: "8px 0 0", fontSize: isDesktop ? 32 : 28, fontWeight: 700, lineHeight: 1.2, color: SOFT_SLATE.textPrimary }}>
+              What do you want to know?
+            </h1>
+            <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
+              Ask Scanity what a food-related term means. This is not a product search.
+            </p>
+
+            <label htmlFor="knowledge-search" style={{ display: "block", marginTop: 24, fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
+              What are you looking for?
+            </label>
+            <input
+              id="knowledge-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search ingredients, allergens, additives..."
+              autoComplete="off"
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: 8,
+                minHeight: 48,
+                boxSizing: "border-box",
+                border: "1px solid var(--scanity-border)",
+                borderRadius: 12,
+                background: "var(--scanity-panel)",
+                padding: "12px 16px",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 16,
+                lineHeight: 1.5,
+                color: SOFT_SLATE.textPrimary,
+              }}
+            />
+            <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>
+              Try: MSG, maltodextrin, soy lecithin, gluten
+            </p>
+
+            {status === "idle" && (
+              <div style={{ marginTop: 28 }}>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>Popular searches</h2>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                  {POPULAR_KNOWLEDGE.map((term) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => setQuery(term)}
+                      style={{
+                        minHeight: 44,
+                        padding: "10px 14px",
+                        borderRadius: 12,
+                        border: "1px solid var(--scanity-border)",
+                        background: "var(--scanity-panel)",
+                        color: SOFT_SLATE.textPrimary,
+                        fontFamily: SOFT_SLATE.fontFamily,
+                        fontSize: 16,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {status === "searching" && (
+              <p role="status" style={{ marginTop: 24, fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                Searching Scanity Knowledge...
+              </p>
+            )}
+
+            {status === "error" && (
+              <p role="alert" style={{ marginTop: 24, fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.caution, maxWidth: "42ch" }}>
+                {error}
+              </p>
+            )}
+
+            {status === "ready" && results.length === 0 && (
+              <div style={{ marginTop: 24, maxWidth: "42ch" }}>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>
+                  No information found for "{submitted}"
+                </h2>
+                <p style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.6 }}>Try searching for:</p>
+                <ul style={{ margin: "8px 0 0", paddingLeft: 20, fontSize: 16, lineHeight: 1.6 }}>
+                  <li>An ingredient</li>
+                  <li>An additive</li>
+                  <li>An allergen</li>
+                  <li>A food-related term</li>
+                </ul>
+              </div>
+            )}
+
+            {status === "ready" && results.length > 1 && (
+              <div style={{ marginTop: 24 }}>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>Results for "{submitted}"</h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+                  {results.map((row) => {
+                    const selected = active?.ingredient_name === row.ingredient_name
+                    return (
+                      <button
+                        key={row.ingredient_name}
+                        type="button"
+                        onClick={() => {
+                          setPicked(row.ingredient_name)
+                          setShowMore(false)
+                        }}
+                        style={{
+                          minHeight: 44,
+                          textAlign: "left",
+                          padding: "12px 16px",
+                          borderRadius: 12,
+                          border: selected ? `2px solid ${SOFT_SLATE.green}` : "1px solid var(--scanity-border)",
+                          background: "var(--scanity-panel)",
+                          cursor: "pointer",
+                          fontFamily: SOFT_SLATE.fontFamily,
+                        }}
+                      >
+                        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>{row.ingredient_name}</div>
+                        <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>{row.display_category}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {active && status === "ready" && (
+              <article style={{ marginTop: 24, padding: "20px 16px", borderRadius: 12, border: "1px solid var(--scanity-border)", background: "var(--scanity-panel)", maxWidth: 640 }}>
+                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.3 }}>{active.ingredient_name}</h2>
+                <KnowledgeFact label="What is it?">{active.what_it_is || "A food-related term in the Scanity guide."}</KnowledgeFact>
+                <KnowledgeFact label="Category">{active.display_category}</KnowledgeFact>
+                <KnowledgeFact label={active.display_category === "Allergen" ? "Why does it matter?" : "Why is it used?"}>
+                  {active.possible_effects || "Scanity uses this as a plain-language note, not a medical diagnosis."}
+                </KnowledgeFact>
+                {active.commonly_seen_in ? (
+                  <KnowledgeFact label="Where is it commonly found?">{active.commonly_seen_in}</KnowledgeFact>
+                ) : null}
+                {active.affects_allergens.length > 0 ? (
+                  <KnowledgeFact label="Allergen information">{active.affects_allergens.join(", ")}</KnowledgeFact>
+                ) : null}
+                {active.aliases.length > 0 ? (
+                  <KnowledgeFact label="Related terms">{active.aliases.slice(0, 6).join(" · ")}</KnowledgeFact>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setShowMore((open) => !open)}
+                  style={{
+                    marginTop: 20,
+                    minHeight: 44,
+                    padding: "10px 0",
+                    border: "none",
+                    background: "none",
+                    color: SOFT_SLATE.green,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {showMore ? "Show less" : "Learn more"}
+                </button>
+                {showMore && (
+                  <div style={{ marginTop: 8 }}>
+                    {active.affects_diets.length > 0 ? (
+                      <KnowledgeFact label="Dietary notes">{active.affects_diets.join(", ")}</KnowledgeFact>
+                    ) : null}
+                    <KnowledgeFact label="Source">{active.source || "Scanity ingredient guide"}</KnowledgeFact>
+                    <p style={{ margin: "16px 0 0", fontSize: 14, lineHeight: 1.5, color: SOFT_SLATE.textMuted, maxWidth: "46ch" }}>
+                      This is consumer guidance so you can read a label faster. It is not medical advice.
+                    </p>
+                  </div>
+                )}
+              </article>
+            )}
+          </div>
+        </Center>
+      </div>
+    </div>
+  )
+}
+
 function ProfileScreen({
   go,
 }: {
@@ -13801,17 +14089,18 @@ function ProfileScreen({
         }}
       >
         <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 22,
-              padding: isDesktop ? "26px 40px 40px 0" : "16px 14px 32px",
-              boxSizing: "border-box",
-              color: SOFT_SLATE.textPrimary,
-              minWidth: 0,
-            }}
-          >
+            <div
+              className="scanity-profile"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 24,
+                padding: isDesktop ? "24px 24px 40px 0" : "16px 20px 32px",
+                boxSizing: "border-box",
+                color: SOFT_SLATE.textPrimary,
+                minWidth: 0,
+              }}
+            >
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="profile" />}
 
             {/* Header */}
@@ -13826,9 +14115,10 @@ function ProfileScreen({
               <div>
                 <div
                   style={{
-                    fontSize: isDesktop ? 30 : 24,
-                    fontWeight: 800,
+                    fontSize: isDesktop ? 32 : 28,
+                    fontWeight: 700,
                     letterSpacing: "-0.02em",
+                    lineHeight: 1.2,
                     color: SOFT_SLATE.textPrimary,
                   }}
                 >
@@ -13836,9 +14126,11 @@ function ProfileScreen({
                 </div>
                 <div
                   style={{
-                    fontSize: 14,
+                    fontSize: 16,
                     color: SOFT_SLATE.textSecondary,
-                    marginTop: 4,
+                    marginTop: 8,
+                    lineHeight: 1.5,
+                    maxWidth: "42ch",
                   }}
                 >
                   Your saved details and preferences
@@ -13896,14 +14188,14 @@ function ProfileScreen({
                 <div
                   style={{
                     background: SOFT_SLATE.bg,
-                    borderRadius: 26,
-                    padding: isDesktop ? "30px 28px" : "24px 20px",
-                    boxShadow: SOFT_SLATE.raisedLg,
+                    borderRadius: 16,
+                    padding: isDesktop ? "24px" : "20px 16px",
+                    boxShadow: SOFT_SLATE.raisedSm,
                     boxSizing: "border-box",
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "center",
-                    textAlign: "center",
+                    alignItems: "flex-start",
+                    textAlign: "left",
                   }}
                 >
                   <div style={{ position: "relative" }}>
@@ -14030,21 +14322,17 @@ function ProfileScreen({
                           marginTop: 16,
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: 7,
-                          padding: "6px 14px",
-                          borderRadius: 999,
-                          boxShadow: SOFT_SLATE.insetSm,
+                          padding: "6px 0",
                         }}
                       >
-                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: SOFT_SLATE.green }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: SOFT_SLATE.green }}>{profileBadge}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: SOFT_SLATE.green }}>{profileBadge}</span>
                       </div>
 
-                      <h3 style={{ margin: "14px 0 0", fontSize: isDesktop ? 22 : 19, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+                      <h2 style={{ margin: "8px 0 0", fontSize: isDesktop ? 24 : 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
                         {name || "Your name"}
-                      </h3>
-                      <div style={{ marginTop: 6, fontSize: 13, color: SOFT_SLATE.textMuted }}>{email || "No email on file"}</div>
-                      <div style={{ marginTop: 2, fontSize: 12, color: SOFT_SLATE.textMuted }}>Member since {joinedLabel}</div>
+                      </h2>
+                      <div style={{ marginTop: 8, fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>{email || "No email on file"}</div>
+                      <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>Member since {joinedLabel}</div>
                     </>
                   ) : (
                     <div style={{ marginTop: 18, width: "100%", maxWidth: 360, textAlign: "left" }}>
@@ -14162,24 +14450,24 @@ function ProfileScreen({
                     gap: 18,
                   }}
                 >
-                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 20, padding: "18px 20px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>Avoids</div>
-                    <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{avoidsLabel}</div>
+                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 12, padding: "16px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>Allergies you avoid</div>
+                    <div style={{ marginTop: 8, fontSize: 16, fontWeight: 600, lineHeight: 1.5, color: SOFT_SLATE.textPrimary }}>{avoidsLabel}</div>
                   </div>
-                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 20, padding: "18px 20px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>Watching</div>
-                    <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{watchingLabel}</div>
+                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 12, padding: "16px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>Dietary restrictions</div>
+                    <div style={{ marginTop: 8, fontSize: 16, fontWeight: 600, lineHeight: 1.5, color: SOFT_SLATE.textPrimary }}>{watchingLabel}</div>
                   </div>
-                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 20, padding: "18px 20px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>Last Scan</div>
-                    <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>{lastScanLabel}</div>
+                  <div style={{ background: SOFT_SLATE.bg, borderRadius: 12, padding: "16px", boxShadow: SOFT_SLATE.insetMd, boxSizing: "border-box" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>Last scan</div>
+                    <div style={{ marginTop: 8, fontSize: 16, fontWeight: 600, lineHeight: 1.5, color: SOFT_SLATE.textPrimary }}>{lastScanLabel}</div>
                   </div>
                 </div>
 
                 {loadScanRecords().filter((scan) => scan.favorite).length > 0 ? (
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>Saved products</div>
-                    <p style={{ margin: "4px 0 12px", fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                    <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>Saved products</div>
+                    <p style={{ margin: "8px 0 16px", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "46ch" }}>
                       Bookmarked from product results. Tap to reopen a scan.
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -14230,8 +14518,8 @@ function ProfileScreen({
                   </div>
                 ) : (
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>Saved products</div>
-                    <p style={{ margin: "4px 0 0", fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                    <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>Saved products</div>
+                    <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "46ch" }}>
                       After you scan a product, tap Save on the result. It will show up here and under Saved in Scan History.
                     </p>
                   </div>
@@ -14244,9 +14532,9 @@ function ProfileScreen({
                   width: isDesktop ? 420 : "100%",
                   flexShrink: 0,
                   background: SOFT_SLATE.bg,
-                  borderRadius: 26,
-                  padding: isDesktop ? "26px 24px" : "22px 20px",
-                  boxShadow: SOFT_SLATE.raisedLg,
+                  borderRadius: 16,
+                  padding: isDesktop ? "24px" : "20px 16px",
+                  boxShadow: SOFT_SLATE.raisedSm,
                   display: "flex",
                   flexDirection: "column",
                   gap: 22,
@@ -14254,29 +14542,16 @@ function ProfileScreen({
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Preferences</div>
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "5px 11px",
-                      borderRadius: 999,
-                      boxShadow: SOFT_SLATE.insetSm,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: isDirty ? SOFT_SLATE.caution : SOFT_SLATE.green }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: isDirty ? SOFT_SLATE.caution : SOFT_SLATE.green }}>
-                      {isDirty ? "Unsaved" : "Saved"}
-                    </span>
-                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>Preferences</div>
+                  <span style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: isDirty ? SOFT_SLATE.caution : SOFT_SLATE.green }}>
+                    {isDirty ? "Unsaved changes" : "Saved"}
+                  </span>
                 </div>
 
                 {/* Allergies */}
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Allergies</div>
-                  <p style={{ margin: "4px 0 0", fontSize: 11.5, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>Allergies</h3>
+                  <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
                     Anything you select here gets flagged the moment it shows up on a label.
                   </p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13 }}>
@@ -14343,12 +14618,12 @@ function ProfileScreen({
                   </div>
                 </div>
 
-                <div style={{ width: "100%", height: 1, background: "#c6ccd4" }} />
+                <div style={{ width: "100%", height: 1, background: "var(--scanity-border)" }} />
 
                 {/* Health conditions */}
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>Health Conditions</div>
-                  <p style={{ margin: "4px 0 0", fontSize: 11.5, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>Dietary restrictions</h3>
+                  <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
                     These shape how we read sodium, sugar, and saturated fat on a label.
                   </p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13 }}>
@@ -14427,13 +14702,14 @@ function ProfileScreen({
                   disabled={!isDirty || profileSaving}
                   style={{
                     border: "none",
-                    borderRadius: 16,
+                    borderRadius: 12,
                     background: isDirty ? SOFT_SLATE.green : SOFT_SLATE.bg,
                     color: isDirty ? "#ffffff" : SOFT_SLATE.textMuted,
                     fontFamily: SOFT_SLATE.fontFamily,
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: 700,
-                    padding: "15px 26px",
+                    minHeight: 48,
+                    padding: "14px 24px",
                     boxShadow: isDirty ? SOFT_SLATE.raisedBtn : SOFT_SLATE.insetSm,
                     cursor: isDirty && !profileSaving ? "pointer" : "not-allowed",
                     transition: "background 0.15s ease, box-shadow 0.15s ease",
@@ -18267,7 +18543,7 @@ const SCREEN_STORAGE_KEY = "scanity_screen"
 const SCREEN_HISTORY_STORAGE_KEY = "scanity_screen_history"
 const VALID_SCREENS: string[] = [
   "splash", "login", "register", "verifyEmail", "success", "allergies", "health", "loading",
-  "allset", "dashboard", "history", "barcode", "ocr", "profile", "help",
+  "allset", "dashboard", "history", "barcode", "ocr", "knowledge", "profile", "help",
   "about", "privacy", "terms", "settings", "delete", "changePassword", "forgotPassword",
   "resetPassword", "confirmationPassword", "productResult", "productCompare",
   "language",
@@ -18433,6 +18709,7 @@ export default function App() {
     terms: <LegalScreen go={go} goBack={goBack} kind="terms" />,
     barcode: <BarcodeScannerScreen go={go} />,
     ocr: <OCRScannerScreen go={go} />,
+    knowledge: <KnowledgeSearchScreen go={go} />,
     settings: <SettingsScreen go={go} />,
     delete: <DeleteAccountScreen go={go} />,
     changePassword: <ChangePasswordScreen go={go} />,

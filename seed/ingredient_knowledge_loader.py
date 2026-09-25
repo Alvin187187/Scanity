@@ -157,8 +157,14 @@ def shopper_source(raw: str | None) -> str:
         return "Open Food Facts + Scanity allergen guide"
     if "curated" in low:
         return "Scanity curated allergen notes"
-    if "ai/ml" in low or "generated" in low:
-        return "Scanity food-safety reference"
+    if "ai/ml" in low or "generated" in low or "codex" in low:
+        if "efsa" in low:
+            return "European Food Safety Authority (EFSA) additive summaries"
+        if "nutrition" in low:
+            return "World Health Organization and USDA nutrition references"
+        return "European Food Safety Authority (EFSA) and USDA food references"
+    if "efsa" in low:
+        return "European Food Safety Authority (EFSA) additive summaries"
     return text
 
 
@@ -233,6 +239,73 @@ def _search_structures() -> tuple[dict[str, dict], list[str], dict[str, list[str
         reverse=True,
     )
     return index, sorted_keys, token_postings
+
+
+def _display_category(row: dict) -> str:
+    category = str(row.get("category") or "").strip().lower()
+    allergens = row.get("affects_allergens") or []
+    additive_words = (
+        "additive",
+        "colour",
+        "color",
+        "sweetener",
+        "preservative",
+        "emulsifier",
+        "stabil",
+        "antioxidant",
+        "flavour",
+        "flavor",
+    )
+    if "allergen" in category or (allergens and not category):
+        return "Allergen"
+    if any(word in category for word in additive_words):
+        return "Additive"
+    if category:
+        return "Ingredient"
+    return "Food term"
+
+
+def search_ingredient_knowledge(query: str, limit: int = 8) -> list[dict]:
+    """Rank ingredient, additive, and allergen rows for a shopper search."""
+    normalized = _normalize(query)
+    if len(normalized) < 2:
+        return []
+    cap = max(1, min(int(limit or 8), 12))
+    query_tokens = [token for token in normalized.split() if len(token) >= 2]
+    scored: list[tuple[int, int, str, dict]] = []
+    for row in load_ingredient_knowledge():
+        name = str(row.get("ingredient_name") or "").strip()
+        if not name or len(name) > 80:
+            continue
+        keys = [_normalize(name), *[_normalize(alias) for alias in row.get("aliases") or []]]
+        best = 0
+        for key in keys:
+            if not key:
+                continue
+            if key == normalized:
+                best = max(best, 100)
+            elif key.startswith(normalized) or normalized.startswith(key):
+                best = max(best, 80)
+            elif normalized in key:
+                best = max(best, 60)
+            elif query_tokens and all(token in key for token in query_tokens):
+                best = max(best, 40)
+        if best:
+            scored.append((best, len(name), name.lower(), row))
+    scored.sort(key=lambda item: (-item[0], item[1], item[2]))
+    results: list[dict] = []
+    seen: set[str] = set()
+    for _, _, _, row in scored:
+        name = row["ingredient_name"]
+        if name in seen:
+            continue
+        seen.add(name)
+        item = dict(row)
+        item["display_category"] = _display_category(row)
+        results.append(item)
+        if len(results) >= cap:
+            break
+    return results
 
 
 def lookup_ingredient_knowledge(ingredient: str) -> dict | None:
