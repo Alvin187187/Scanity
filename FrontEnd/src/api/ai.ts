@@ -54,6 +54,7 @@ function productPayload(scan: StoredScan | null) {
     ingredients_text: scan.ingredientsText || null,
     allergy_flags: scan.allergens || [],
     allergy_matches: scan.allergySignals || [],
+    nutrition: scan.nutrition || {},
   }
 }
 

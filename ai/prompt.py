@@ -51,6 +51,7 @@ FORMATTING (required):
 - Phone-friendly length (about 60–140 words).
 - No tables, no code fences, no heading hashes.
 - If the shopper asks a generic question, still answer using this product's name, barcode, verdict, and flags. Do not give a generic food-safety lecture.
+- Never say "Ask me about a specific ingredient" or recycle a canned scan summary.
 """
 
 
@@ -91,6 +92,54 @@ def build_explainer_prompt(
     )
 
 
+def _clip_list(items, limit: int = 12) -> str:
+    values = [str(item).strip() for item in (items or []) if str(item).strip()]
+    if not values:
+        return "none listed"
+    return ", ".join(values[:limit])
+
+
+def _scan_facts(product: dict, profile: dict) -> str:
+    name = str(product.get("product_name") or "this product").strip() or "this product"
+    brand = str(product.get("brand") or "").strip() or "unknown brand"
+    barcode = str(product.get("barcode") or "").strip() or "not on this scan"
+    verdict = str(product.get("verdict") or "caution").strip() or "caution"
+    score = product.get("safety_score")
+    score_text = f"{score}/100" if score is not None else "not scored"
+    grade = str(product.get("nutri_score_grade") or "").strip().upper() or "not available"
+    matches = product.get("allergy_matches") or []
+    avoid = [
+        str(item.get("ingredient") or item)
+        for item in matches
+        if isinstance(item, dict) and item.get("status") == "avoid"
+    ]
+    caution = [
+        str(item.get("ingredient") or item)
+        for item in matches
+        if isinstance(item, dict) and item.get("status") == "caution"
+    ]
+    flags = product.get("allergy_flags") or avoid
+    ingredients = product.get("ingredients") or []
+    if not ingredients and product.get("ingredients_text"):
+        ingredients = [part.strip() for part in str(product.get("ingredients_text")).split(",") if part.strip()]
+    nutrition = product.get("nutrition") or {}
+    sugars = nutrition.get("sugars_g") if isinstance(nutrition, dict) else None
+    return (
+        f"- Product: {name}\n"
+        f"- Brand: {brand}\n"
+        f"- Barcode: {barcode}\n"
+        f"- Allergy verdict: {verdict}\n"
+        f"- Safety score: {score_text} (allergies/conditions only; 70+ is Safe)\n"
+        f"- Nutri-Score: {grade} (nutrition quality, not allergy safety)\n"
+        f"- Avoid flags: {_clip_list(flags)}\n"
+        f"- Caution flags: {_clip_list(caution)}\n"
+        f"- Ingredients: {_clip_list(ingredients, 18)}\n"
+        f"- Sugars per 100g: {sugars if sugars is not None else 'not listed'}\n"
+        f"- Shopper allergies: {_clip_list(profile.get('allergies'))}\n"
+        f"- Shopper conditions: {_clip_list(profile.get('conditions'))}"
+    )
+
+
 def build_coach_chat_prompt(
     message: str,
     product: dict,
@@ -99,17 +148,16 @@ def build_coach_chat_prompt(
 ) -> str:
     recent = history[-6:] if history else []
     return (
-        "IMPORTANT: Answer the shopper's latest message first. "
-        "Do not repeat a generic safety blurb if they asked something specific.\n\n"
-        "shopper_message:\n"
+        "Answer the shopper's latest message first. Do not lecture about food in general.\n\n"
+        "SHOPPER QUESTION:\n"
         f"{message}\n\n"
-        "recent_chat:\n"
+        "THIS SCAN (use these facts; do not invent a different product):\n"
+        f"{_scan_facts(product, profile)}\n\n"
+        "RECENT CHAT:\n"
         f"{recent}\n\n"
-        "scan_context (use only what you need):\n"
-        f"product={product}\n"
-        f"profile={profile}\n\n"
-        "Reply as Scanity's careful coach now. Stay tied to this product and profile. "
-        "Name the product. Use the scan verdict and flagged ingredients. Do not give a generic answer."
+        "Reply as Scanity's coach now. Name this product in the first sentence. "
+        "Use the verdict, score, and flagged ingredients from THIS SCAN. "
+        "If Nutri-Score is missing, say so — do not invent a letter."
     )
 
 
@@ -120,13 +168,11 @@ def build_safety_report_prompt(
 ) -> str:
     focus_line = focus.strip() if isinstance(focus, str) and focus.strip() else "full safety overview"
     return (
-        "product:\n"
-        f"{product}\n\n"
-        "profile:\n"
-        f"{profile}\n\n"
-        "report_focus:\n"
+        "THIS SCAN:\n"
+        f"{_scan_facts(product, profile)}\n\n"
+        "REPORT FOCUS:\n"
         f"{focus_line}\n\n"
-        "Write a short, friendly personalized safety report. "
+        "Write a short personalized safety report for this product only. "
         "Start with the existing verdict. Use plain words and bullets. "
         "No jargon like 'profile match' or CSV/offline language."
     )

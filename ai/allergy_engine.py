@@ -263,14 +263,36 @@ SKIP_CONTAINS_KEYS = {
 }
 
 
+def _is_compound_phrase(name: str) -> bool:
+    """True for whole-recipe label lines, not a single additive or allergen."""
+    normalized = _normalize(name)
+    if not normalized:
+        return False
+    if len(normalized) > 48 or len(normalized.split()) > 6:
+        return True
+    raw = name or ""
+    return any(char in raw for char in ",()[]{}")
+
+
+def _phrase_alias_mismatch(row: dict, query: str) -> bool:
+    """A short alias on a long recipe must not steal the ingredient identity."""
+    name = _normalize(str((row or {}).get("ingredient_name") or ""))
+    if not name or name == query:
+        return False
+    if name in query:
+        return False
+    return _is_compound_phrase(str((row or {}).get("ingredient_name") or ""))
+
+
 def _match_ingredient(ingredient_text, name_lookup, alias_lookup, sorted_names, sorted_aliases):
     normalized = _normalize(ingredient_text)
     if not normalized:
         return None, "invalid_input"
     if normalized in name_lookup:
         return name_lookup[normalized], "exact_name"
-    if normalized in alias_lookup:
-        return alias_lookup[normalized], "alias"
+    alias_row = alias_lookup.get(normalized)
+    if alias_row and not _phrase_alias_mismatch(alias_row, normalized):
+        return alias_row, "alias"
     # Labels often bury an allergen inside a longer phrase ("contains milk solids").
     # Prefer longer keys and require word-boundary style matches to avoid
     # "rice" hitting inside unrelated tokens.
@@ -280,14 +302,24 @@ def _match_ingredient(ingredient_text, name_lookup, alias_lookup, sorted_names, 
         if key in SKIP_CONTAINS_KEYS:
             continue
         if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
-            return name_lookup[key], "contains_name"
+            row = name_lookup[key]
+            if _phrase_alias_mismatch(row, normalized):
+                continue
+            return row, "contains_name"
     for key in sorted_aliases:
         if len(key) < 5 or len(key) > len(normalized):
             continue
         if key in SKIP_CONTAINS_KEYS:
             continue
+        # Single short aliases ("calcium") show up on unrelated recipes.
+        # Exact alias matches above still apply; contains needs a specific alias.
+        if " " not in key and len(key) < 10:
+            continue
         if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
-            return alias_lookup[key], "contains_alias"
+            row = alias_lookup[key]
+            if _phrase_alias_mismatch(row, normalized):
+                continue
+            return row, "contains_alias"
     return None, "unmapped"
 
 

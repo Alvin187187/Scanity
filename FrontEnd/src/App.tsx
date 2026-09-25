@@ -8976,7 +8976,7 @@ function AllergySignalsCard({
       <div>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>Allergy signals</h3>
         <p style={{ margin: "6px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
-          Flagged means Scanity could not fully confirm an ingredient yet. Avoid means it lined up with allergies you asked Scanity to watch for.
+          Flagged means a saved dietary restriction needs a closer look, or Scanity could not fully confirm an ingredient yet. Avoid means it lined up with an allergy or dietary restriction you asked Scanity to watch for.
         </p>
       </div>
 
@@ -8999,7 +8999,7 @@ function AllergySignalsCard({
           <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.unsafe, lineHeight: 1 }}>
             {avoidItems.length}
           </div>
-          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Linked to your allergies</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Linked to your profile</div>
         </div>
       </div>
 
@@ -9075,7 +9075,7 @@ function AllergySignalsCard({
             Sugar, E-numbers, and other known additives — open a chip for a short plain-language note.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {labelInsights.slice(0, 10).map((insight) => (
+            {labelInsights.slice(0, 40).map((insight) => (
               <IngredientChip
                 key={`insight-${insight.title}`}
                 label={insight.title}
