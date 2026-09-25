@@ -17,6 +17,22 @@ def test_empty_list_is_not_safe():
     assert overall_verdict(check_allergies(["milk"], [])) == "caution"
 
 
+def test_edta_is_not_caseinate():
+    flags = check_allergies(
+        ["milk"],
+        ["E385 - Calcium disodium ethylenediaminetetraacetate"],
+    )
+    assert flags[0]["status"] == "safe"
+    assert "lactose" not in (flags[0].get("affects_diets") or [])
+    assert "milk" not in (flags[0].get("affects_allergens") or [])
+
+
+def test_sodium_benzoate_is_not_a_recipe_alias():
+    flags = check_allergies(["milk"], ["E211 - Sodium benzoate", "sodium benzoate"])
+    assert all(item["status"] == "safe" for item in flags)
+    assert all("lactose" not in (item.get("affects_diets") or []) for item in flags)
+
+
 def test_plain_water_is_safe_not_caution():
     flags = check_allergies(["milk"], ["water", "carbonated water"])
     assert all(item["status"] == "safe" for item in flags)
@@ -41,7 +57,8 @@ def test_safety_score_bands():
     # Unmapped ingredients alone land in the Caution band ceiling.
     assert 40 <= score <= 69
 
-    assert compute_safety_score([]) == 78
+    assert 40 <= compute_safety_score([]) <= 69
+    assert compute_safety_score([]) == 58
 
 
 def test_many_unmapped_ingredients_do_not_crash_to_fifty():

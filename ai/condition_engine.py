@@ -243,11 +243,10 @@ def apply_condition_rules(
                 item["status"] = target
                 item["matched_category"] = item.get("matched_category") or diet
                 item["condition"] = diet
-                item["reason"] = (
-                    f"Feature flag `{diet}` matches your saved health profile."
-                )
-                item["plain_explanation"] = item.get("possible_effects") or item.get("plain_explanation") or (
-                    f"This ingredient is tagged for {diet.replace('_', ' ')} on your profile."
+                label = diet.replace("_", " ")
+                item["reason"] = f"This matches a dietary restriction you saved ({label})."
+                item["plain_explanation"] = item.get("possible_effects") or (
+                    f"This ingredient is tagged for {label} on your profile."
                 )
 
         for condition, spec in CONDITION_MARKERS.items():
@@ -361,15 +360,15 @@ def compute_personalized_score(
     nutrition = nutrition or {}
 
     if not flags:
-        # Incomplete label - not a fake perfect score.
-        base = 78
+        # Incomplete label — stay in Caution (40-69). 78 used to sit in the
+        # Safe band even when there was nothing to check.
         if "diabetes" in active and isinstance(nutrition.get("sugars_g"), (int, float)):
             sugars = float(nutrition["sugars_g"])
             if sugars >= 22:
                 return 48
             if sugars >= 8:
                 return 58
-        return base
+        return 58
 
     avoid_items = [item for item in flags if item.get("status") == "avoid"]
     caution_items = [item for item in flags if item.get("status") == "caution"]

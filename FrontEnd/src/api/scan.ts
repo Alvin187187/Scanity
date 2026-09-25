@@ -36,6 +36,35 @@ function asNumber(value: unknown): number | null {
   return null
 }
 
+function estimateNutriScoreGrade(nutrition: Record<string, number | null | undefined> | null | undefined): string | null {
+  if (!nutrition) return null
+  const sugars = asNumber(nutrition.sugars_g)
+  const satFat = asNumber(nutrition.sat_fat_g)
+  let sodium = asNumber(nutrition.sodium_mg)
+  if (sodium != null && sodium <= 5) sodium = sodium * 1000
+  const fiber = asNumber(nutrition.fiber_g)
+  const protein = asNumber(nutrition.protein_g)
+  let energyKj = asNumber(nutrition.energy_kj)
+  if (energyKj == null) {
+    const kcal = asNumber(nutrition.energy_kcal)
+    if (kcal != null) energyKj = kcal * 4.184
+  }
+  const present = [sugars, satFat, sodium, fiber, protein, energyKj].filter((value) => value != null)
+  if (present.length < 3) return null
+  let points = 0
+  if (energyKj != null) points += energyKj < 335 ? 0 : energyKj < 670 ? 1 : energyKj < 1005 ? 2 : energyKj < 1340 ? 3 : 4
+  if (sugars != null) points += sugars < 4.5 ? 0 : sugars < 9 ? 1 : sugars < 13.5 ? 2 : sugars < 18 ? 3 : 4
+  if (satFat != null) points += satFat < 1 ? 0 : satFat < 2 ? 1 : satFat < 3 ? 2 : satFat < 4 ? 3 : 4
+  if (sodium != null) points += sodium < 90 ? 0 : sodium < 180 ? 1 : sodium < 270 ? 2 : sodium < 360 ? 3 : 4
+  if (fiber != null) points -= fiber < 0.9 ? 0 : fiber < 1.9 ? 1 : fiber < 2.8 ? 2 : 3
+  if (protein != null) points -= protein < 1.6 ? 0 : protein < 3.2 ? 1 : protein < 4.8 ? 2 : 3
+  if (points <= -1) return "a"
+  if (points <= 2) return "b"
+  if (points <= 10) return "c"
+  if (points <= 18) return "d"
+  return "e"
+}
+
 function nutritionFromOff(product: any) {
   const n = product?.nutriments || {}
   const energyKcal =
@@ -45,7 +74,7 @@ function nutritionFromOff(product: any) {
   const energyKj =
     asNumber(n["energy-kj_100g"]) ??
     asNumber(n["energy-kj"]) ??
-    asNumber(n.energy_100g)
+    (energyKcal != null ? energyKcal * 4.184 : asNumber(n.energy_100g))
   return {
     energy_kj: energyKj,
     energy_kcal: energyKcal,
@@ -80,7 +109,28 @@ function localAllergyAnalysis(
   const conditions = userConditions.map((item) => String(item || "").toLowerCase())
   const hasDiabetes = conditions.includes("diabetes")
   const hasLactose = conditions.includes("lactose")
-  const sugarWords = ["sugar", "glucose", "fructose", "syrup", "sucrose", "maltodextrin", "honey"]
+  const sugarWords = [
+    "sugar",
+    "glucose",
+    "fructose",
+    "syrup",
+    "sucrose",
+    "maltodextrin",
+    "honey",
+    "sucralose",
+    "acesulfame",
+    "aspartame",
+    "saccharin",
+    "stevia",
+    "sorbitol",
+    "mannitol",
+    "xylitol",
+    "maltitol",
+    "e950",
+    "e951",
+    "e955",
+    "e960",
+  ]
   const dairyWords = ["milk", "lactose", "whey", "casein", "cream", "butter", "cheese", "yogurt"]
 
   for (const name of ingredientNames) {
@@ -142,9 +192,10 @@ function localAllergyAnalysis(
     .map((item) => item.ingredient)
   const avoidCount = allergy_flags.length
   const cautionCount = allergy_matches.filter((item) => item.status === "caution").length
-  let safety_score = 96
+  let safety_score = ingredientNames.length ? 100 : 58
   if (avoidCount) safety_score = Math.max(0, 26 - 7 * (avoidCount - 1))
   else if (cautionCount) safety_score = Math.max(40, 66 - cautionCount * 8)
+  if (!ingredientNames.length) safety_score = Math.min(safety_score, 58)
   if (hasDiabetes && typeof sugars === "number") {
     if (sugars >= 22) safety_score = Math.min(safety_score, 48)
     else if (sugars >= 8) safety_score = Math.min(safety_score, 58)
@@ -158,11 +209,11 @@ function localAllergyAnalysis(
     safety_score,
     nutri_score_grade: null as string | null,
     explanation: avoidCount
-      ? `**Avoid** — ${allergy_flags.slice(0, 3).map((n) => `**${n}**`).join(", ")} lined up with allergies you asked Scanity to watch for.`
+      ? `**Avoid** — ${allergy_flags.slice(0, 3).map((n) => `**${n}**`).join(", ")} lined up with an allergy or dietary restriction you asked Scanity to watch for.`
       : cautionCount
-        ? `**Flagged** — ${cautionCount} item(s) need a closer look for your saved conditions.`
+        ? `**Flagged** — ${cautionCount} item(s) need a closer look for your saved dietary restrictions.`
         : ingredientNames.length
-          ? "**Safe** for your saved allergies based on this label check."
+          ? "**Safe** for your saved allergies and dietary restrictions based on this label check."
           : "**Flagged** — product details came through, but the ingredient list looked incomplete.",
     ai_source: "local",
   }
@@ -244,7 +295,7 @@ async function lookupViaOpenFoodFacts(
     userConditions,
     nutrition,
   )
-  analysis.nutri_score_grade = nutriFromOff
+  analysis.nutri_score_grade = nutriFromOff || estimateNutriScoreGrade(nutrition)
 
   // Keep OFF path fast: local rules only. Full server analysis already runs on
   // /scan/barcode when the API is reachable; chip tap still does AI research.
@@ -363,8 +414,9 @@ export async function lookupBarcodeProduct(
           ingredients_raw_text:
             data.product?.ingredients_raw_text || off.product.ingredients_raw_text,
         }
-        if (!data.nutri_score_grade && off.nutri_score_grade) {
-          data.nutri_score_grade = off.nutri_score_grade
+        if (!data.nutri_score_grade) {
+          data.nutri_score_grade =
+            off.nutri_score_grade || estimateNutriScoreGrade(data.product?.nutrition)
         }
       }
     } catch {

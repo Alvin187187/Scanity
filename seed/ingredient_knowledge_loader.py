@@ -48,6 +48,103 @@ def _split_flags(raw: str | None) -> list[str]:
     return [part.strip() for part in str(raw or "").split("|") if part.strip()]
 
 
+_E_CODE = re.compile(r"e\d{3,4}[a-z]?$")
+
+
+def _is_phrase_row(row: dict) -> bool:
+    """Whole-recipe label lines should not donate or receive feature flags."""
+    name = str(row.get("ingredient_name") or "")
+    if any(char in name for char in ",()[]{}"):
+        return True
+    normalized = _normalize(name)
+    return len(normalized) > 48 or len(normalized.split()) > 5
+
+
+def _linkable_key(key: str, canonical_names: set[str]) -> bool:
+    if not key or key in SKIP_CONTAINS:
+        return False
+    if _E_CODE.fullmatch(key.replace(" ", "")):
+        return True
+    return key in canonical_names
+
+
+def _union_flags(rows: list[dict], field: str) -> list[str]:
+    found: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for item in row.get(field) or []:
+            text = str(item).strip()
+            token = text.lower()
+            if not text or token in seen:
+                continue
+            seen.add(token)
+            found.append(text)
+    return found
+
+
+def _share_flags_across_aliases(rows: list[dict]) -> None:
+    """
+    Rows that share an E-number or a canonical name/alias are the same additive.
+
+    Diet and allergen flags are copied from the specific rows onto every
+    specific row in that group, so a later alias line is as usable as the
+    curated line that carries the flag.
+    """
+    canonical_names = {
+        _normalize(str(row.get("ingredient_name") or ""))
+        for row in rows
+        if row.get("ingredient_name") and not _is_phrase_row(row)
+    }
+    canonical_names.discard("")
+    parent = list(range(len(rows)))
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        root_left, root_right = find(left), find(right)
+        if root_left != root_right:
+            parent[root_right] = root_left
+
+    buckets: dict[str, list[int]] = {}
+    for index, row in enumerate(rows):
+        seen: set[str] = set()
+        for key in [row.get("ingredient_name"), *row.get("aliases", [])]:
+            normalized = _normalize(str(key or ""))
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            if not _linkable_key(normalized, canonical_names):
+                continue
+            buckets.setdefault(normalized, []).append(index)
+    for indexes in buckets.values():
+        head = indexes[0]
+        for other in indexes[1:]:
+            union(head, other)
+
+    clusters: dict[int, list[int]] = {}
+    for index in range(len(rows)):
+        clusters.setdefault(find(index), []).append(index)
+
+    for indexes in clusters.values():
+        sources = [rows[index] for index in indexes if not _is_phrase_row(rows[index])]
+        diets = _union_flags(sources, "affects_diets")
+        allergens = _union_flags(sources, "affects_allergens")
+        if not diets and not allergens:
+            continue
+        for index in indexes:
+            row = rows[index]
+            if _is_phrase_row(row):
+                continue
+            if diets:
+                row["affects_diets"] = list(diets)
+            if allergens:
+                row["affects_allergens"] = list(allergens)
+
+
 def shopper_source(raw: str | None) -> str:
     """Never expose CSV filenames or internal dataset labels to shoppers."""
     text = (raw or "").strip()
@@ -103,11 +200,27 @@ def _search_structures() -> tuple[dict[str, dict], list[str], dict[str, list[str
     """exact index, pre-sorted contains keys, token -> keys inverted index."""
     index: dict[str, dict] = {}
     token_postings: dict[str, list[str]] = {}
-    for row in load_ingredient_knowledge():
+    rows = [dict(row, aliases=list(row.get("aliases") or [])) for row in load_ingredient_knowledge()]
+    _share_flags_across_aliases(rows)
+    def _flag_score(row: dict) -> int:
+        return len(row.get("affects_diets") or []) + len(row.get("affects_allergens") or [])
+
+    def _prefer(candidate: dict, current: dict | None) -> bool:
+        if current is None:
+            return True
+        candidate_phrase = _is_phrase_row(candidate)
+        current_phrase = _is_phrase_row(current)
+        if candidate_phrase != current_phrase:
+            return not candidate_phrase
+        return _flag_score(candidate) > _flag_score(current)
+
+    for row in rows:
         keys = [row["ingredient_name"], *row.get("aliases", [])]
         for key in keys:
             norm = _normalize(key)
-            if not norm or norm in index:
+            if not norm:
+                continue
+            if not _prefer(row, index.get(norm)):
                 continue
             index[norm] = row
             for token in norm.split():
@@ -191,10 +304,14 @@ def enrich_flag_with_knowledge(flag: dict) -> dict:
         }
         if not out.get("possible_effects") and knowledge.get("possible_effects"):
             out["possible_effects"] = knowledge["possible_effects"]
-        if not out.get("affects_allergens") and knowledge.get("affects_allergens"):
-            out["affects_allergens"] = list(knowledge["affects_allergens"])
-        if not out.get("affects_diets") and knowledge.get("affects_diets"):
-            out["affects_diets"] = list(knowledge["affects_diets"])
+        out["affects_allergens"] = _union_flags(
+            [{"affects_allergens": out.get("affects_allergens")}, knowledge],
+            "affects_allergens",
+        )
+        out["affects_diets"] = _union_flags(
+            [{"affects_diets": out.get("affects_diets")}, knowledge],
+            "affects_diets",
+        )
         if not out.get("plain_explanation") and knowledge.get("possible_effects"):
             out["plain_explanation"] = knowledge["possible_effects"]
     return out

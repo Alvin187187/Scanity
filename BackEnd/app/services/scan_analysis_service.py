@@ -71,7 +71,7 @@ def _label_insights(ingredients: list[str], flags: list[dict] | None = None) -> 
                     "needs_ai": False,
                 }
             )
-        if len(insights) >= 16:
+        if len(insights) >= 40:
             break
     return insights
 
@@ -83,6 +83,7 @@ def analyze_ingredients(
     user_conditions: list[str] | None = None,
     *,
     use_hosted_ai: bool = False,
+    nutri_score_hint: str | None = None,
 ) -> dict:
     flags = [
         enrich_flag_with_knowledge(item)
@@ -98,7 +99,7 @@ def analyze_ingredients(
         nutrition=nutrition,
     )
     flagged = [item for item in flags if item.get("status") in {"avoid", "caution"}]
-    grade = nutri_score_grade(nutrition)
+    grade = nutri_score_grade(nutrition, hint=nutri_score_hint)
     nutrition_result = (
         {"grade": grade, "status": "ok", "nutrition": nutrition or {}}
         if grade
