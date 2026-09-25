@@ -45,3 +45,13 @@ def test_nutri_score_needs_enough_data():
         }
     )
     assert grade in {"a", "b", "c", "d", "e"}
+    assert nutri_score_grade({"sugars_g": 2}, hint="B") == "b"
+    from_kcal = nutri_score_grade(
+        {
+            "sugars_g": 2,
+            "sat_fat_g": 0.5,
+            "sodium_mg": 40,
+            "energy_kcal": 48,
+        }
+    )
+    assert from_kcal in {"a", "b", "c", "d", "e"}

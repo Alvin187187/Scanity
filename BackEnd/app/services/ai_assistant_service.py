@@ -10,7 +10,6 @@ from ai.prompt import (
     build_coach_chat_prompt,
     build_safety_report_prompt,
 )
-from ai.rag_layer import enrich_prompt_with_rag
 
 
 def _friendly_name(product: dict) -> str:
@@ -79,25 +78,38 @@ def _template_chat(message: str, product: dict, profile: dict) -> str:
 
     # Sugar / diabetes style
     if any(word in q for word in ("sugar", "diabetes", "sweet", "carb")):
+        nutrition = product.get("nutrition") if isinstance(product.get("nutrition"), dict) else {}
+        sugars = nutrition.get("sugars_g")
+        sugar_line = (
+            f"- Sugars on this label: **{sugars} g/100g**."
+            if sugars is not None
+            else "- Sugars were not listed on this scan's nutrition panel."
+        )
         return (
             f"About sugar in **{name}**:\n"
             f"- Scanity's allergy result is **{verdict}** (separate from nutrition).\n"
-            "- Check the nutrition panel for sugars if you manage blood sugar.\n"
-            "- I can explain a specific ingredient if you name it."
+            f"{sugar_line}\n"
+            "- This is consumer guidance, not medical advice."
         )
 
-    # Default: short, question-aware acknowledgment + only needed context
+    # Default: answer with this product's facts, no canned closer.
     lines = [
-        f"On {name}, Scanity's result is {verdict}.",
+        f"On **{name}**, Scanity's result is **{verdict}**.",
     ]
     if flags:
-        lines.append("- Notable items: " + ", ".join(flags[:4]) + ".")
+        lines.append("- Watch-outs: " + ", ".join(f"**{item}**" for item in flags[:4]) + ".")
     elif allergies:
         lines.append(f"- Checked against: {', '.join(allergies[:3])}.")
+    else:
+        lines.append("- No avoid-level allergy flags on this scan.")
     score = product.get("safety_score")
     if score is not None:
-        lines.append(f"- Allergy safety score on this scan: {score}/100.")
-    lines.append("- Ask me about a specific ingredient, or whether this looks okay for you.")
+        lines.append(f"- Allergy safety score: {score}/100 (70+ is Safe; incomplete labels stay in Caution).")
+    grade = product.get("nutri_score_grade")
+    if grade:
+        lines.append(f"- Nutri-Score: **{str(grade).upper()}** (nutrition quality only).")
+    else:
+        lines.append("- Nutri-Score was not available for this product.")
     return "\n".join(lines)
 
 
@@ -131,25 +143,17 @@ def answer_product_question(
     history: list[dict] | None = None,
 ) -> str:
     prompt = build_coach_chat_prompt(message, product, profile, history or [])
-    rag_query = " ".join(
-        part
-        for part in [
-            message,
-            str(product.get("product_name") or ""),
-            " ".join(str(item) for item in (product.get("allergy_flags") or [])[:6]),
-            " ".join(str(item) for item in (profile.get("allergies") or [])[:6]),
-        ]
-        if part
-    )
-    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=4)
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
         max_output_tokens=320,
-        temperature=0.45,
+        temperature=0.25,
     )
+    name = _friendly_name(product)
     if text and text != FALLBACK_TEXT:
-        return text
+        token = name.split()[0] if name and name != "this product" else ""
+        if not token or token.lower() in text.lower() or (product.get("barcode") and str(product.get("barcode")) in text):
+            return text
     return _template_chat(message, product, profile)
 
 
@@ -159,22 +163,11 @@ def build_safety_report(
     focus: str | None = None,
 ) -> str:
     prompt = build_safety_report_prompt(product, profile, focus)
-    rag_query = " ".join(
-        part
-        for part in [
-            str(product.get("product_name") or ""),
-            focus or "",
-            " ".join(str(item) for item in (product.get("allergy_flags") or [])[:8]),
-            " ".join(str(item) for item in (profile.get("allergies") or [])[:6]),
-        ]
-        if part
-    )
-    prompt = enrich_prompt_with_rag(prompt, rag_query, limit=5)
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
         max_output_tokens=420,
-        temperature=0.35,
+        temperature=0.25,
     )
     if text and text != FALLBACK_TEXT:
         return text

@@ -34,22 +34,27 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
         if str(item.get("status", "")).lower() in {"avoid", "caution"}
     ]
     if label == "Avoid":
-        lines = [f"**Avoid** — something on this label lines up with allergies you asked Scanity to watch for."]
+        lines = ["**Avoid** — something on this label lines up with an allergy or dietary restriction you asked Scanity to watch for."]
     elif label == "Safe":
-        lines = [f"**Safe** for your saved allergies based on this label check."]
+        lines = ["**Safe** for your saved allergies and dietary restrictions based on this label check."]
     else:
-        lines = [f"**Flagged** — worth a closer look before you buy."]
+        lines = ["**Flagged** — worth a closer look before you buy."]
 
     if flagged:
         for item in flagged[:4]:
             name = item.get("ingredient") or item.get("matched_kb_entry") or "an ingredient"
             status = str(item.get("status") or "").lower()
-            if status == "avoid":
+            condition = str(item.get("condition") or "").replace("_", " ").strip()
+            if status == "avoid" and condition:
+                lines.append(f"- **{name}** lines up with a dietary restriction you saved ({condition}).")
+            elif status == "avoid":
                 lines.append(f"- **{name}** looks linked to an allergy you saved.")
+            elif condition:
+                lines.append(f"- **{name}** is worth a closer look for {condition}.")
             else:
                 lines.append(f"- **{name}** could not be fully confirmed yet.")
     elif label == "Safe":
-        lines.append("- Nothing on this label matched your saved allergies.")
+        lines.append("- Nothing on this label matched your saved allergies or dietary restrictions.")
     else:
         lines.append("- Some ingredients still need a quick human check.")
 

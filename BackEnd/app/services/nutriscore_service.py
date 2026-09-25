@@ -7,8 +7,16 @@ Grade A and still be Avoid for a specific shopper.
 from __future__ import annotations
 
 
-def nutri_score_grade(nutrition: dict | None) -> str | None:
-    """Return A–E, or None when there is not enough nutrient data."""
+def nutri_score_grade(nutrition: dict | None, hint: str | None = None) -> str | None:
+    """Return A–E, or None when there is not enough nutrient data.
+
+    Prefer an official Open Food Facts Nutri-Score when one is supplied.
+    Energy may be kJ or kcal — many OFF products only ship kcal.
+    """
+    hint_grade = str(hint or "").strip().lower()[:1]
+    if hint_grade in {"a", "b", "c", "d", "e"}:
+        return hint_grade
+
     if not nutrition:
         return None
 
@@ -26,6 +34,14 @@ def nutri_score_grade(nutrition: dict | None) -> str | None:
     fiber = _num(nutrition.get("fiber_g") or nutrition.get("fiber100g") or nutrition.get("fiber"))
     protein = _num(nutrition.get("protein_g") or nutrition.get("proteins100g") or nutrition.get("proteins"))
     energy_kj = _num(nutrition.get("energy_kj") or nutrition.get("energyKj100g"))
+    if energy_kj is None:
+        kcal = _num(
+            nutrition.get("energy_kcal")
+            or nutrition.get("energyKcal100g")
+            or nutrition.get("energy-kcal_100g")
+        )
+        if kcal is not None:
+            energy_kj = kcal * 4.184
 
     present = [value for value in (sugars, sat_fat, sodium_mg, fiber, protein, energy_kj) if value is not None]
     if len(present) < 3:
