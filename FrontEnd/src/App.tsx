@@ -26,7 +26,7 @@ import {
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
-import { lookupBarcodeProduct } from "./api/scan"
+import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName } from "./api/scan"
 import { analyzeOcrText, extractOcrImage } from "./api/ocr"
 import {
   allergyCategoriesForApi,
@@ -5406,6 +5406,8 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const [flashOn, setFlashOn] = useState(false)
   const [galleryImage, setGalleryImage] = useState<string | null>(null)
   const [productResult, setProductResult] = useState<ProductResult | null>(null)
+  const [slowScan, setSlowScan] = useState(false)
+  const [scanWait, setScanWait] = useState(0)
 
   // ── REFS ──────────────────────────────────────────────────────────────────
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -5418,6 +5420,15 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const galleryObjectUrlRef = useRef<string | null>(null)
 
   const isDesktop = useIsDesktop()
+
+  useEffect(() => {
+    if (scanStatus !== "scanning") {
+      setSlowScan(false)
+      return
+    }
+    const timer = window.setTimeout(() => setSlowScan(true), 40_000)
+    return () => window.clearTimeout(timer)
+  }, [scanStatus, scanWait])
 
   // ── STOP CAMERA ───────────────────────────────────────────────────────────
   const stopCamera = () => {
@@ -5554,9 +5565,10 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       const normalized = normalizeProductResult(result, cleanBarcode)
       setProductResult(normalized)
 
+      let stored: StoredScan | null = null
       try {
         const product = result?.product || {}
-        const stored = storedScanFromAnalysis({
+        stored = storedScanFromAnalysis({
           source: "barcode",
           name: product.product_name || product.name,
           brand: product.brand,
@@ -5585,7 +5597,19 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       }
 
       setScanStatus("success")
-      if (isMountedRef.current) go("productResult")
+      if (isMountedRef.current) {
+        const compareSlot = window.sessionStorage.getItem("scanity_compare_slot")
+        if ((compareSlot === "a" || compareSlot === "b") && stored?.id) {
+          window.sessionStorage.removeItem("scanity_compare_slot")
+          window.sessionStorage.setItem(
+            "scanity_compare_filled",
+            JSON.stringify({ slot: compareSlot, id: stored.id }),
+          )
+          go("productCompare")
+        } else {
+          go("productResult")
+        }
+      }
     } catch (error) {
       console.error("Barcode processing error:", error)
       if (!isMountedRef.current) return
@@ -6499,6 +6523,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
                 <div style={{ display: "flex", gap: 10 }}>
                   <input
+                    id="manual-barcode"
                     className="scanity-manual-input"
                     type="text"
                     inputMode="numeric"
@@ -6567,27 +6592,31 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
                 <button
                   type="button"
+                  className="scanity-hit"
                   onClick={() => go("ocr")}
                   style={{
                     marginTop: 16,
-                    minHeight: 44,
-                    padding: "10px 4px",
+                    width: "100%",
+                    minHeight: 64,
+                    padding: "12px 16px",
                     border: "none",
-                    background: "none",
-                    color: SOFT_SLATE.green,
+                    borderRadius: 16,
+                    background: SOFT_SLATE.bg,
+                    boxShadow: SOFT_SLATE.raisedSm,
+                    color: SOFT_SLATE.textPrimary,
                     fontFamily: SOFT_SLATE.fontFamily,
-                    fontSize: 16,
-                    fontWeight: 700,
-                    lineHeight: 1.4,
                     textAlign: "left",
                     cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
                   }}
                 >
-                  No barcode? Read the package text
+                  <span style={{ fontSize: 16, fontWeight: 700, color: SOFT_SLATE.green }}>Read the package</span>
+                  <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.4, color: SOFT_SLATE.textSecondary }}>
+                    No barcode? Scanity reads the product name on the label and looks it up.
+                  </span>
                 </button>
-                <p style={{ margin: "4px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
-                  Scanity can recognize the product from the words printed on the label.
-                </p>
               </div>
             </div>
           </div>
@@ -6692,6 +6721,104 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
             >
               Got it
             </button>
+          </div>
+        </div>
+      )}
+
+      {slowScan && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="slow-scan-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(36,41,47,0.45)",
+            zIndex: 220,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              background: SOFT_SLATE.bg,
+              borderRadius: 20,
+              padding: 20,
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+            }}
+          >
+            <h2 id="slow-scan-title" style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>
+              Still looking for a barcode
+            </h2>
+            <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+              This is taking a while. Keep the camera on, type the code, or read the product name on the package.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => {
+                  setSlowScan(false)
+                  setScanWait((value) => value + 1)
+                }}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: SOFT_SLATE.green,
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                Keep the camera on
+              </button>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => {
+                  setSlowScan(false)
+                  document.getElementById("manual-barcode")?.focus()
+                }}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  color: SOFT_SLATE.textPrimary,
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                Type the code
+              </button>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => go("ocr")}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  color: SOFT_SLATE.green,
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                Read the package
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -7259,6 +7386,43 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     try {
       setErrorMessage("")
       setScanStatus("productProcessing")
+
+      const title = productTitleFromOcr(extractedText)
+      if (title) {
+        const matches = await searchOffByName(title)
+        const best = matches[0]
+        if (best?.code) {
+          const result = await lookupBarcodeProduct(
+            best.code,
+            allergyCategoriesForApi(),
+            conditionsForApi(),
+          )
+          const product = result?.product || {}
+          const stored = storedScanFromAnalysis({
+            source: "ocr",
+            name: product.product_name || product.name || best.product_name || title,
+            brand: product.brand,
+            barcode: best.code,
+            imageUrl: product.image_url,
+            ingredients: product.ingredients,
+            ingredientsText: product.ingredients_raw_text || extractedText,
+            verdict: result?.verdict,
+            grade: result?.nutri_score_grade,
+            explanation: result?.explanation,
+            allergyFlags: result?.allergy_flags,
+            allergyMatches: result?.allergy_matches,
+            labelInsights: result?.label_insights,
+            aiSource: result?.ai_source,
+            safetyScore: result?.safety_score,
+          })
+          appendScanHistory(stored)
+          saveActiveScan(stored)
+          setProductName(stored.name)
+          setProductFound(true)
+          go("productResult")
+          return
+        }
+      }
 
       let finalIngredients = ingredients.map((item) => item.trim()).filter(Boolean)
       if (finalIngredients.length === 0) {
@@ -11282,8 +11446,24 @@ function ProductCompareScreen({
 }) {
   const isDesktop = useIsDesktop()
   const history = loadScanHistory()
+  const [slotA, setSlotA] = useState<string | null>(null)
+  const [slotB, setSlotB] = useState<string | null>(null)
   const [scenario, setScenario] =
-    useState<CompareScenario>(history.length >= 2 ? "success-a" : "initial")
+    useState<CompareScenario>("initial")
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem("scanity_compare_filled")
+      if (!raw) return
+      const parsed = JSON.parse(raw) as { slot?: string; id?: string }
+      window.sessionStorage.removeItem("scanity_compare_filled")
+      if (!parsed.id) return
+      if (parsed.slot === "a") setSlotA(parsed.id)
+      if (parsed.slot === "b") setSlotB(parsed.id)
+    } catch {
+      // ignore a bad compare handoff
+    }
+  }, [])
 
 
   const H_PAD = isDesktop ? 40 : 16
@@ -11344,15 +11524,19 @@ function ProductCompareScreen({
     breakdown: null,
   })
 
-  let a: CompareProduct = history[0]
-    ? toCompareProduct(history[0])
+  const scanA = history.find((scan) => scan.id === slotA) || null
+  const scanB = history.find((scan) => scan.id === slotB) || null
+  const compareReady = Boolean(scanA && scanB)
+
+  let a: CompareProduct = scanA
+    ? toCompareProduct(scanA)
     : {
         name: "First product",
         grade: null,
         verdict: null,
       }
-  let b: CompareProduct = history[1]
-    ? toCompareProduct(history[1])
+  let b: CompareProduct = scanB
+    ? toCompareProduct(scanB)
     : {
         name: "Second product",
         grade: null,
@@ -11854,84 +12038,102 @@ function ProductCompareScreen({
     </div>
   )
 
-  if (scenario === "initial" || history.length < 2) {
+  if (!compareReady) {
+    const choose = (slot: "a" | "b", id: string) => {
+      if (slot === "a") {
+        setSlotA(id)
+        if (slotB === id) setSlotB(null)
+      } else {
+        setSlotB(id)
+        if (slotA === id) setSlotA(null)
+      }
+    }
+    const scanNew = (slot: "a" | "b") => {
+      window.sessionStorage.setItem("scanity_compare_slot", slot)
+      go("barcode")
+    }
+    const slotCard = (slot: "a" | "b", selectedId: string | null, title: string) => {
+      const selected = history.find((scan) => scan.id === selectedId)
+      return (
+        <section key={slot} style={{ ...raisedCard, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{title}</h2>
+          {selected ? (
+            <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5 }}>{selected.name}</p>
+          ) : (
+            <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+              Choose a saved scan, or scan a new product.
+            </p>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {history.length === 0 ? (
+              <p style={{ margin: 0, fontSize: 15, color: SOFT_SLATE.textMuted }}>No scans saved yet.</p>
+            ) : (
+              history.slice(0, 8).map((scan) => (
+                <button
+                  key={`${slot}-${scan.id}`}
+                  type="button"
+                  className="scanity-hit"
+                  onClick={() => choose(slot, scan.id)}
+                  style={{
+                    minHeight: 48,
+                    padding: "10px 14px",
+                    border: "none",
+                    borderRadius: 14,
+                    textAlign: "left",
+                    background: SOFT_SLATE.bg,
+                    boxShadow: selectedId === scan.id ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                    color: SOFT_SLATE.textPrimary,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    fontWeight: 650,
+                    cursor: "pointer",
+                  }}
+                >
+                  {scan.name}
+                </button>
+              ))
+            )}
+          </div>
+          <button
+            type="button"
+            className="scanity-hit"
+            onClick={() => scanNew(slot)}
+            style={{
+              minHeight: 48,
+              border: "none",
+              borderRadius: 14,
+              background: SOFT_SLATE.green,
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: "pointer",
+            }}
+          >
+            Scan a new product
+          </button>
+        </section>
+      )
+    }
     return (
       <CompareLayout>
-        <div
-          style={{
-            padding: `${isDesktop ? "40px" : "16px"} ${H_PAD}px 10px`,
-          }}
-        >
+        <div style={{ padding: `${isDesktop ? "40px" : "16px"} ${H_PAD}px 10px` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <BackBtn onPress={goBack} />
-            <h1
-              style={{
-                margin: 0,
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontWeight: 800,
-                fontSize: isDesktop ? 26 : 22,
-                color: SOFT_SLATE.textPrimary,
-              }}
-            >
-              Compare Products
-            </h1>
+            <div>
+              <h1 style={{ margin: 0, fontFamily: SOFT_SLATE.fontFamily, fontWeight: 800, fontSize: isDesktop ? 26 : 22, color: SOFT_SLATE.textPrimary }}>
+                Compare Products
+              </h1>
+              <p style={{ margin: "6px 0 0", fontSize: 16, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+                Pick two products. Nothing is chosen until you do.
+              </p>
+            </div>
           </div>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: `20px ${H_PAD}px 50px` }}>
-          <Center maxWidth={700}>
-            <div
-              style={{
-                ...raisedCard,
-                padding: isDesktop ? 48 : 30,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center",
-                gap: 14,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 17,
-                  fontWeight: 800,
-                  color: SOFT_SLATE.textPrimary,
-                }}
-              >
-                Scan two products first
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  maxWidth: 420,
-                  fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 12.5,
-                  lineHeight: 1.6,
-                  color: SOFT_SLATE.textSecondary,
-                }}
-              >
-                Compare uses your latest real scans. Scan a barcode or nutrition label twice, then come back here.
-              </p>
-              <button
-                type="button"
-                onClick={() => go("barcode")}
-                style={{
-                  marginTop: 8,
-                  padding: "12px 24px",
-                  border: "none",
-                  borderRadius: 15,
-                  background: SOFT_SLATE.bg,
-                  color: SOFT_SLATE.green,
-                  fontFamily: SOFT_SLATE.fontFamily,
-                  fontWeight: 800,
-                  fontSize: 12.5,
-                  boxShadow: SOFT_SLATE.raisedBtn,
-                  cursor: "pointer",
-                }}
-              >
-                Scan a product
-              </button>
+        <div style={{ flex: 1, overflowY: "auto", padding: `12px ${H_PAD}px 40px` }}>
+          <Center maxWidth={720}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {slotCard("a", slotA, "First product")}
+              {slotCard("b", slotB, "Second product")}
             </div>
           </Center>
         </div>
@@ -12478,9 +12680,10 @@ function ProductCompareScreen({
             {/* ── Add another product ────────────────────────────────────── */}
             <button
               type="button"
-              onClick={() =>
-                setScenario("initial")
-              }
+              onClick={() => {
+                setSlotA(null)
+                setSlotB(null)
+              }}
               style={{
                 width: "100%",
 
@@ -12504,7 +12707,7 @@ function ProductCompareScreen({
                 cursor: "pointer",
               }}
             >
-              + Add another product
+              Choose different products
             </button>
 
           </Center>
@@ -13289,7 +13492,6 @@ function SoftSlateOtherChip({
 
       {active ? (
         <input
-          autoFocus
           value={value}
           onChange={(e) => onChangeText(e.target.value)}
           onClick={(e) => e.stopPropagation()}
@@ -13301,7 +13503,7 @@ function SoftSlateOtherChip({
             outline: "none",
             fontFamily: SOFT_SLATE.fontFamily,
             fontWeight: 600,
-            fontSize: 12.5,
+            fontSize: 16,
             color: SOFT_SLATE.textPrimary,
           }}
         />
@@ -13358,7 +13560,7 @@ function KnowledgeFact({ label, children }: { label: string; children: ReactNode
   )
 }
 
-function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
+function KnowledgeSearchScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => void }) {
   const isDesktop = useIsDesktop()
   const [query, setQuery] = useState("")
   const [submitted, setSubmitted] = useState("")
@@ -13422,6 +13624,25 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
         <Center maxWidth={720}>
           <div className="scanity-profile" style={{ padding: isDesktop ? "24px 24px 48px 0" : "16px 16px 40px", textAlign: "left" }}>
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="knowledge" />}
+            <button
+              type="button"
+              className="scanity-hit"
+              onClick={goBack}
+              style={{
+                marginTop: 8,
+                minHeight: 44,
+                padding: "0 4px",
+                border: "none",
+                background: "transparent",
+                color: SOFT_SLATE.green,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Back
+            </button>
             <h1 style={{ margin: "8px 0 0", fontSize: isDesktop ? 32 : 28, fontWeight: 700, lineHeight: 1.2, color: SOFT_SLATE.textPrimary }}>
               Ingredient guide
             </h1>
@@ -13482,6 +13703,7 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
                     <button
                       key={item.term}
                       type="button"
+                      className="scanity-hit"
                       onClick={() => setQuery(item.term)}
                       style={{
                         display: "flex",
@@ -13732,6 +13954,8 @@ function ProfileScreen({
 
   const [otherAllergy, setOtherAllergy] =
     useState(loadHealthProfile().otherAllergy || "")
+  const [allergyOtherOpen, setAllergyOtherOpen] = useState(false)
+  const [healthOtherOpen, setHealthOtherOpen] = useState(false)
 
   const [otherHealth, setOtherHealth] =
     useState(loadHealthProfile().otherCondition || "")
@@ -14406,7 +14630,7 @@ function ProfileScreen({
                   <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
                     Anything you select here gets flagged the moment it shows up on a label.
                   </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13, justifyContent: "center" }}>
                     {ALLERGY_LIST.filter((i) => i.id !== "other").map((item) => (
                       <SoftSlateChip
                         key={item.id}
@@ -14417,11 +14641,22 @@ function ProfileScreen({
                       />
                     ))}
                     <SoftSlateOtherChip
-                      active={allergies.has("other")}
+                      active={allergyOtherOpen}
                       value={otherAllergy.split("\n")[0] || ""}
                       onToggle={() => {
-                        if (allergies.has("other")) setOtherAllergy("")
-                        toggleAllergy("other")
+                        if (allergyOtherOpen) {
+                          setAllergyOtherOpen(false)
+                          if (!otherAllergy.trim()) {
+                            setAllergies((prev) => {
+                              const next = new Set(prev)
+                              next.delete("other")
+                              return next
+                            })
+                          }
+                          return
+                        }
+                        setAllergyOtherOpen(true)
+                        if (!allergies.has("other")) toggleAllergy("other")
                       }}
                       onChangeText={(text) => {
                         const lines = otherAllergy.split("\n")
@@ -14434,7 +14669,7 @@ function ProfileScreen({
                     {otherAllergy.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`allergy-extra-${index}`}
-                        active
+                        active={false}
                         value={item}
                         placeholder="Add another allergy"
                         onToggle={() => {
@@ -14478,7 +14713,7 @@ function ProfileScreen({
                   <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
                     These shape how we read sodium, sugar, and saturated fat on a label.
                   </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13, justifyContent: "center" }}>
                     {HEALTH_LIST.filter((i) => i.id !== "none").map((item) => (
                       <SoftSlateChip
                         key={item.id}
@@ -14489,11 +14724,22 @@ function ProfileScreen({
                       />
                     ))}
                     <SoftSlateOtherChip
-                      active={health.has("other")}
+                      active={healthOtherOpen}
                       value={otherHealth.split("\n")[0] || ""}
                       onToggle={() => {
-                        if (health.has("other")) setOtherHealth("")
-                        toggleHealth("other")
+                        if (healthOtherOpen) {
+                          setHealthOtherOpen(false)
+                          if (!otherHealth.trim()) {
+                            setHealth((prev) => {
+                              const next = new Set(prev)
+                              next.delete("other")
+                              return next
+                            })
+                          }
+                          return
+                        }
+                        setHealthOtherOpen(true)
+                        if (!health.has("other")) toggleHealth("other")
                       }}
                       onChangeText={(text) => {
                         const lines = otherHealth.split("\n")
@@ -14506,7 +14752,7 @@ function ProfileScreen({
                     {otherHealth.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`health-extra-${index}`}
-                        active
+                        active={false}
                         value={item}
                         placeholder="Add another condition"
                         onToggle={() => {
@@ -17342,7 +17588,12 @@ function ForgotPasswordScreen({
               void requestPasswordReset(trimmed)
                 .then(() => setSent(true))
                 .catch((error) => {
-                  setSendError(error instanceof Error ? error.message : "Could not send the reset email.")
+                  const message = error instanceof Error ? error.message : ""
+                  setSendError(
+                    message === "AUTH_API_UNREACHABLE" || message === "AUTH_API_NOT_READY"
+                      ? "The sign-in server is waking up. Wait a few seconds and try again."
+                      : message || "Could not send the reset email.",
+                  )
                 })
                 .finally(() => setSending(false))
             }}
@@ -18403,10 +18654,17 @@ const VALID_SCREENS: string[] = [
   "resetPassword", "confirmationPassword", "productResult", "productCompare",
   "language",
 ]
+const GUEST_SCREENS = ["splash", "login", "register", "verifyEmail", "forgotPassword", "resetPassword", "confirmationPassword", "success"]
+
 function readStoredScreen(): Screen {
   if (typeof window === "undefined") return "splash"
   try {
     const saved = window.sessionStorage.getItem(SCREEN_STORAGE_KEY)
+    const signedIn = Boolean(loadSessionUser())
+    if (!signedIn) {
+      if (saved && GUEST_SCREENS.includes(saved)) return saved as Screen
+      return "splash"
+    }
     if (saved && VALID_SCREENS.includes(saved)) {
       return saved as Screen
     }
@@ -18564,7 +18822,7 @@ export default function App() {
     terms: <LegalScreen go={go} goBack={goBack} kind="terms" />,
     barcode: <BarcodeScannerScreen go={go} />,
     ocr: <OCRScannerScreen go={go} />,
-    knowledge: <KnowledgeSearchScreen go={go} />,
+    knowledge: <KnowledgeSearchScreen go={go} goBack={goBack} />,
     settings: <SettingsScreen go={go} />,
     delete: <DeleteAccountScreen go={go} />,
     changePassword: <ChangePasswordScreen go={go} />,

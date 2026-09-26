@@ -31,10 +31,7 @@ const API_BASE_URL = trimTrailingSlash(
     /localhost|127\.0\.0\.1/.test(configuredBaseUrl) &&
     !pageIsLocal()
     ? PRODUCTION_API_BASE_URL
-    : configuredBaseUrl ||
-        (import.meta.env.DEV && pageIsLocal()
-          ? "http://localhost:8000/api/v1"
-          : PRODUCTION_API_BASE_URL),
+    : configuredBaseUrl || PRODUCTION_API_BASE_URL,
 )
 
 const AUTH_FETCH_TIMEOUT_MS = 45_000

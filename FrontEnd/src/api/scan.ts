@@ -327,6 +327,55 @@ async function lookupViaOpenFoodFacts(
   }
 }
 
+export function productTitleFromOcr(text: string): string {
+  const noise =
+    /^(ingredients?|nutrition|contains|allergen|serving|calories|energy|protein|total|saturated|carbohydrate|sugars?|sodium|fat|dietary|best before|www\.|http|imported|manufactured|net wt|per 100)/i
+  const lines = String(text || "")
+    .split(/\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => line.length >= 3 && line.length <= 48)
+  for (const line of lines) {
+    if (noise.test(line)) continue
+    if (/^\d[\d\s./-]*$/.test(line)) continue
+    if (line.replace(/[^a-zA-Z]/g, "").length < 3) continue
+    return line
+  }
+  return ""
+}
+
+export async function searchOffByName(query: string): Promise<{ code: string; product_name: string }[]> {
+  const term = query.trim()
+  if (term.length < 3) return []
+  const url =
+    "https://world.openfoodfacts.org/cgi/search.pl?search_terms=" +
+    encodeURIComponent(term) +
+    "&search_simple=1&action=process&json=1&page_size=5&fields=code,product_name"
+  try {
+    const response = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Scanity/1.0 (https://scanity-eta.vercel.app)",
+        },
+        mode: "cors",
+      },
+      OFF_TIMEOUT_MS,
+    )
+    if (!response.ok) return []
+    const data = await response.json().catch(() => null)
+    const products = Array.isArray(data?.products) ? data.products : []
+    return products
+      .map((item: { code?: string; product_name?: string }) => ({
+        code: String(item?.code || "").trim(),
+        product_name: String(item?.product_name || "").trim(),
+      }))
+      .filter((item: { code: string; product_name: string }) => item.code && item.product_name)
+  } catch {
+    return []
+  }
+}
+
 export async function lookupBarcodeProduct(
   barcode: string,
   userAllergies: AllergyList = [],
