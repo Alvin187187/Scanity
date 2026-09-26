@@ -290,7 +290,7 @@ function BackBtn({ onPress }: { onPress: () => void }) {
       style={{
         width: 44,
         height: 44,
-        borderRadius: 8,
+        borderRadius: "50%",
         border: `1px solid ${C.border}`,
         background: C.white,
         display: "flex",
@@ -1715,6 +1715,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             Email or username
           </label>
           <div className="scanity-auth-field">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
             <input
               id="login-email"
               name="username"
@@ -1743,6 +1747,10 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             Password
           </label>
           <div className="scanity-auth-field">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
             <input
               id="login-password"
               name="password"
@@ -1802,7 +1810,7 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
               style={{
                 margin: "16px 0 0",
                 padding: "12px 14px",
-                borderRadius: 8,
+                borderRadius: 14,
                 background: "var(--ss-status-avoid-bg)",
                 color: "var(--scanity-danger-text)",
                 fontFamily: FONT_BODY,
@@ -2127,6 +2135,9 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
                 {field.label}
               </label>
               <div className="scanity-auth-field">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  {field.path}
+                </svg>
                 <input
                   id={field.id}
                   name={field.id === "register-email" ? "email" : field.isPassword ? "new-password" : "name"}
@@ -2193,7 +2204,7 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
             style={{
               margin: "0 0 16px",
               padding: "12px 14px",
-              borderRadius: 8,
+              borderRadius: 14,
               background: "var(--ss-status-avoid-bg)",
               color: "var(--scanity-danger-text)",
               fontFamily: FONT_BODY,
@@ -4291,17 +4302,17 @@ function DashboardIconRail({
         height: isDesktop ? "100%" : "auto",
         minHeight: isDesktop ? undefined : 76,
         flex: "none",
-        background: "var(--scanity-panel)",
-        borderRadius: 0,
-        borderRight: isDesktop ? "1px solid var(--scanity-border)" : "none",
-        borderBottom: isDesktop ? "none" : "1px solid var(--scanity-border)",
-        padding: isDesktop ? "16px 12px 12px" : "6px 8px",
+        background: SOFT_SLATE.bg,
+        borderRadius: isDesktop ? 26 : 20,
+        borderRight: "none",
+        borderBottom: "none",
+        padding: isDesktop ? "28px 12px 12px" : "8px 8px",
         display: "flex",
         flexDirection: isDesktop ? "column" : "row",
         alignItems: isDesktop ? "stretch" : "center",
         justifyContent: "flex-start",
-        gap: 4,
-        boxShadow: "none",
+        gap: isDesktop ? 8 : 4,
+        boxShadow: SOFT_SLATE.raisedLg,
         fontFamily: SOFT_SLATE.fontFamily,
         boxSizing: "border-box",
         overflow: "hidden",
@@ -4316,14 +4327,14 @@ function DashboardIconRail({
           style={{
             width: isDesktop ? "100%" : iconSize,
             height: 44,
-            borderRadius: 8,
+            borderRadius: 14,
             border: "none",
-            background: "transparent",
+            background: SOFT_SLATE.bg,
             display: "flex",
             alignItems: "center",
             justifyContent: isDesktop ? "flex-start" : "center",
             gap: 10,
-            boxShadow: "none",
+            boxShadow: SOFT_SLATE.raisedSm,
             flexShrink: 0,
             cursor: "pointer",
             padding: isDesktop ? "0 10px" : 4,
@@ -4382,16 +4393,16 @@ function DashboardIconRail({
                   width: isDesktop ? "100%" : 64,
                   minHeight: 44,
                   height: isDesktop ? 44 : "auto",
-                  borderRadius: 8,
+                  borderRadius: 16,
                   border: "none",
-                  background: isActive ? "var(--scanity-palette-green-light)" : "transparent",
+                  background: SOFT_SLATE.bg,
+                  boxShadow: isActive ? SOFT_SLATE.insetMd : "none",
                   display: "flex",
                   flexDirection: isDesktop ? "row" : "column",
                   alignItems: "center",
                   justifyContent: isDesktop ? "flex-start" : "center",
                   gap: isDesktop ? 10 : 4,
                   cursor: "pointer",
-                  boxShadow: "none",
                   flexShrink: 0,
                   padding: isDesktop ? "0 10px" : 0,
                   color: isActive ? SOFT_SLATE.green : SOFT_SLATE.textSecondary,
@@ -4447,16 +4458,16 @@ function DashboardIconRail({
             width: isDesktop ? "100%" : 64,
             minHeight: 44,
             height: isDesktop ? 44 : "auto",
-            borderRadius: 8,
+            borderRadius: 16,
             border: "none",
-            background: "transparent",
+            background: SOFT_SLATE.bg,
             display: "flex",
             flexDirection: isDesktop ? "row" : "column",
             alignItems: "center",
             justifyContent: isDesktop ? "flex-start" : "center",
             gap: isDesktop ? 10 : 4,
             cursor: "pointer",
-            boxShadow: "none",
+            boxShadow: SOFT_SLATE.raisedSm,
             padding: isDesktop ? "0 10px" : 0,
             color: SOFT_SLATE.textSecondary,
             fontFamily: SOFT_SLATE.fontFamily,
@@ -4507,7 +4518,7 @@ function DashboardIconRail({
           style={{
             width: "min(360px, 100%)",
             background: SOFT_SLATE.bg,
-            borderRadius: 12,
+            borderRadius: 18,
             padding: "24px 22px",
             border: "1px solid var(--scanity-border)",
             boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
@@ -4706,9 +4717,9 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
         <div
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            bottom: 0,
+            top: 22,
+            left: 26,
+            bottom: 22,
             width: APP_RAIL_WIDTH,
             zIndex: 5,
           }}
@@ -4724,7 +4735,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
           minHeight: 0,
           paddingTop: SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
         }}
       >
         <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
@@ -4876,7 +4887,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                   <div
                     style={{
                       background: SOFT_SLATE.bg,
-                      borderRadius: 12,
+                      borderRadius: 26,
                       padding: isDesktop ? 28 : 20,
                       boxShadow: SOFT_SLATE.raisedLg,
                       boxSizing: "border-box",
@@ -5088,7 +5099,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                     width: isDesktop ? 384 : "100%",
                     flex: "none",
                     background: SOFT_SLATE.bg,
-                    borderRadius: 12,
+                    borderRadius: 26,
                     padding: SOFT_SLATE.space[6],
                     boxShadow: SOFT_SLATE.raisedLg,
                     boxSizing: "border-box",
@@ -5961,7 +5972,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       {/* ── Icon rail - same shell as Dashboard/Scan History ───────────────── */}
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
            <DashboardIconRail go={go} isDesktop />
         </div>
       )}
@@ -5973,7 +5984,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
           minHeight: 0,
           paddingTop: SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
         }}
       >
         <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
@@ -6040,7 +6051,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
             <div
               style={{
                 background: SOFT_SLATE.bg,
-                borderRadius: 12,
+                borderRadius: 26,
                 padding: isDesktop ? 28 : 18,
                 boxShadow: SOFT_SLATE.raisedLg,
                 boxSizing: "border-box",
@@ -6602,7 +6613,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               width: "100%",
               maxWidth: 430,
               background: SOFT_SLATE.bg,
-              borderRadius: 12,
+              borderRadius: 26,
               padding: 26,
               boxShadow: SOFT_SLATE.raisedLg,
               boxSizing: "border-box",
@@ -6704,7 +6715,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               width: "100%",
               maxWidth: 390,
               background: SOFT_SLATE.bg,
-              borderRadius: 12,
+              borderRadius: 26,
               padding: 26,
               textAlign: "center",
               boxShadow: "0 12px 28px rgba(36,41,47,0.14)",
@@ -7377,7 +7388,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       {/* ── Icon rail (desktop, fixed) ───────────────────────────────────── */}
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop />
         </div>
       )}
@@ -7389,7 +7400,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           minHeight: 0,
           paddingTop: SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
         }}
       >
         <Center maxWidth={isDesktop ? 1100 : undefined}>
@@ -7440,7 +7451,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
               <section
                 style={{
                   background: SOFT_SLATE.bg,
-                  borderRadius: 12,
+                  borderRadius: 26,
                   padding: isDesktop ? 28 : 20,
                   boxShadow: SOFT_SLATE.raisedLg,
                   boxSizing: "border-box",
@@ -7584,7 +7595,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
               <section
                 style={{
                   background: SOFT_SLATE.bg,
-                  borderRadius: 12,
+                  borderRadius: 26,
                   padding: isDesktop ? 20 : 16,
                   boxShadow: SOFT_SLATE.raisedLg,
                   boxSizing: "border-box",
@@ -9051,14 +9062,14 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="dashboard" />
         </div>
       )}
       <div
         style={{
           flexShrink: 0,
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           padding: isDesktop ? "28px 48px 16px" : "20px 20px 12px",
           paddingTop: isDesktop ? 28 : `calc(${SAFE_TOP} + 10px)`,
         }}
@@ -9104,13 +9115,13 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginLeft: isDesktop ? APP_RAIL_WIDTH : 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0 }}>
         <Center maxWidth={isDesktop ? 900 : 640} style={{ padding: isDesktop ? "12px 48px 56px" : "8px 20px 40px" }}>
           <div
             style={{
               width: "100%",
               aspectRatio: "16 / 9",
-              borderRadius: 12,
+              borderRadius: 26,
               background: SOFT_SLATE.bg,
               overflow: "hidden",
               boxShadow: SOFT_SLATE.raisedLg,
@@ -11790,9 +11801,9 @@ function ProductCompareScreen({
         <div
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            bottom: 0,
+            top: 22,
+            left: 26,
+            bottom: 22,
             width: APP_RAIL_WIDTH,
             zIndex: 5,
           }}
@@ -11823,7 +11834,7 @@ function ProductCompareScreen({
           minHeight: 0,
           minWidth: 0,
           overflowY: "auto",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           display: "flex",
           flexDirection: "column",
         }}
@@ -12555,8 +12566,8 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   // Rail geometry mirrors DashboardScreen's own fixed positioning exactly
   // (top/left/bottom 22/26/22, width 80) so the two screens line up pixel
   // for pixel, not just in color.
-  const RAIL_TOP = 0
-  const RAIL_SIDE = 0
+  const RAIL_TOP = 22
+  const RAIL_SIDE = 26
   const RAIL_W = APP_RAIL_WIDTH
 
   return (
@@ -12720,14 +12731,14 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                   minHeight: 44,
                   padding: "10px 12px 10px 40px",
                   boxSizing: "border-box",
-                  borderRadius: 8,
-                  border: "1px solid var(--scanity-border)",
-                  background: "var(--scanity-panel)",
+                  borderRadius: 999,
+                  border: "none",
+                  background: SOFT_SLATE.bg,
                   color: SOFT_SLATE.textPrimary,
                   outline: "none",
                   fontFamily: SOFT_SLATE.fontFamily,
                   fontSize: 16,
-                  boxShadow: "none",
+                  boxShadow: SOFT_SLATE.insetMd,
                 }}
               />
             </div>
@@ -12739,7 +12750,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
               {scans.length === 0 ? (
                 <div
                   style={{
-                    borderRadius: 12,
+                    borderRadius: 26,
                     background: SOFT_SLATE.bg,
                     boxShadow: SOFT_SLATE.raisedLg,
                     padding: "8px 16px",
@@ -12807,7 +12818,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                         Dashboard's own "Scan History" card. */}
                     <div
                       style={{
-                        borderRadius: 12,
+                        borderRadius: 26,
                         background: SOFT_SLATE.bg,
                         boxShadow: SOFT_SLATE.raisedLg,
                         padding: "8px 16px",
@@ -13379,7 +13390,7 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", background: SOFT_SLATE.bg }}>
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="knowledge" />
         </div>
       )}
@@ -13388,7 +13399,7 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           paddingTop: isDesktop ? 0 : "env(safe-area-inset-top)",
         }}
       >
@@ -13870,9 +13881,9 @@ function ProfileScreen({
         <div
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            bottom: 0,
+            top: 22,
+            left: 26,
+            bottom: 22,
             width: APP_RAIL_WIDTH,
             zIndex: 5,
           }}
@@ -13888,7 +13899,7 @@ function ProfileScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
@@ -14742,7 +14753,7 @@ function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => 
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="help" />
         </div>
       )}
@@ -14754,7 +14765,7 @@ function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => 
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
@@ -14787,7 +14798,7 @@ function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => 
             <div
               style={{
                 background: SOFT_SLATE.bg,
-                borderRadius: 12,
+                borderRadius: 26,
                 padding: isDesktop ? "26px 24px" : "22px 18px",
                 boxShadow: SOFT_SLATE.raisedLg,
                 boxSizing: "border-box",
@@ -15076,7 +15087,7 @@ function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => vo
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="about" />
         </div>
       )}
@@ -15088,7 +15099,7 @@ function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => vo
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
@@ -15152,7 +15163,7 @@ function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => vo
                 alignItems: "center",
                 gap: isDesktop ? 26 : 18,
                 background: SOFT_SLATE.bg,
-                borderRadius: 12,
+                borderRadius: 26,
                 padding: isDesktop ? "28px 26px" : "22px 18px",
                 boxShadow: SOFT_SLATE.raisedMd,
                 boxSizing: "border-box",
@@ -15239,7 +15250,7 @@ function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => vo
               <div
                 style={{
                   background: SOFT_SLATE.bg,
-                  borderRadius: 12,
+                  borderRadius: 26,
                   padding: isDesktop ? "26px 24px" : "22px 16px",
                   boxShadow: SOFT_SLATE.raisedMd,
                   boxSizing: "border-box",
@@ -16000,7 +16011,7 @@ function LegalScreen({
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16012,7 +16023,7 @@ function LegalScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
@@ -16070,7 +16081,7 @@ function LegalScreen({
             <div
               style={{
                 background: SOFT_SLATE.bg,
-                borderRadius: 12,
+                borderRadius: 26,
                 padding: isDesktop ? "26px 24px" : "22px 18px",
                 boxShadow: SOFT_SLATE.raisedLg,
                 boxSizing: "border-box",
@@ -16257,7 +16268,7 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16269,7 +16280,7 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
@@ -16541,7 +16552,7 @@ function ChangePasswordScreen({
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16553,7 +16564,7 @@ function ChangePasswordScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
           display: "flex",
           flexDirection: "column",
@@ -16721,7 +16732,7 @@ function DeleteAccountScreen({
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: APP_RAIL_WIDTH, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16733,7 +16744,7 @@ function DeleteAccountScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? APP_RAIL_WIDTH : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
           display: "flex",
           flexDirection: "column",

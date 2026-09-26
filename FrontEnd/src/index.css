@@ -236,16 +236,18 @@ button:focus-visible,
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 44px;
-  background: var(--scanity-panel);
-  border: 1px solid var(--scanity-border);
-  border-radius: 8px;
-  padding: 8px 12px;
+  min-height: 48px;
+  background: var(--ss-bg);
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  box-shadow: var(--ss-raised-sm);
 }
 
 .scanity-auth-field:focus-within {
-  border-color: var(--ss-green);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ss-green) 24%, transparent);
+  box-shadow:
+    var(--ss-inset-sm),
+    0 0 0 3px color-mix(in srgb, var(--ss-green) 28%, transparent);
 }
 
 .scanity-auth-input {
@@ -273,20 +275,21 @@ button:focus-visible,
 
 .scanity-auth-primary {
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   border: none;
-  border-radius: 8px;
-  background: var(--scanity-palette-green);
+  border-radius: 999px;
+  background: var(--ss-auth-gradient);
   color: #ffffff;
   font-family: var(--scanity-font-body);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background-color 160ms ease;
+  box-shadow: var(--ss-raised-btn);
+  transition: filter 160ms ease;
 }
 
 .scanity-auth-primary:hover:not(:disabled) {
-  background: var(--scanity-palette-green-dark);
+  filter: brightness(1.08);
 }
 
 .scanity-auth-primary:disabled {

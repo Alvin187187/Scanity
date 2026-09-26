@@ -57,16 +57,16 @@
   --scanity-space-8: 40px;
 
   /* Radius */
-  --scanity-radius-sm: 6px;
-  --scanity-radius-md: 8px;
-  --scanity-radius-lg: 10px;
-  --scanity-radius-xl: 12px;
+  --scanity-radius-sm: 8px;
+  --scanity-radius-md: 12px;
+  --scanity-radius-lg: 16px;
+  --scanity-radius-xl: 20px;
   --scanity-radius-full: 9999px;
 
   /* Shadows */
-  --scanity-shadow-sm: 0 1px 2px rgba(26, 18, 9, 0.06);
-  --scanity-shadow-md: 0 2px 8px rgba(26, 18, 9, 0.08);
-  --scanity-shadow-lg: 0 2px 8px rgba(26, 18, 9, 0.08);
+  --scanity-shadow-sm: 0 2px 6px rgba(26, 18, 9, 0.08);
+  --scanity-shadow-md: 0 6px 18px rgba(26, 18, 9, 0.10);
+  --scanity-shadow-lg: 0 12px 30px rgba(26, 18, 9, 0.12);
 
   /* Additional Scanity UI tokens */
   --scanity-green-dark: #5c3d20;
@@ -90,17 +90,18 @@
   --scanity-yellow: #c98a1f;
 
   /* Soft Slate surfaces (dashboard / history / scanners) */
-  --ss-bg: #f3f1ec;
-  --ss-edge: rgba(26, 18, 9, 0.12);
-  --ss-raised-lg: 0 0 0 1px rgba(26, 18, 9, 0.1), 0 2px 8px rgba(26, 18, 9, 0.06);
-  --ss-raised-md: 0 0 0 1px rgba(26, 18, 9, 0.1), 0 1px 2px rgba(26, 18, 9, 0.04);
-  --ss-raised-sm: 0 0 0 1px rgba(26, 18, 9, 0.12);
-  --ss-raised-btn: none;
-  --ss-raised-btn-alt: 0 0 0 1px rgba(26, 18, 9, 0.12);
-  --ss-raised-icon: 0 0 0 1px rgba(26, 18, 9, 0.12);
-  --ss-inset-lg: inset 0 0 0 1px rgba(26, 18, 9, 0.16);
-  --ss-inset-md: inset 0 0 0 1.5px rgba(23, 99, 56, 0.55);
-  --ss-inset-sm: inset 0 0 0 1px rgba(26, 18, 9, 0.14);
+  --ss-bg: #e6ebf1;
+  --ss-edge: rgba(36, 41, 47, 0.16);
+  --ss-raised-lg: 9px 9px 22px #c4cad3, -9px -9px 22px #ffffff;
+  --ss-raised-md: 8px 8px 20px #c4cad3, -8px -8px 20px #ffffff;
+  --ss-raised-sm: 5px 5px 12px #c4cad3, -5px -5px 12px #ffffff;
+  --ss-raised-btn: 6px 6px 14px #c4cad3, -4px -4px 10px #ffffff;
+  --ss-raised-btn-alt: 6px 6px 14px #c4cad3, -6px -6px 14px #ffffff;
+  --ss-raised-icon: 4px 4px 10px #c0a06a, -3px -3px 8px #ffffff;
+  --ss-inset-lg: inset 7px 7px 15px #c4cad3, inset -7px -7px 15px #ffffff;
+  --ss-inset-md: inset 5px 5px 11px #c4cad3, inset -5px -5px 11px #ffffff;
+  --ss-inset-sm: inset 3px 3px 7px #c4cad3, inset -3px -3px 7px #ffffff;
+  --ss-auth-gradient: linear-gradient(135deg, var(--ss-green) 0%, var(--scanity-green-dark) 100%);
   --ss-text-primary: #1a1f26;
   --ss-text-secondary: #3f4750;
   --ss-text-muted: #4a525c;
@@ -173,6 +174,8 @@
   --scanity-sidebar-bg: #1e3d2e;
   --scanity-sidebar-dark: #162e23;
 
+  --scanity-green-dark: #6b4428;
+  --ss-auth-gradient: linear-gradient(135deg, #3f9a66 0%, #6b4428 100%);
   --ss-bg: #1a1f26;
   --ss-edge: rgba(244, 241, 234, 0.42);
   --ss-raised-lg: 0 0 0 1.5px var(--ss-edge), 0 8px 18px rgba(0, 0, 0, 0.5);
