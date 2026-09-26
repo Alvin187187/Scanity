@@ -42,9 +42,9 @@
   --scanity-grade-e: var(--scanity-danger);
 
   /* Typography */
-  --scanity-font-heading: "Plus Jakarta Sans", "Archivo", "Poppins", sans-serif;
-  --scanity-font-body: "Plus Jakarta Sans", "Archivo", "Poppins", sans-serif;
-  --scanity-font-display: "Archivo", "Plus Jakarta Sans", sans-serif;
+  --scanity-font-heading: "Plus Jakarta Sans", sans-serif;
+  --scanity-font-body: "Plus Jakarta Sans", sans-serif;
+  --scanity-font-display: "Plus Jakarta Sans", sans-serif;
 
   /* Spacing scale */
   --scanity-space-1: 4px;
@@ -101,6 +101,7 @@
   --ss-inset-lg: inset 7px 7px 15px #c4cad3, inset -7px -7px 15px #ffffff;
   --ss-inset-md: inset 5px 5px 11px #c4cad3, inset -5px -5px 11px #ffffff;
   --ss-inset-sm: inset 3px 3px 7px #c4cad3, inset -3px -3px 7px #ffffff;
+  --ss-auth-gradient: linear-gradient(135deg, var(--ss-green) 0%, var(--scanity-green-dark) 100%);
   --ss-text-primary: #1a1f26;
   --ss-text-secondary: #3f4750;
   --ss-text-muted: #4a525c;
@@ -173,6 +174,8 @@
   --scanity-sidebar-bg: #1e3d2e;
   --scanity-sidebar-dark: #162e23;
 
+  --scanity-green-dark: #6b4428;
+  --ss-auth-gradient: linear-gradient(135deg, #3f9a66 0%, #6b4428 100%);
   --ss-bg: #1a1f26;
   --ss-edge: rgba(244, 241, 234, 0.42);
   --ss-raised-lg: 0 0 0 1.5px var(--ss-edge), 0 8px 18px rgba(0, 0, 0, 0.5);

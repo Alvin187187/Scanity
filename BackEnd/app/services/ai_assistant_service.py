@@ -20,6 +20,41 @@ def _verdict_label(product: dict) -> str:
     return (str(product.get("verdict") or "caution").strip() or "caution").capitalize()
 
 
+def _deep_question(message: str) -> bool:
+    q = (message or "").strip().lower()
+    return any(
+        token in q
+        for token in ("why", "explain", "how come", "break down", "list ", "compare", "report", "tell me more")
+    )
+
+
+def _chill_reply(text: str, message: str) -> str:
+    """Keep chat answers short and drop the stock closer on simple questions."""
+    lines = [line.rstrip() for line in (text or "").splitlines() if line.strip()]
+    if not lines:
+        return (text or "").strip()
+    drop = (
+        "not medical advice",
+        "consumer guidance",
+        "double-check the package",
+        "confirm the package",
+    )
+    if not _deep_question(message):
+        lines = [line for line in lines if not any(token in line.lower() for token in drop)] or lines
+    lead: list[str] = []
+    bullets: list[str] = []
+    bullet_cap = 3 if _deep_question(message) else 1
+    lead_cap = 2
+    for line in lines:
+        if line.lstrip().startswith(("-", "*", "•")):
+            if len(bullets) < bullet_cap:
+                bullets.append(line.strip())
+        elif len(lead) < lead_cap and not bullets:
+            lead.append(line.strip())
+    kept = lead + bullets
+    return "\n".join(kept).strip() or (text or "").strip()
+
+
 def _template_chat(message: str, product: dict, profile: dict) -> str:
     """Answer the shopper's question in plain words — never dump the same blurb."""
     name = _friendly_name(product)
@@ -36,18 +71,9 @@ def _template_chat(message: str, product: dict, profile: dict) -> str:
     if what_match or any(word in q for word in ("ingredient", "additive", "e-number", "enumber")):
         focus = (what_match.group(1).strip() if what_match else "").strip(" .?")
         if focus and focus not in {"it", "this", "that", "the ingredient"}:
-            return (
-                f"**{focus.title()}** is one of the names on **{name}**'s label.\n"
-                f"- Scanity's result for this product is still **{verdict}**.\n"
-                "- Open the ingredient chip on the result for a short plain-language note.\n"
-                "- This is consumer guidance, not medical advice."
-            )
+            return f"**{focus.title()}** is on the **{name}** label. This scan is **{verdict}**."
         if flags:
-            bullets = "\n".join(f"- **{item}** showed up in your scan notes." for item in flags[:4])
-            return (
-                f"Here's what stood out on **{name}**:\n{bullets}\n"
-                f"- Overall result: **{verdict}**."
-            )
+            return f"**{name}** is **{verdict}**. Watch for **{flags[0]}**."
 
     # Can I eat / is it safe
     if any(
@@ -65,52 +91,31 @@ def _template_chat(message: str, product: dict, profile: dict) -> str:
     ):
         allergy_bit = ", ".join(allergies[:3]) if allergies else "your saved allergies"
         if verdict == "Avoid":
-            lead = f"**Better to skip** **{name}** for now — it lined up with **{allergy_bit}**."
+            lead = f"Better to skip **{name}** for now. It lined up with {allergy_bit}."
         elif verdict == "Safe":
-            lead = f"**Looks okay** for **{allergy_bit}** based on this label check of **{name}**."
+            lead = f"**{name}** looks **Safe** for {allergy_bit} on this label."
         else:
-            lead = f"**Take a closer look** at **{name}** — Scanity marked it **{verdict}** for your profile."
-        lines = [lead]
+            lead = f"Take a closer look at **{name}**. This scan is **{verdict}**."
         if flags:
-            lines.append("- Watch for: " + ", ".join(f"**{item}**" for item in flags[:4]) + ".")
-        lines.append("- Double-check the package if anything looks different. Not medical advice.")
-        return "\n".join(lines)
+            return f"{lead}\n- Watch for **{flags[0]}**."
+        return lead
 
     # Sugar / diabetes style
     if any(word in q for word in ("sugar", "diabetes", "sweet", "carb")):
         nutrition = product.get("nutrition") if isinstance(product.get("nutrition"), dict) else {}
         sugars = nutrition.get("sugars_g")
-        sugar_line = (
-            f"- Sugars on this label: **{sugars} g/100g**."
+        sugar_sentence = (
+            f"Sugars are **{sugars} g** per 100 g."
             if sugars is not None
-            else "- Sugars were not listed on this scan's nutrition panel."
+            else "Sugars were not listed on this label."
         )
-        return (
-            f"About sugar in **{name}**:\n"
-            f"- Scanity's allergy result is **{verdict}** (separate from nutrition).\n"
-            f"{sugar_line}\n"
-            "- This is consumer guidance, not medical advice."
-        )
+        return f"**{name}** is **{verdict}** for allergies. {sugar_sentence}"
 
-    # Default: answer with this product's facts, no canned closer.
-    lines = [
-        f"On **{name}**, Scanity's result is **{verdict}**.",
-    ]
     if flags:
-        lines.append("- Watch-outs: " + ", ".join(f"**{item}**" for item in flags[:4]) + ".")
-    elif allergies:
-        lines.append(f"- Checked against: {', '.join(allergies[:3])}.")
-    else:
-        lines.append("- No avoid-level allergy flags on this scan.")
-    score = product.get("safety_score")
-    if score is not None:
-        lines.append(f"- Allergy safety score: {score}/100 (70+ is Safe; incomplete labels stay in Caution).")
-    grade = product.get("nutri_score_grade")
-    if grade:
-        lines.append(f"- Nutri-Score: **{str(grade).upper()}** (nutrition quality only).")
-    else:
-        lines.append("- Nutri-Score was not available for this product.")
-    return "\n".join(lines)
+        return f"**{name}** is **{verdict}**. Watch for **{flags[0]}**."
+    if allergies:
+        return f"**{name}** is **{verdict}** against {', '.join(allergies[:2])}."
+    return f"**{name}** is **{verdict}** on this scan."
 
 
 def _template_report(product: dict, profile: dict) -> str:
@@ -146,15 +151,12 @@ def answer_product_question(
     text = call_hosted_ai(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
-        max_output_tokens=320,
-        temperature=0.25,
+        max_output_tokens=160,
+        temperature=0.2,
     )
-    name = _friendly_name(product)
     if text and text != FALLBACK_TEXT:
-        token = name.split()[0] if name and name != "this product" else ""
-        if not token or token.lower() in text.lower() or (product.get("barcode") and str(product.get("barcode")) in text):
-            return text
-    return _template_chat(message, product, profile)
+        return _chill_reply(text, message)
+    return _chill_reply(_template_chat(message, product, profile), message)
 
 
 def build_safety_report(
