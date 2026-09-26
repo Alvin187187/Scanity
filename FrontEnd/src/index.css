@@ -83,7 +83,7 @@ button:focus-visible,
 
 /* Clear interactive affordances for Soft Slate controls */
 .scanity-hit {
-  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   cursor: pointer;
 }
 
@@ -93,6 +93,7 @@ button:focus-visible,
 
 .scanity-hit:active:not(:disabled) {
   background-color: rgba(23, 99, 56, 0.1);
+  transform: scale(0.98);
 }
 
 .scanity-hit:disabled {
@@ -189,6 +190,11 @@ button:focus-visible,
   .scanity-profile,
   .scanity-profile > * {
     animation: none !important;
+  }
+  .scanity-hit,
+  .scanity-hit:active {
+    transition: none !important;
+    transform: none !important;
   }
 }
 
