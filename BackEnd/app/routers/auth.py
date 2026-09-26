@@ -57,9 +57,11 @@ async def logout(current_user: dict = Depends(get_current_user)):
 
 @router.post("/password-reset/request", response_model=MessageResponse)
 async def password_reset_request(request: PasswordResetRequest):
-    request_password_reset(request.email, request.redirect_origin)
-    # Always the same response, regardless of whether the email exists —
-    # per the API contract's deliberate non-revealing design
+    try:
+        request_password_reset(request.email, request.redirect_origin)
+    except AuthError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    # Same response whether or not the email exists.
     return MessageResponse(message="If the email exists, a reset link was sent")
 
 

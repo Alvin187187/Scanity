@@ -8292,7 +8292,7 @@ function renderCoachMarkdown(text: string): ReactNode {
     return parts.map((part, index) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         const inner = part.slice(2, -2)
-        const tooLong = inner.length > 24 || inner.trim().split(/\s+/).length > 3
+        const tooLong = inner.length > 48 || inner.trim().split(/\s+/).length > 6
         if (tooLong) {
           return <span key={`${keyPrefix}-b-${index}`}>{inner}</span>
         }
@@ -8307,7 +8307,7 @@ function renderCoachMarkdown(text: string): ReactNode {
   }
 
   return (
-    <div className="scanity-reading" style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 16, lineHeight: 1.6, fontWeight: 400, color: SOFT_SLATE.textPrimary, textAlign: "left" }}>
+    <div className="scanity-reading" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 16, lineHeight: 1.5, fontWeight: 400, color: SOFT_SLATE.textPrimary, textAlign: "left" }}>
       {blocks.map((block, blockIndex) => {
         const lines = block.split(/\n/).map((line) => line.trim()).filter(Boolean)
         if (!lines.length) return null
@@ -8319,7 +8319,7 @@ function renderCoachMarkdown(text: string): ReactNode {
           return (
             <div key={`blk-${blockIndex}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {lead.map((line, lineIndex) => (
-                <p key={`lead-${blockIndex}-${lineIndex}`} style={{ margin: "0 0 16px", fontSize: 16, lineHeight: 1.6 }}>
+                <p key={`lead-${blockIndex}-${lineIndex}`} style={{ margin: 0, fontSize: 16, lineHeight: 1.5 }}>
                   {inline(line, `lead-${blockIndex}-${lineIndex}`)}
                 </p>
               ))}
@@ -8336,7 +8336,7 @@ function renderCoachMarkdown(text: string): ReactNode {
           )
         }
         return (
-          <p key={`p-${blockIndex}`} style={{ margin: "0 0 16px", lineHeight: 1.6, fontSize: 16, maxWidth: "42ch" }}>
+          <p key={`p-${blockIndex}`} style={{ margin: 0, lineHeight: 1.5, fontSize: 16, maxWidth: "42ch" }}>
             {lines.map((line, lineIndex) => (
               <span key={`ln-${blockIndex}-${lineIndex}`}>
                 {lineIndex > 0 && <br />}
@@ -10497,6 +10497,7 @@ function NutritionTable({
   a: CompareProduct
   b: CompareProduct
 }) {
+  const isDesktop = useIsDesktop()
   const rows = NUTRITION_ROWS.filter((row) => {
     const av = a.nutrition?.[row.key]
     const bv = b.nutrition?.[row.key]
@@ -10530,23 +10531,29 @@ function NutritionTable({
     return `${Number(value.toFixed(digits))} ${unit}`
   }
 
+  const columns = isDesktop
+    ? "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr)"
+    : "1fr 1fr"
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr)",
+          gridTemplateColumns: columns,
           gap: 8,
           alignItems: "end",
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
-          Per 100 g
-        </span>
-        <span title={a.name} style={{ fontSize: 13, fontWeight: 800, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
+        {isDesktop ? (
+          <span style={{ fontSize: 14, fontWeight: 700, color: SOFT_SLATE.textMuted }}>
+            Per 100 g
+          </span>
+        ) : null}
+        <span title={a.name} style={{ fontSize: 15, fontWeight: 700, textAlign: isDesktop ? "right" : "left", color: SOFT_SLATE.textPrimary }}>
           {shortName(a.name)}
         </span>
-        <span title={b.name} style={{ fontSize: 13, fontWeight: 800, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
+        <span title={b.name} style={{ fontSize: 15, fontWeight: 700, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
           {shortName(b.name)}
         </span>
       </div>
@@ -10581,15 +10588,18 @@ function NutritionTable({
             key={row.key}
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr)",
+              gridTemplateColumns: columns,
               gap: 8,
               alignItems: "center",
-              paddingTop: 8,
+              paddingTop: 10,
               borderTop: "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 650, color: SOFT_SLATE.textPrimary }}>{row.label}</span>
-            <span style={valueStyle(aWins, av === undefined)}>{formatValue(av, row.unit)}</span>
+            <span style={{ gridColumn: isDesktop ? "auto" : "1 / -1", fontSize: 16, fontWeight: 650, color: SOFT_SLATE.textPrimary }}>
+              {row.label}
+              {isDesktop ? "" : " / 100 g"}
+            </span>
+            <span style={{ ...valueStyle(aWins, av === undefined), textAlign: isDesktop ? "right" : "left" }}>{formatValue(av, row.unit)}</span>
             <span style={valueStyle(bWins, bv === undefined)}>{formatValue(bv, row.unit)}</span>
           </div>
         )
@@ -10610,10 +10620,10 @@ function CmpLabel({
       style={{
         margin: "0 0 10px",
         fontFamily: FONT_HEAD,
-        fontSize: 10.5,
-        fontWeight: 800,
-        letterSpacing: "0.07em",
-        textTransform: "uppercase",
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: "0",
+        textTransform: "none",
         color: "var(--ss-ink-mid)",
       }}
     >
@@ -10635,10 +10645,10 @@ function CmpCard({
     <div
       style={{
         borderRadius: 18,
-        padding: isDesktop ? 20 : 13,
+        padding: isDesktop ? 20 : 16,
         display: "flex",
         flexDirection: "column",
-        gap: isDesktop ? 16 : 11,
+        gap: isDesktop ? 16 : 12,
         background: C.white,
         border: `1.5px solid ${
           accent ? C.green : C.border
@@ -10862,7 +10872,7 @@ function ProductHeaderCard({
             style={{
               margin: "5px 0 0",
               fontFamily: FONT_BODY,
-              fontSize: isDesktop ? 12 : 10,
+              fontSize: 15,
               color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
             }}
           >
@@ -10947,10 +10957,10 @@ function CmpSection({
         {description && (
           <p
             style={{
-              margin: "5px 0 0",
+              margin: "8px 0 0",
               fontFamily: FONT_BODY,
-              fontSize: 12.5,
-              lineHeight: 1.55,
+              fontSize: 15,
+              lineHeight: 1.5,
               color: "var(--ss-ink-mid)",
             }}
           >
@@ -12312,7 +12322,7 @@ function ProductCompareScreen({
                       marginTop: 3,
 
                       fontFamily: SOFT_SLATE.fontFamily,
-                      fontSize: 11.5,
+                      fontSize: 15,
                       lineHeight: 1.5,
 
                       color: SOFT_SLATE.textSecondary,
@@ -12700,7 +12710,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                       cursor: "pointer",
                     }}
                   >
-                    {option === "all" ? "All scans" : "Saved"}
+                    {option === "all" ? "All Scans" : "Saved"}
                   </button>
                 )
               })}
@@ -13331,7 +13341,13 @@ function SoftSlateOtherChip({
   )
 }
 
-const POPULAR_KNOWLEDGE = ["MSG", "Gluten", "Maltodextrin", "Soy Lecithin", "Tartrazine"]
+const KNOWLEDGE_STARTERS = [
+  { term: "MSG", hint: "A flavor enhancer. Also called monosodium glutamate." },
+  { term: "Gluten", hint: "A protein in wheat, barley, and rye." },
+  { term: "Maltodextrin", hint: "A starch used to thicken or fill a food." },
+  { term: "Soy Lecithin", hint: "An emulsifier made from soy." },
+  { term: "Tartrazine", hint: "A yellow food color, also called Yellow 5." },
+]
 
 function KnowledgeFact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -13404,67 +13420,88 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
         }}
       >
         <Center maxWidth={720}>
-          <div className="scanity-profile" style={{ padding: isDesktop ? "24px 24px 48px 0" : "16px 20px 40px", textAlign: "left" }}>
+          <div className="scanity-profile" style={{ padding: isDesktop ? "24px 24px 48px 0" : "16px 16px 40px", textAlign: "left" }}>
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="knowledge" />}
             <h1 style={{ margin: "8px 0 0", fontSize: isDesktop ? 32 : 28, fontWeight: 700, lineHeight: 1.2, color: SOFT_SLATE.textPrimary }}>
-              What do you want to know?
+              Ingredient guide
             </h1>
-            <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
-              Ask Scanity what a food-related term means. This is not a product search.
+            <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
+              Look up a word from a label. This is a guide, not a product search.
             </p>
 
-            <label htmlFor="knowledge-search" style={{ display: "block", marginTop: 24, fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
-              What are you looking for?
-            </label>
-            <input
-              id="knowledge-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search ingredients, allergens, additives..."
-              autoComplete="off"
+            <div
               style={{
-                display: "block",
-                width: "100%",
-                marginTop: 8,
-                minHeight: 48,
-                boxSizing: "border-box",
-                border: "1px solid var(--scanity-border)",
-                borderRadius: 12,
-                background: "var(--scanity-panel)",
-                padding: "12px 16px",
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 16,
-                lineHeight: 1.5,
-                color: SOFT_SLATE.textPrimary,
+                marginTop: 20,
+                padding: 16,
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.raisedSm,
               }}
-            />
-            <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>
-              Try: MSG, maltodextrin, soy lecithin, gluten
-            </p>
+            >
+              <label htmlFor="knowledge-search" style={{ display: "block", fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
+                Search the guide
+              </label>
+              <input
+                id="knowledge-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="MSG, gluten, soy lecithin"
+                autoComplete="off"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: 8,
+                  minHeight: 48,
+                  boxSizing: "border-box",
+                  border: "none",
+                  borderRadius: 12,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.insetSm,
+                  padding: "12px 16px",
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 16,
+                  lineHeight: 1.5,
+                  color: SOFT_SLATE.textPrimary,
+                }}
+              />
+            </div>
 
             {status === "idle" && (
-              <div style={{ marginTop: 28 }}>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>Popular searches</h2>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-                  {POPULAR_KNOWLEDGE.map((term) => (
+              <div style={{ marginTop: 20 }}>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.3 }}>Start with a common term</h2>
+                <div
+                  style={{
+                    marginTop: 12,
+                    borderRadius: 16,
+                    background: SOFT_SLATE.bg,
+                    boxShadow: SOFT_SLATE.raisedSm,
+                    overflow: "hidden",
+                  }}
+                >
+                  {KNOWLEDGE_STARTERS.map((item, index) => (
                     <button
-                      key={term}
+                      key={item.term}
                       type="button"
-                      onClick={() => setQuery(term)}
+                      onClick={() => setQuery(item.term)}
                       style={{
-                        minHeight: 44,
-                        padding: "10px 14px",
-                        borderRadius: 12,
-                        border: "1px solid var(--scanity-border)",
-                        background: "var(--scanity-panel)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        gap: 4,
+                        width: "100%",
+                        minHeight: 64,
+                        padding: "14px 16px",
+                        border: "none",
+                        borderTop: index === 0 ? "none" : "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
+                        background: "transparent",
                         color: SOFT_SLATE.textPrimary,
                         fontFamily: SOFT_SLATE.fontFamily,
-                        fontSize: 16,
-                        fontWeight: 600,
+                        textAlign: "left",
                         cursor: "pointer",
                       }}
                     >
-                      {term}
+                      <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>{item.term}</span>
+                      <span style={{ fontSize: 15, fontWeight: 400, lineHeight: 1.4, color: SOFT_SLATE.textSecondary }}>{item.hint}</span>
                     </button>
                   ))}
                 </div>
@@ -14009,8 +14046,8 @@ function ProfileScreen({
                     boxSizing: "border-box",
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "flex-start",
-                    textAlign: "left",
+                    alignItems: "center",
+                    textAlign: "center",
                   }}
                 >
                   <div style={{ position: "relative" }}>
@@ -17208,11 +17245,11 @@ function ForgotPasswordScreen({
 
           <p
             style={{
-              margin: "0 0 30px",
-              maxWidth: isDesktop ? 340 : 260,
-              fontSize: isDesktop ? 13 : 10,
-              lineHeight: isDesktop ? "20px" : "15px",
-              color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
+              margin: "0 0 24px",
+              maxWidth: 340,
+              fontSize: 16,
+              lineHeight: 1.5,
+              color: "rgb(from var(--ss-text-primary) r g b / 0.72)",
               textAlign: "center",
             }}
           >
@@ -17229,15 +17266,16 @@ function ForgotPasswordScreen({
             }}
           >
             <label
+              htmlFor="forgot-email"
               style={{
                 display: "block",
-                marginBottom: 7,
-                fontSize: isDesktop ? 12 : 10,
+                marginBottom: 8,
+                fontSize: 16,
                 fontWeight: 600,
                 color: PALETTE.textDark,
               }}
             >
-              Email Address
+              Email
             </label>
 
             <div
@@ -17268,10 +17306,12 @@ function ForgotPasswordScreen({
               />
 
               <input
+                id="forgot-email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                placeholder="name@email.com"
                 style={{
                   width: "100%",
                   height: "100%",
@@ -17280,7 +17320,7 @@ function ForgotPasswordScreen({
                   background: "transparent",
                   color: PALETTE.textDark,
                   fontFamily: FONT_BODY,
-                  fontSize: isDesktop ? 13 : 11,
+                  fontSize: 16,
                 }}
               />
             </div>
@@ -17331,12 +17371,12 @@ function ForgotPasswordScreen({
             {sending ? "Sending…" : sent ? "Reset link sent" : "Send reset link"}
           </button>
           {sent ? (
-            <p style={{ margin: "14px 0 0", maxWidth: 340, textAlign: "center", fontSize: 13, lineHeight: 1.45, color: PALETTE.textDark }}>
+            <p style={{ margin: "14px 0 0", maxWidth: 340, textAlign: "center", fontSize: 16, lineHeight: 1.5, color: PALETTE.textDark }}>
               Check {email.trim()} and open the link. It brings you back here to set a new password.
             </p>
           ) : null}
           {sendError ? (
-            <p style={{ margin: "12px 0 0", fontSize: 13, color: C.statusDanger }}>{sendError}</p>
+            <p role="alert" style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.45, color: C.statusDanger }}>{sendError}</p>
           ) : null}
 
           {/* Login */}
@@ -17349,7 +17389,7 @@ function ForgotPasswordScreen({
               background: "transparent",
               color: "rgb(from var(--ss-text-primary) r g b / 0.55)",
               fontFamily: FONT_BODY,
-              fontSize: isDesktop ? 12 : 10,
+              fontSize: 16,
               cursor: "pointer",
             }}
           >
@@ -17357,10 +17397,10 @@ function ForgotPasswordScreen({
             <span
               style={{
                 color: C.greenLight,
-                fontWeight: 750,
+                fontWeight: 700,
               }}
             >
-              Login
+              Sign in
             </span>
           </button>
 
@@ -17369,8 +17409,8 @@ function ForgotPasswordScreen({
             style={{
               margin: isDesktop ? "32px 0 0" : "24px 0 0",
               textAlign: "center",
-              fontSize: isDesktop ? 12 : 10,
-              color: "rgb(from var(--ss-text-primary) r g b / 0.35)",
+              fontSize: 14,
+              color: "rgb(from var(--ss-text-primary) r g b / 0.45)",
             }}
           >
             Scanity • See It. Know It. Eat It.
