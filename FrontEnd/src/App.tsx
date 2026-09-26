@@ -153,7 +153,7 @@ const PALETTE = {
   dangerText: "var(--scanity-danger-text)",
 }
 
-const cardShadow = "0 5px 0 rgba(0,0,0,0.08)"
+const cardShadow = "0 2px 8px rgba(0,0,0,0.08)"
 
 const BARCODE_BARS = [
   2, 1, 3, 1, 1, 2, 4, 1, 2, 1, 3, 2, 1, 1, 4, 2,
@@ -288,16 +288,16 @@ function BackBtn({ onPress }: { onPress: () => void }) {
       onClick={onPress}
       aria-label="Go back"
       style={{
-        width: 36,
-        height: 36,
+        width: 44,
+        height: 44,
         borderRadius: "50%",
-        border: `1.5px solid ${C.border}`,
+        border: `1px solid ${C.border}`,
         background: C.white,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+        boxShadow: "none",
       }}
     >
       <svg
@@ -376,13 +376,14 @@ function Field({
 
           background: C.inputBg,
 
-          border: `1.5px solid ${
+          border: `1px solid ${
             focused ? C.mochaLight : C.border
           }`,
 
-          borderRadius: 14,
+          borderRadius: 8,
+          minHeight: 44,
 
-          padding: "13px 15px",
+          padding: "10px 12px",
 
           boxShadow: focused
             ? `0 0 0 3px ${C.mochaLight}22`
@@ -426,7 +427,7 @@ function Field({
             outline: "none",
 
             fontFamily: FONT_BODY,
-            fontSize: 14,
+            fontSize: 16,
             color: C.black,
 
             padding: 0,
@@ -495,7 +496,7 @@ function Field({
       {hint && (
         <p
           style={{
-            fontSize: 10,
+            fontSize: 14,
             color: C.gray,
 
             marginTop: 4,
@@ -533,30 +534,24 @@ function PrimaryBtn({
       onMouseLeave={() => setHover(false)}
       style={{
         width: "100%",
-        padding: "15px 16px",
-        borderRadius: 14,
+        minHeight: 44,
+        padding: "12px 16px",
+        borderRadius: 8,
         border: "none",
 
         background: hover ? C.mochaDark : color,
         color: C.onAccent,
 
         fontFamily: FONT_HEAD,
-        fontWeight: 700,
-        fontSize: 14,
-        letterSpacing: "0.02em",
+        fontWeight: 600,
+        fontSize: 16,
+        letterSpacing: 0,
 
         cursor: "pointer",
 
-        transition:
-          "background 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease",
+        transition: "background-color 160ms ease",
 
-        boxShadow: hover
-          ? `0 6px 18px ${color}55`
-          : `0 4px 14px ${color}40`,
-
-        transform: hover
-          ? "translateY(-1px)"
-          : "translateY(0)",
+        boxShadow: "none",
       }}
     >
       {label}
@@ -635,7 +630,15 @@ function Tooltip({
 // ── App sidebar ───────────────────────────────────────────────────────────────
 // Desktop-persistent, mobile-collapsible.
 // Shared by every interior post-login screen.
-const SIDEBAR_WIDTH = 264
+const SIDEBAR_WIDTH = 248
+const APP_RAIL_WIDTH = 248
+
+function railShortLabel(label: string) {
+  if (label === "Dashboard") return "Home"
+  if (label === "Scan History") return "History"
+  if (label === "Log out") return "Log out"
+  return label
+}
 
 const SIDEBAR_MENU: {
   icon: string
@@ -1470,123 +1473,72 @@ function SplashScreen({ go }: { go: (s: Screen) => void }) {
           alignItems: "center",
         }}
       >
-        <div
+        <img
+          src={logoImg}
+          alt=""
+          width={72}
+          height={72}
           style={{
-            width: 168,
-            height: 168,
-            borderRadius: "50%",
-            background: SOFT_SLATE.bg,
-            boxShadow: SOFT_SLATE.raisedLg,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 28,
+            width: 72,
+            height: 72,
+            objectFit: "contain",
+            marginBottom: 24,
           }}
-        >
-          <img
-            src={logoImg}
-            alt="Scanity logo"
-            style={{
-              width: 108,
-              height: 108,
-              objectFit: "contain",
-            }}
-          />
-        </div>
+        />
 
         <h1
           style={{
-            fontWeight: 800,
-            fontSize: isDesktop ? 34 : 30,
-            letterSpacing: "-0.01em",
-            lineHeight: 1,
+            fontWeight: 700,
+            fontSize: isDesktop ? 40 : 32,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.15,
             margin: 0,
             textAlign: "center",
+            color: SOFT_SLATE.textPrimary,
           }}
         >
-          <span style={{ color: SOFT_SLATE.textPrimary }}>Scan</span>
-          <span style={{ color: SOFT_SLATE.green }}>ity</span>
+          Scan<span style={{ color: SOFT_SLATE.green }}>ity</span>
         </h1>
-        <p
-          style={{
-            fontSize: 12,
-            color: SOFT_SLATE.gold,
-            marginTop: 10,
-            marginBottom: 0,
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            fontWeight: 700,
-          }}
-        >
-          See · Know · Eat
-        </p>
 
         <p
           style={{
-            fontSize: 14,
+            fontSize: 16,
             color: SOFT_SLATE.textSecondary,
-            lineHeight: 1.65,
+            lineHeight: 1.5,
             textAlign: "center",
-            fontWeight: 500,
-            marginTop: 22,
-            marginBottom: 36,
+            fontWeight: 400,
+            marginTop: 16,
+            marginBottom: 32,
+            maxWidth: "36ch",
           }}
         >
-          Your personal{" "}
-          <span style={{ color: SOFT_SLATE.green, fontWeight: 700 }}>nutrition</span> &{" "}
-          <span style={{ color: SOFT_SLATE.green, fontWeight: 700 }}>
-            allergy safety
-          </span>{" "}
-          companion. Scan ingredients, understand what's in your food, and
-          instantly know if it fits your dietary needs.
+          Scan a barcode or ingredient list. Scanity checks it against your allergies and shows the nutrition grade.
         </p>
 
         <button
           type="button"
-          onClick={() => go("login")}
-          style={{
-            width: "100%",
-            padding: 15,
-            border: "none",
-            borderRadius: 999,
-            background: `linear-gradient(135deg, ${SOFT_SLATE.green} 0%, ${C.greenDark} 100%)`,
-            color: "#ffffff",
-            fontFamily: SOFT_SLATE.fontFamily,
-            fontWeight: 700,
-            fontSize: 13,
-            letterSpacing: "0.03em",
-            boxShadow: SOFT_SLATE.raisedBtn,
-            cursor: "pointer",
-          }}
+          className="scanity-auth-primary"
+          onClick={() => go("register")}
         >
-          GET STARTED
+          Get started
         </button>
 
         <p
           style={{
             textAlign: "center",
-            marginTop: 16,
+            marginTop: 8,
             marginBottom: 0,
-            fontSize: 12,
+            fontSize: 16,
             color: SOFT_SLATE.textSecondary,
           }}
         >
           Already have an account?{" "}
           <button
             type="button"
+            className="scanity-auth-link"
             onClick={() => go("login")}
-            style={{
-              background: "none",
-              border: "none",
-              color: SOFT_SLATE.green,
-              fontFamily: SOFT_SLATE.fontFamily,
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: "pointer",
-              padding: 0,
-            }}
           >
-            Sign In
+            Sign in
           </button>
         </p>
       </div>
@@ -1743,124 +1695,77 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             marginBottom: 22,
           }}
         >
-          <div
-            style={{
-              width: 88,
-              height: 88,
-              borderRadius: "50%",
-              background: SOFT_SLATE.bg,
-              boxShadow: SOFT_SLATE.raisedMd,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 14,
-            }}
-          >
-            <img
-              src={logoImg}
-              alt="Scanity logo"
-              style={{ width: 56, height: 56, objectFit: "contain" }}
-            />
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em" }}>
-            <span style={{ color: SOFT_SLATE.textPrimary }}>Scan</span>
-            <span style={{ color: SOFT_SLATE.green }}>ity</span>
-          </div>
-          <h2 style={{ margin: "10px 0 0", fontSize: isDesktop ? 23 : 21, fontWeight: 800, textAlign: "center", color: SOFT_SLATE.textPrimary }}>
-            Welcome Back!
-          </h2>
-          <p style={{ margin: "5px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
-            Please login to continue
+          <img
+            src={logoImg}
+            alt=""
+            width={48}
+            height={48}
+            style={{ width: 48, height: 48, objectFit: "contain", marginBottom: 16 }}
+          />
+          <h1 style={{ margin: 0, fontSize: isDesktop ? 32 : 28, fontWeight: 700, letterSpacing: "-0.03em", textAlign: "center", color: SOFT_SLATE.textPrimary }}>
+            Sign in
+          </h1>
+          <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Use the email or username on your account.
           </p>
         </div>
 
         <div>
-          <label htmlFor="login-email" className="sr-only">
+          <label htmlFor="login-email" className="scanity-auth-label">
             Email or username
           </label>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: SOFT_SLATE.bg,
-              borderRadius: 999,
-              padding: "12px 18px",
-              boxShadow: SOFT_SLATE.raisedSm,
-              marginBottom: 16,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <div className="scanity-auth-field">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
             <input
               id="login-email"
+              name="username"
               type="text"
-              placeholder="Email or username"
+              autoComplete="username"
+              spellCheck={false}
+              placeholder="name@email.com"
+              aria-invalid={emailError ? true : undefined}
+              aria-describedby={emailError ? "login-email-error" : undefined}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
                 if (emailError) setEmailError("")
                 if (loginError) setLoginError("")
               }}
-              style={{
-                border: "none",
-                background: "transparent",
-                outline: "none",
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 13,
-                color: SOFT_SLATE.textPrimary,
-                flex: 1,
-                minWidth: 0,
-              }}
+              className="scanity-auth-input"
             />
           </div>
           {emailError && (
-            <p style={{ margin: "0 0 8px 18px", color: C.statusDanger, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500 }}>
+            <p id="login-email-error" className="scanity-auth-error">
               {emailError}
             </p>
           )}
 
-          <label htmlFor="login-password" className="sr-only">
+          <label htmlFor="login-password" className="scanity-auth-label" style={{ marginTop: 16 }}>
             Password
           </label>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: SOFT_SLATE.bg,
-              borderRadius: 999,
-              padding: "12px 18px",
-              boxShadow: SOFT_SLATE.raisedSm,
-              marginBottom: 16,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <div className="scanity-auth-field">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
             <input
               id="login-password"
+              name="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Password"
+              autoComplete="current-password"
+              placeholder="Your password"
+              aria-invalid={passwordError ? true : undefined}
+              aria-describedby={passwordError ? "login-password-error" : undefined}
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value)
                 if (passwordError) setPasswordError("")
                 if (loginError) setLoginError("")
               }}
-              style={{
-                border: "none",
-                background: "transparent",
-                outline: "none",
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 13,
-                color: SOFT_SLATE.textPrimary,
-                flex: 1,
-                minWidth: 0,
-              }}
+              className="scanity-auth-input"
             />
             <button
               type="button"
@@ -1894,7 +1799,7 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             </button>
           </div>
           {passwordError && (
-            <p style={{ margin: "0 0 8px 18px", color: C.statusDanger, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500 }}>
+            <p id="login-password-error" className="scanity-auth-error">
               {passwordError}
             </p>
           )}
@@ -1903,107 +1808,54 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
             <div
               role="alert"
               style={{
-                margin: "4px 4px 16px",
-                padding: "10px 14px",
+                margin: "16px 0 0",
+                padding: "12px 14px",
                 borderRadius: 14,
-                background: "#f6e3e1",
-                color: C.statusDanger,
+                background: "var(--ss-status-avoid-bg)",
+                color: "var(--scanity-danger-text)",
                 fontFamily: FONT_BODY,
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 500,
-                lineHeight: 1.4,
+                lineHeight: 1.45,
               }}
             >
               {loginError}
             </div>
           )}
 
-          <div style={{ textAlign: "right", margin: "2px 4px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
             <button
               type="button"
+              className="scanity-auth-link"
               onClick={() => go("forgotPassword")}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: SOFT_SLATE.green,
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                padding: 0,
-              }}
             >
-              Forgot Password?
+              Forgot password
             </button>
           </div>
 
           <button
             type="button"
+            className="scanity-auth-primary"
             onClick={handleLogin}
             disabled={isLoading}
-            style={{
-              width: "100%",
-              padding: 15,
-              border: "none",
-              borderRadius: 999,
-              background: `linear-gradient(135deg, ${SOFT_SLATE.green} 0%, ${C.greenDark} 100%)`,
-              color: "#ffffff",
-              fontFamily: SOFT_SLATE.fontFamily,
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: "0.03em",
-              boxShadow: SOFT_SLATE.raisedBtn,
-              cursor: isLoading ? "default" : "pointer",
-              opacity: isLoading ? 0.75 : 1,
-            }}
+            style={{ marginTop: 8 }}
           >
-            {isLoading ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display: "block", margin: "0 auto" }}>
-                <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.3)" strokeWidth="3" fill="none" />
-                <path d="M21 12a9 9 0 0 0-9-9" stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none">
-                  <animateTransform
-                    attributeName="transform"
-                    type="rotate"
-                    from="0 12 12"
-                    to="360 12 12"
-                    dur="0.7s"
-                    repeatCount="indefinite"
-                  />
-                </path>
-              </svg>
-            ) : (
-              "LOGIN"
-            )}
+            {isLoading ? "Signing in…" : "Sign in"}
           </button>
 
-          <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary }}>
-            Don't have an account?{" "}
+          <p style={{ textAlign: "center", margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary }}>
+            Need an account?{" "}
             <button
               type="button"
+              className="scanity-auth-link"
               onClick={() => {
                 if (!isLoading) go("register")
               }}
-              style={{
-                background: "none",
-                border: "none",
-                color: SOFT_SLATE.green,
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: isLoading ? "default" : "pointer",
-                opacity: isLoading ? 0.6 : 1,
-                padding: 0,
-              }}
+              disabled={isLoading}
             >
-              Register
+              Create account
             </button>
           </p>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: isDesktop ? 30 : 22 }}>
-          <div style={{ width: 40, height: 3, borderRadius: 2, background: SOFT_SLATE.green }} />
-          <div style={{ width: 12, height: 3, borderRadius: 2, background: SOFT_SLATE.gold }} />
-          <div style={{ width: 6, height: 3, borderRadius: 2, background: "#c7ccd2" }} />
         </div>
       </div>
     </div>
@@ -2259,33 +2111,18 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
             marginBottom: 18,
           }}
         >
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: "50%",
-              background: SOFT_SLATE.bg,
-              boxShadow: SOFT_SLATE.raisedIconWell,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <img
-              src={logoImg}
-              alt="Scanity logo"
-              style={{ width: 42, height: 42, objectFit: "contain" }}
-            />
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em", marginTop: 8 }}>
-            <span style={{ color: SOFT_SLATE.textPrimary }}>Scan</span>
-            <span style={{ color: SOFT_SLATE.green }}>ity</span>
-          </div>
-          <h2 style={{ margin: "10px 0 0", fontSize: isDesktop ? 23 : 21, fontWeight: 800, textAlign: "center", color: SOFT_SLATE.textPrimary }}>
-            Create Account
-          </h2>
-          <p style={{ margin: "5px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
-            Start your nutrition &amp; safety journey
+          <img
+            src={logoImg}
+            alt=""
+            width={48}
+            height={48}
+            style={{ width: 48, height: 48, objectFit: "contain", marginBottom: 16 }}
+          />
+          <h1 style={{ margin: 0, fontSize: isDesktop ? 32 : 28, fontWeight: 700, letterSpacing: "-0.03em", textAlign: "center", color: SOFT_SLATE.textPrimary }}>
+            Create account
+          </h1>
+          <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Save your allergies and scan history.
           </p>
         </div>
 
@@ -2293,41 +2130,25 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
           const showThis = field.id === "register-password" ? showPassword : showConfirm
           const setShowThis = field.id === "register-password" ? setShowPassword : setShowConfirm
           return (
-            <div key={field.id}>
-              <label htmlFor={field.id} className="sr-only">
+            <div key={field.id} style={{ marginBottom: 16 }}>
+              <label htmlFor={field.id} className="scanity-auth-label">
                 {field.label}
               </label>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  background: SOFT_SLATE.bg,
-                  borderRadius: 999,
-                  padding: "12px 18px",
-                  boxShadow: SOFT_SLATE.raisedSm,
-                  marginBottom: 16,
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <div className="scanity-auth-field">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
                   {field.path}
                 </svg>
                 <input
                   id={field.id}
+                  name={field.id === "register-email" ? "email" : field.isPassword ? "new-password" : "name"}
+                  autoComplete={field.id === "register-email" ? "email" : field.isPassword ? "new-password" : "name"}
+                  spellCheck={field.id === "register-email" ? false : undefined}
                   type={field.isPassword ? (showThis ? "text" : "password") : field.id === "register-email" ? "email" : "text"}
-                  placeholder={field.placeholder}
+                  placeholder={field.id === "register-email" ? "name@email.com" : field.placeholder}
+                  aria-invalid={field.error ? true : undefined}
                   value={field.value}
                   onChange={(e) => field.onChange(e.target.value)}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    outline: "none",
-                    fontFamily: SOFT_SLATE.fontFamily,
-                    fontSize: 13,
-                    color: SOFT_SLATE.textPrimary,
-                    flex: 1,
-                    minWidth: 0,
-                  }}
+                  className="scanity-auth-input"
                 />
                 {field.isPassword && (
                   <button
@@ -2363,34 +2184,31 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
                 )}
               </div>
               {field.error && (
-                <p style={{ margin: "0 0 8px 18px", color: C.statusDanger, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 500 }}>
+                <p className="scanity-auth-error">
                   {field.error}
                 </p>
               )}
               {field.id === "register-password" && !field.error && (
-                <p style={{ margin: "-8px 0 12px 18px", color: SOFT_SLATE.textMuted, fontSize: 11 }}>
-                  At least 8 characters and 1 number. Letters are optional.
+                <p style={{ margin: "6px 0 0", color: SOFT_SLATE.textSecondary, fontSize: 14, lineHeight: 1.45 }}>
+                  Use at least 8 characters and 1 number.
                 </p>
               )}
             </div>
           )
         })}
 
-        <p style={{ margin: "0 0 16px 6px", fontSize: 11, color: SOFT_SLATE.textSecondary }}>
-          At least 8 characters, with 1 number.
-        </p>
 
         {registerError && (
           <div
             role="alert"
             style={{
-              margin: "0 4px 16px",
-              padding: "10px 14px",
+              margin: "0 0 16px",
+              padding: "12px 14px",
               borderRadius: 14,
-              background: "#f6e3e1",
-              color: C.statusDanger,
+              background: "var(--ss-status-avoid-bg)",
+              color: "var(--scanity-danger-text)",
               fontFamily: FONT_BODY,
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: 500,
               lineHeight: 1.4,
             }}
@@ -2401,63 +2219,24 @@ function RegisterScreen({ go }: { go: (s: Screen) => void }) {
 
         <button
           type="button"
+          className="scanity-auth-primary"
           onClick={handleRegister}
           disabled={isLoading}
-          style={{
-            width: "100%",
-            padding: 15,
-            border: "none",
-            borderRadius: 999,
-            background: `linear-gradient(135deg, ${SOFT_SLATE.green} 0%, ${C.greenDark} 100%)`,
-            color: "#ffffff",
-            fontFamily: SOFT_SLATE.fontFamily,
-            fontWeight: 700,
-            fontSize: 13,
-            letterSpacing: "0.03em",
-            boxShadow: SOFT_SLATE.raisedBtn,
-            cursor: isLoading ? "default" : "pointer",
-            opacity: isLoading ? 0.75 : 1,
-          }}
         >
-          {isLoading ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display: "block", margin: "0 auto" }}>
-              <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.3)" strokeWidth="3" fill="none" />
-              <path d="M21 12a9 9 0 0 0-9-9" stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none">
-                <animateTransform
-                  attributeName="transform"
-                  type="rotate"
-                  from="0 12 12"
-                  to="360 12 12"
-                  dur="0.7s"
-                  repeatCount="indefinite"
-                />
-              </path>
-            </svg>
-          ) : (
-            "CREATE ACCOUNT"
-          )}
+          {isLoading ? "Creating account…" : "Create account"}
         </button>
 
-        <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: 12, color: SOFT_SLATE.textSecondary }}>
+        <p style={{ textAlign: "center", margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary }}>
           Already have an account?{" "}
           <button
             type="button"
+            className="scanity-auth-link"
             onClick={() => {
               if (!isLoading) go("login")
             }}
-            style={{
-              background: "none",
-              border: "none",
-              color: SOFT_SLATE.green,
-              fontFamily: SOFT_SLATE.fontFamily,
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: isLoading ? "default" : "pointer",
-              opacity: isLoading ? 0.6 : 1,
-              padding: 0,
-            }}
+            disabled={isLoading}
           >
-            Login
+            Sign in
           </button>
         </p>
       </div>
@@ -4387,8 +4166,8 @@ const SOFT_SLATE = {
   unsafe: "var(--ss-unsafe)",
   barDark: "var(--ss-bar-dark)",
   thumbBg: "var(--ss-thumb)",
-  fontFamily: `"Plus Jakarta Sans", Archivo, ${FONT_BODY}`,
-  displayFont: `"Archivo", "Plus Jakarta Sans", ${FONT_BODY}`,
+  fontFamily: FONT_BODY,
+  displayFont: FONT_BODY,
   space: {
     1: "var(--scanity-space-1)",
     2: "var(--scanity-space-2)",
@@ -4518,18 +4297,21 @@ function DashboardIconRail({
     <>
     <div
       style={{
-        width: isDesktop ? 80 : "100%",
+        width: "100%",
         maxWidth: "100%",
-        height: isDesktop ? "100%" : 64,
+        height: isDesktop ? "100%" : "auto",
+        minHeight: isDesktop ? undefined : 76,
         flex: "none",
         background: SOFT_SLATE.bg,
         borderRadius: isDesktop ? 26 : 20,
-        padding: isDesktop ? "36px 0 6px" : "0 10px",
+        borderRight: "none",
+        borderBottom: "none",
+        padding: isDesktop ? "28px 12px 12px" : "8px 8px",
         display: "flex",
         flexDirection: isDesktop ? "column" : "row",
-        alignItems: "center",
-        justifyContent: isDesktop ? "flex-start" : "flex-start",
-        gap: isDesktop ? 32 : 6,
+        alignItems: isDesktop ? "stretch" : "center",
+        justifyContent: "flex-start",
+        gap: isDesktop ? 8 : 4,
         boxShadow: SOFT_SLATE.raisedLg,
         fontFamily: SOFT_SLATE.fontFamily,
         boxSizing: "border-box",
@@ -4543,25 +4325,32 @@ function DashboardIconRail({
           onClick={() => go("dashboard")}
           aria-label="Scanity home"
           style={{
-            width: iconSize,
-            height: iconSize,
+            width: isDesktop ? "100%" : iconSize,
+            height: 44,
             borderRadius: 14,
             border: "none",
             background: SOFT_SLATE.bg,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: isDesktop ? "flex-start" : "center",
+            gap: 10,
             boxShadow: SOFT_SLATE.raisedSm,
             flexShrink: 0,
             cursor: "pointer",
-            padding: 4,
+            padding: isDesktop ? "0 10px" : 4,
+            color: SOFT_SLATE.textPrimary,
+            fontSize: 15,
+            fontWeight: 700,
           }}
         >
           <img
             src={logoImg}
             alt=""
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            width={28}
+            height={28}
+            style={{ width: 28, height: 28, objectFit: "contain" }}
           />
+          {isDesktop && <span>Scanity</span>}
         </button>
       </Tooltip>
 
@@ -4570,8 +4359,8 @@ function DashboardIconRail({
         style={{
           display: "flex",
           flexDirection: isDesktop ? "column" : "row",
-          alignItems: "center",
-          gap: isDesktop ? 20 : 4,
+          alignItems: isDesktop ? "stretch" : "center",
+          gap: isDesktop ? 4 : 4,
           flex: 1,
           minWidth: 0,
           justifyContent: isDesktop ? undefined : "space-evenly",
@@ -4601,30 +4390,42 @@ function DashboardIconRail({
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 style={{
-                  width: iconSize,
-                  height: iconSize,
-                  borderRadius: 14,
+                  width: isDesktop ? "100%" : 64,
+                  minHeight: 44,
+                  height: isDesktop ? 44 : "auto",
+                  borderRadius: 16,
                   border: "none",
-                  background: isActive ? SOFT_SLATE.bg : "transparent",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
+                  background: SOFT_SLATE.bg,
                   boxShadow: isActive ? SOFT_SLATE.insetMd : "none",
+                  display: "flex",
+                  flexDirection: isDesktop ? "row" : "column",
+                  alignItems: "center",
+                  justifyContent: isDesktop ? "flex-start" : "center",
+                  gap: isDesktop ? 10 : 4,
+                  cursor: "pointer",
                   flexShrink: 0,
+                  padding: isDesktop ? "0 10px" : 0,
+                  color: isActive ? SOFT_SLATE.green : SOFT_SLATE.textSecondary,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 14,
+                  fontWeight: 600,
                 }}
               >
                 <svg
-                  width={isDesktop ? 17 : 15}
-                  height={isDesktop ? 17 : 15}
+                  width={18}
+                  height={18}
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke={isActive ? SOFT_SLATE.green : SOFT_SLATE.textMuted}
+                  stroke="currentColor"
                   strokeWidth="2"
                   strokeLinecap="round"
+                  aria-hidden="true"
                 >
                   {item.path}
                 </svg>
+                <span style={{ fontSize: isDesktop ? 14 : 12, lineHeight: 1.2 }}>
+                  {isDesktop ? item.label : railShortLabel(item.label)}
+                </span>
               </button>
             </Tooltip>
           )
@@ -4634,9 +4435,9 @@ function DashboardIconRail({
       {isDesktop && (
         <div
           style={{
-            width: 32,
+            width: "100%",
             height: 1,
-            background: "var(--ss-thumb)",
+            background: "var(--scanity-border)",
             margin: "auto 0 8px",
             flexShrink: 0,
           }}
@@ -4654,31 +4455,43 @@ function DashboardIconRail({
             marginTop: 0,
             marginLeft: isDesktop ? 0 : 2,
             flexShrink: 0,
-            width: iconSize,
-            height: iconSize,
-            borderRadius: 14,
+            width: isDesktop ? "100%" : 64,
+            minHeight: 44,
+            height: isDesktop ? 44 : "auto",
+            borderRadius: 16,
             border: "none",
             background: SOFT_SLATE.bg,
             display: "flex",
+            flexDirection: isDesktop ? "row" : "column",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: isDesktop ? "flex-start" : "center",
+            gap: isDesktop ? 10 : 4,
             cursor: "pointer",
             boxShadow: SOFT_SLATE.raisedSm,
+            padding: isDesktop ? "0 10px" : 0,
+            color: SOFT_SLATE.textSecondary,
+            fontFamily: SOFT_SLATE.fontFamily,
+            fontSize: 14,
+            fontWeight: 600,
           }}
         >
           <svg
-            width={isDesktop ? 17 : 15}
-            height={isDesktop ? 17 : 15}
+            width={18}
+            height={18}
             viewBox="0 0 24 24"
             fill="none"
-            stroke={SOFT_SLATE.caution}
+            stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
+            aria-hidden="true"
           >
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <path d="m16 17 5-5-5-5" />
             <path d="M21 12H9" />
           </svg>
+          <span style={{ fontSize: isDesktop ? 14 : 12, lineHeight: 1.2 }}>
+            {isDesktop ? "Log out" : railShortLabel("Log out")}
+          </span>
         </button>
       </Tooltip>
     </div>
@@ -4707,14 +4520,15 @@ function DashboardIconRail({
             background: SOFT_SLATE.bg,
             borderRadius: 18,
             padding: "24px 22px",
-            boxShadow: "0 12px 28px rgba(36,41,47,0.14)",
+            border: "1px solid var(--scanity-border)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
             fontFamily: SOFT_SLATE.fontFamily,
             color: SOFT_SLATE.textPrimary,
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Log out?</h3>
-          <p style={{ margin: "10px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
-            Are you sure you want to log out of Scanity?
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Log out of Scanity?</h2>
+          <p style={{ margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
+            You will need to sign in again to scan products.
           </p>
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <button
@@ -4906,7 +4720,7 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
             top: 22,
             left: 26,
             bottom: 22,
-            width: 80,
+            width: APP_RAIL_WIDTH,
             zIndex: 5,
           }}
         >
@@ -4921,10 +4735,10 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
           minHeight: 0,
           paddingTop: SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
         }}
       >
-        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+        <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
           <div
             style={{
               display: "flex",
@@ -4950,27 +4764,27 @@ function DashboardScreen({ go }: { go: (s: Screen) => void }) {
                 }}
               >
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="scanity-section-label">Scanity</div>
-                  <div
+                  <h1
                     className="scanity-title"
                     style={{
-                      fontSize: isDesktop ? 34 : 26,
-                      marginTop: SOFT_SLATE.space[2],
+                      fontSize: isDesktop ? 32 : 26,
+                      margin: 0,
                       fontFamily: SOFT_SLATE.displayFont,
+                      fontWeight: 700,
                     }}
                   >
                     Hello, {greetingName}
-                  </div>
-                  <div
+                  </h1>
+                  <p
                     className="scanity-body"
                     style={{
-                      fontSize: 14.5,
-                      marginTop: SOFT_SLATE.space[2],
-                      maxWidth: 440,
+                      fontSize: 16,
+                      margin: "8px 0 0",
+                      maxWidth: "42ch",
                     }}
                   >
-                    Scan a product to see allergy safety and nutrition quality at a glance.
-                  </div>
+                    Scan a product to see allergy safety and nutrition quality.
+                  </p>
                 </div>
 
                 <div style={{ display: "flex", gap: SOFT_SLATE.space[3], flexShrink: 0 }}>
@@ -6158,7 +5972,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       {/* ── Icon rail - same shell as Dashboard/Scan History ───────────────── */}
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
            <DashboardIconRail go={go} isDesktop />
         </div>
       )}
@@ -6170,10 +5984,10 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
           minHeight: 0,
           paddingTop: SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
         }}
       >
-        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+        <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
           <div
             style={{
               display: "flex",
@@ -7574,7 +7388,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       {/* ── Icon rail (desktop, fixed) ───────────────────────────────────── */}
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop />
         </div>
       )}
@@ -7586,7 +7400,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           minHeight: 0,
           paddingTop: SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
         }}
       >
         <Center maxWidth={isDesktop ? 1100 : undefined}>
@@ -8110,7 +7924,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         >
           <div
             style={{
-              width: "100%", maxWidth: 430, background: SOFT_SLATE.bg, borderRadius: 26, padding: 26,
+              width: "100%", maxWidth: 430, background: SOFT_SLATE.bg, borderRadius: 12, padding: 26,
               boxShadow: "var(--ss-chat-shadow)",
             }}
           >
@@ -8167,7 +7981,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         >
           <div
             style={{
-              width: "100%", maxWidth: 390, background: SOFT_SLATE.bg, borderRadius: 26, padding: 26,
+              width: "100%", maxWidth: 390, background: SOFT_SLATE.bg, borderRadius: 12, padding: 26,
               textAlign: "center", boxShadow: "var(--ss-chat-shadow)",
             }}
           >
@@ -8478,7 +8292,7 @@ function renderCoachMarkdown(text: string): ReactNode {
     return parts.map((part, index) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         const inner = part.slice(2, -2)
-        const tooLong = inner.length > 24 || inner.trim().split(/\s+/).length > 3
+        const tooLong = inner.length > 48 || inner.trim().split(/\s+/).length > 6
         if (tooLong) {
           return <span key={`${keyPrefix}-b-${index}`}>{inner}</span>
         }
@@ -8493,7 +8307,7 @@ function renderCoachMarkdown(text: string): ReactNode {
   }
 
   return (
-    <div className="scanity-reading" style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 16, lineHeight: 1.6, fontWeight: 400, color: SOFT_SLATE.textPrimary, textAlign: "left" }}>
+    <div className="scanity-reading" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 16, lineHeight: 1.5, fontWeight: 400, color: SOFT_SLATE.textPrimary, textAlign: "left" }}>
       {blocks.map((block, blockIndex) => {
         const lines = block.split(/\n/).map((line) => line.trim()).filter(Boolean)
         if (!lines.length) return null
@@ -8505,7 +8319,7 @@ function renderCoachMarkdown(text: string): ReactNode {
           return (
             <div key={`blk-${blockIndex}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {lead.map((line, lineIndex) => (
-                <p key={`lead-${blockIndex}-${lineIndex}`} style={{ margin: "0 0 16px", fontSize: 16, lineHeight: 1.6 }}>
+                <p key={`lead-${blockIndex}-${lineIndex}`} style={{ margin: 0, fontSize: 16, lineHeight: 1.5 }}>
                   {inline(line, `lead-${blockIndex}-${lineIndex}`)}
                 </p>
               ))}
@@ -8522,7 +8336,7 @@ function renderCoachMarkdown(text: string): ReactNode {
           )
         }
         return (
-          <p key={`p-${blockIndex}`} style={{ margin: "0 0 16px", lineHeight: 1.6, fontSize: 16, maxWidth: "42ch" }}>
+          <p key={`p-${blockIndex}`} style={{ margin: 0, lineHeight: 1.5, fontSize: 16, maxWidth: "42ch" }}>
             {lines.map((line, lineIndex) => (
               <span key={`ln-${blockIndex}-${lineIndex}`}>
                 {lineIndex > 0 && <br />}
@@ -9248,14 +9062,14 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="dashboard" />
         </div>
       )}
       <div
         style={{
           flexShrink: 0,
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           padding: isDesktop ? "28px 48px 16px" : "20px 20px 12px",
           paddingTop: isDesktop ? 28 : `calc(${SAFE_TOP} + 10px)`,
         }}
@@ -9301,7 +9115,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginLeft: isDesktop ? 80 + 26 + 26 : 0 }}>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0 }}>
         <Center maxWidth={isDesktop ? 900 : 640} style={{ padding: isDesktop ? "12px 48px 56px" : "8px 20px 40px" }}>
           <div
             style={{
@@ -10683,6 +10497,7 @@ function NutritionTable({
   a: CompareProduct
   b: CompareProduct
 }) {
+  const isDesktop = useIsDesktop()
   const rows = NUTRITION_ROWS.filter((row) => {
     const av = a.nutrition?.[row.key]
     const bv = b.nutrition?.[row.key]
@@ -10716,23 +10531,29 @@ function NutritionTable({
     return `${Number(value.toFixed(digits))} ${unit}`
   }
 
+  const columns = isDesktop
+    ? "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr)"
+    : "1fr 1fr"
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr)",
+          gridTemplateColumns: columns,
           gap: 8,
           alignItems: "end",
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
-          Per 100 g
-        </span>
-        <span title={a.name} style={{ fontSize: 13, fontWeight: 800, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
+        {isDesktop ? (
+          <span style={{ fontSize: 14, fontWeight: 700, color: SOFT_SLATE.textMuted }}>
+            Per 100 g
+          </span>
+        ) : null}
+        <span title={a.name} style={{ fontSize: 15, fontWeight: 700, textAlign: isDesktop ? "right" : "left", color: SOFT_SLATE.textPrimary }}>
           {shortName(a.name)}
         </span>
-        <span title={b.name} style={{ fontSize: 13, fontWeight: 800, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
+        <span title={b.name} style={{ fontSize: 15, fontWeight: 700, textAlign: "right", color: SOFT_SLATE.textPrimary }}>
           {shortName(b.name)}
         </span>
       </div>
@@ -10767,15 +10588,18 @@ function NutritionTable({
             key={row.key}
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr)",
+              gridTemplateColumns: columns,
               gap: 8,
               alignItems: "center",
-              paddingTop: 8,
+              paddingTop: 10,
               borderTop: "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 650, color: SOFT_SLATE.textPrimary }}>{row.label}</span>
-            <span style={valueStyle(aWins, av === undefined)}>{formatValue(av, row.unit)}</span>
+            <span style={{ gridColumn: isDesktop ? "auto" : "1 / -1", fontSize: 16, fontWeight: 650, color: SOFT_SLATE.textPrimary }}>
+              {row.label}
+              {isDesktop ? "" : " / 100 g"}
+            </span>
+            <span style={{ ...valueStyle(aWins, av === undefined), textAlign: isDesktop ? "right" : "left" }}>{formatValue(av, row.unit)}</span>
             <span style={valueStyle(bWins, bv === undefined)}>{formatValue(bv, row.unit)}</span>
           </div>
         )
@@ -10796,10 +10620,10 @@ function CmpLabel({
       style={{
         margin: "0 0 10px",
         fontFamily: FONT_HEAD,
-        fontSize: 10.5,
-        fontWeight: 800,
-        letterSpacing: "0.07em",
-        textTransform: "uppercase",
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: "0",
+        textTransform: "none",
         color: "var(--ss-ink-mid)",
       }}
     >
@@ -10821,10 +10645,10 @@ function CmpCard({
     <div
       style={{
         borderRadius: 18,
-        padding: isDesktop ? 20 : 13,
+        padding: isDesktop ? 20 : 16,
         display: "flex",
         flexDirection: "column",
-        gap: isDesktop ? 16 : 11,
+        gap: isDesktop ? 16 : 12,
         background: C.white,
         border: `1.5px solid ${
           accent ? C.green : C.border
@@ -11048,7 +10872,7 @@ function ProductHeaderCard({
             style={{
               margin: "5px 0 0",
               fontFamily: FONT_BODY,
-              fontSize: isDesktop ? 12 : 10,
+              fontSize: 15,
               color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
             }}
           >
@@ -11133,10 +10957,10 @@ function CmpSection({
         {description && (
           <p
             style={{
-              margin: "5px 0 0",
+              margin: "8px 0 0",
               fontFamily: FONT_BODY,
-              fontSize: 12.5,
-              lineHeight: 1.55,
+              fontSize: 15,
+              lineHeight: 1.5,
               color: "var(--ss-ink-mid)",
             }}
           >
@@ -11990,7 +11814,7 @@ function ProductCompareScreen({
             top: 22,
             left: 26,
             bottom: 22,
-            width: 80,
+            width: APP_RAIL_WIDTH,
             zIndex: 5,
           }}
         >
@@ -12020,7 +11844,7 @@ function ProductCompareScreen({
           minHeight: 0,
           minWidth: 0,
           overflowY: "auto",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           display: "flex",
           flexDirection: "column",
         }}
@@ -12498,7 +12322,7 @@ function ProductCompareScreen({
                       marginTop: 3,
 
                       fontFamily: SOFT_SLATE.fontFamily,
-                      fontSize: 11.5,
+                      fontSize: 15,
                       lineHeight: 1.5,
 
                       color: SOFT_SLATE.textSecondary,
@@ -12754,7 +12578,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   // for pixel, not just in color.
   const RAIL_TOP = 22
   const RAIL_SIDE = 26
-  const RAIL_W = 80
+  const RAIL_W = APP_RAIL_WIDTH
 
   return (
     <div
@@ -12886,7 +12710,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                       cursor: "pointer",
                     }}
                   >
-                    {option === "all" ? "All scans" : "Saved"}
+                    {option === "all" ? "All Scans" : "Saved"}
                   </button>
                 )
               })}
@@ -12914,7 +12738,8 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                 aria-label="Search scans"
                 style={{
                   width: "100%",
-                  padding: "14px 18px 14px 42px",
+                  minHeight: 44,
+                  padding: "10px 12px 10px 40px",
                   boxSizing: "border-box",
                   borderRadius: 999,
                   border: "none",
@@ -12922,7 +12747,7 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
                   color: SOFT_SLATE.textPrimary,
                   outline: "none",
                   fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 13.5,
+                  fontSize: 16,
                   boxShadow: SOFT_SLATE.insetMd,
                 }}
               />
@@ -13516,7 +13341,13 @@ function SoftSlateOtherChip({
   )
 }
 
-const POPULAR_KNOWLEDGE = ["MSG", "Gluten", "Maltodextrin", "Soy Lecithin", "Tartrazine"]
+const KNOWLEDGE_STARTERS = [
+  { term: "MSG", hint: "A flavor enhancer. Also called monosodium glutamate." },
+  { term: "Gluten", hint: "A protein in wheat, barley, and rye." },
+  { term: "Maltodextrin", hint: "A starch used to thicken or fill a food." },
+  { term: "Soy Lecithin", hint: "An emulsifier made from soy." },
+  { term: "Tartrazine", hint: "A yellow food color, also called Yellow 5." },
+]
 
 function KnowledgeFact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -13575,7 +13406,7 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", background: SOFT_SLATE.bg }}>
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="knowledge" />
         </div>
       )}
@@ -13584,72 +13415,93 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
-          marginLeft: isDesktop ? 132 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           paddingTop: isDesktop ? 0 : "env(safe-area-inset-top)",
         }}
       >
         <Center maxWidth={720}>
-          <div className="scanity-profile" style={{ padding: isDesktop ? "24px 24px 48px 0" : "16px 20px 40px", textAlign: "left" }}>
+          <div className="scanity-profile" style={{ padding: isDesktop ? "24px 24px 48px 0" : "16px 16px 40px", textAlign: "left" }}>
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="knowledge" />}
             <h1 style={{ margin: "8px 0 0", fontSize: isDesktop ? 32 : 28, fontWeight: 700, lineHeight: 1.2, color: SOFT_SLATE.textPrimary }}>
-              What do you want to know?
+              Ingredient guide
             </h1>
-            <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
-              Ask Scanity what a food-related term means. This is not a product search.
+            <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
+              Look up a word from a label. This is a guide, not a product search.
             </p>
 
-            <label htmlFor="knowledge-search" style={{ display: "block", marginTop: 24, fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
-              What are you looking for?
-            </label>
-            <input
-              id="knowledge-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search ingredients, allergens, additives..."
-              autoComplete="off"
+            <div
               style={{
-                display: "block",
-                width: "100%",
-                marginTop: 8,
-                minHeight: 48,
-                boxSizing: "border-box",
-                border: "1px solid var(--scanity-border)",
-                borderRadius: 12,
-                background: "var(--scanity-panel)",
-                padding: "12px 16px",
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 16,
-                lineHeight: 1.5,
-                color: SOFT_SLATE.textPrimary,
+                marginTop: 20,
+                padding: 16,
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.raisedSm,
               }}
-            />
-            <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>
-              Try: MSG, maltodextrin, soy lecithin, gluten
-            </p>
+            >
+              <label htmlFor="knowledge-search" style={{ display: "block", fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
+                Search the guide
+              </label>
+              <input
+                id="knowledge-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="MSG, gluten, soy lecithin"
+                autoComplete="off"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: 8,
+                  minHeight: 48,
+                  boxSizing: "border-box",
+                  border: "none",
+                  borderRadius: 12,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.insetSm,
+                  padding: "12px 16px",
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 16,
+                  lineHeight: 1.5,
+                  color: SOFT_SLATE.textPrimary,
+                }}
+              />
+            </div>
 
             {status === "idle" && (
-              <div style={{ marginTop: 28 }}>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>Popular searches</h2>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-                  {POPULAR_KNOWLEDGE.map((term) => (
+              <div style={{ marginTop: 20 }}>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.3 }}>Start with a common term</h2>
+                <div
+                  style={{
+                    marginTop: 12,
+                    borderRadius: 16,
+                    background: SOFT_SLATE.bg,
+                    boxShadow: SOFT_SLATE.raisedSm,
+                    overflow: "hidden",
+                  }}
+                >
+                  {KNOWLEDGE_STARTERS.map((item, index) => (
                     <button
-                      key={term}
+                      key={item.term}
                       type="button"
-                      onClick={() => setQuery(term)}
+                      onClick={() => setQuery(item.term)}
                       style={{
-                        minHeight: 44,
-                        padding: "10px 14px",
-                        borderRadius: 12,
-                        border: "1px solid var(--scanity-border)",
-                        background: "var(--scanity-panel)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        gap: 4,
+                        width: "100%",
+                        minHeight: 64,
+                        padding: "14px 16px",
+                        border: "none",
+                        borderTop: index === 0 ? "none" : "1px solid rgb(from var(--ss-text-primary) r g b / 0.08)",
+                        background: "transparent",
                         color: SOFT_SLATE.textPrimary,
                         fontFamily: SOFT_SLATE.fontFamily,
-                        fontSize: 16,
-                        fontWeight: 600,
+                        textAlign: "left",
                         cursor: "pointer",
                       }}
                     >
-                      {term}
+                      <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>{item.term}</span>
+                      <span style={{ fontSize: 15, fontWeight: 400, lineHeight: 1.4, color: SOFT_SLATE.textSecondary }}>{item.hint}</span>
                     </button>
                   ))}
                 </div>
@@ -14069,7 +13921,7 @@ function ProfileScreen({
             top: 22,
             left: 26,
             bottom: 22,
-            width: 80,
+            width: APP_RAIL_WIDTH,
             zIndex: 5,
           }}
         >
@@ -14084,11 +13936,11 @@ function ProfileScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+        <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
             <div
               className="scanity-profile"
               style={{
@@ -14194,8 +14046,8 @@ function ProfileScreen({
                     boxSizing: "border-box",
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "flex-start",
-                    textAlign: "left",
+                    alignItems: "center",
+                    textAlign: "center",
                   }}
                 >
                   <div style={{ position: "relative" }}>
@@ -14938,7 +14790,7 @@ function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => 
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="help" />
         </div>
       )}
@@ -14950,11 +14802,11 @@ function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => 
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+        <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
           <div
             style={{
               display: "flex",
@@ -15272,7 +15124,7 @@ function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => vo
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="about" />
         </div>
       )}
@@ -15284,11 +15136,11 @@ function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => vo
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+        <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
           <div
             style={{
               display: "flex",
@@ -16196,7 +16048,7 @@ function LegalScreen({
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16208,11 +16060,11 @@ function LegalScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+        <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
           <div
             style={{
               display: "flex",
@@ -16453,7 +16305,7 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16465,11 +16317,11 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
         }}
       >
-        <Center maxWidth={isDesktop ? 1420 - (80 + 26 + 26) : undefined}>
+        <Center maxWidth={isDesktop ? 1420 - (APP_RAIL_WIDTH) : undefined}>
           <div
             style={{
               display: "flex",
@@ -16737,7 +16589,7 @@ function ChangePasswordScreen({
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16749,7 +16601,7 @@ function ChangePasswordScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
           display: "flex",
           flexDirection: "column",
@@ -16917,7 +16769,7 @@ function DeleteAccountScreen({
       }}
     >
       {isDesktop && (
-        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: 80, zIndex: 5 }}>
+        <div style={{ position: "fixed", top: 22, left: 26, bottom: 22, width: APP_RAIL_WIDTH, zIndex: 5 }}>
           <DashboardIconRail go={go} isDesktop active="settings" />
         </div>
       )}
@@ -16929,7 +16781,7 @@ function DeleteAccountScreen({
           overflowY: "auto",
           paddingTop: isDesktop ? 0 : SAFE_TOP,
           boxSizing: "border-box",
-          marginLeft: isDesktop ? 80 + 26 + 26 : 0,
+          marginLeft: isDesktop ? APP_RAIL_WIDTH + 52 : 0,
           fontFamily: SOFT_SLATE.fontFamily,
           display: "flex",
           flexDirection: "column",
@@ -17393,11 +17245,11 @@ function ForgotPasswordScreen({
 
           <p
             style={{
-              margin: "0 0 30px",
-              maxWidth: isDesktop ? 340 : 260,
-              fontSize: isDesktop ? 13 : 10,
-              lineHeight: isDesktop ? "20px" : "15px",
-              color: "rgb(from var(--ss-text-primary) r g b / 0.58)",
+              margin: "0 0 24px",
+              maxWidth: 340,
+              fontSize: 16,
+              lineHeight: 1.5,
+              color: "rgb(from var(--ss-text-primary) r g b / 0.72)",
               textAlign: "center",
             }}
           >
@@ -17414,15 +17266,16 @@ function ForgotPasswordScreen({
             }}
           >
             <label
+              htmlFor="forgot-email"
               style={{
                 display: "block",
-                marginBottom: 7,
-                fontSize: isDesktop ? 12 : 10,
+                marginBottom: 8,
+                fontSize: 16,
                 fontWeight: 600,
                 color: PALETTE.textDark,
               }}
             >
-              Email Address
+              Email
             </label>
 
             <div
@@ -17453,10 +17306,12 @@ function ForgotPasswordScreen({
               />
 
               <input
+                id="forgot-email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                placeholder="name@email.com"
                 style={{
                   width: "100%",
                   height: "100%",
@@ -17465,7 +17320,7 @@ function ForgotPasswordScreen({
                   background: "transparent",
                   color: PALETTE.textDark,
                   fontFamily: FONT_BODY,
-                  fontSize: isDesktop ? 13 : 11,
+                  fontSize: 16,
                 }}
               />
             </div>
@@ -17516,12 +17371,12 @@ function ForgotPasswordScreen({
             {sending ? "Sending…" : sent ? "Reset link sent" : "Send reset link"}
           </button>
           {sent ? (
-            <p style={{ margin: "14px 0 0", maxWidth: 340, textAlign: "center", fontSize: 13, lineHeight: 1.45, color: PALETTE.textDark }}>
+            <p style={{ margin: "14px 0 0", maxWidth: 340, textAlign: "center", fontSize: 16, lineHeight: 1.5, color: PALETTE.textDark }}>
               Check {email.trim()} and open the link. It brings you back here to set a new password.
             </p>
           ) : null}
           {sendError ? (
-            <p style={{ margin: "12px 0 0", fontSize: 13, color: C.statusDanger }}>{sendError}</p>
+            <p role="alert" style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.45, color: C.statusDanger }}>{sendError}</p>
           ) : null}
 
           {/* Login */}
@@ -17534,7 +17389,7 @@ function ForgotPasswordScreen({
               background: "transparent",
               color: "rgb(from var(--ss-text-primary) r g b / 0.55)",
               fontFamily: FONT_BODY,
-              fontSize: isDesktop ? 12 : 10,
+              fontSize: 16,
               cursor: "pointer",
             }}
           >
@@ -17542,10 +17397,10 @@ function ForgotPasswordScreen({
             <span
               style={{
                 color: C.greenLight,
-                fontWeight: 750,
+                fontWeight: 700,
               }}
             >
-              Login
+              Sign in
             </span>
           </button>
 
@@ -17554,8 +17409,8 @@ function ForgotPasswordScreen({
             style={{
               margin: isDesktop ? "32px 0 0" : "24px 0 0",
               textAlign: "center",
-              fontSize: isDesktop ? 12 : 10,
-              color: "rgb(from var(--ss-text-primary) r g b / 0.35)",
+              fontSize: 14,
+              color: "rgb(from var(--ss-text-primary) r g b / 0.45)",
             }}
           >
             Scanity • See It. Know It. Eat It.

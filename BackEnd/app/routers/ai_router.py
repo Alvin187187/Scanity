@@ -149,5 +149,6 @@ async def ai_ingredient_explain(
         request.ingredient,
         product_name=request.product_name,
         profile_conditions=request.conditions,
+        allow_hosted_ai=True,
     )
     return IngredientExplainResponse(**data)

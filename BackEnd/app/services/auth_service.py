@@ -224,17 +224,24 @@ def _reset_redirect(origin: str | None) -> str:
 
 
 def request_password_reset(email: str, redirect_origin: str | None = None) -> None:
+    """Ask Supabase Auth to email a recovery link. Unknown emails stay silent."""
     redirect = _reset_redirect(redirect_origin)
-    try:
-        supabase.auth.reset_password_for_email(
-            email,
-            {"redirect_to": redirect},
-        )
-    except Exception:
+    options = {"redirect_to": redirect}
+    last_error: Exception | None = None
+    for sender in (
+        lambda: supabase.auth.reset_password_for_email(email, options),
+        lambda: supabase.auth.reset_password_email(email, options),
+    ):
         try:
-            supabase.auth.reset_password_email(email, {"redirect_to": redirect})
-        except Exception:
-            pass
+            sender()
+            return
+        except Exception as exc:
+            last_error = exc
+    message = _auth_message(last_error) if last_error else ""
+    lowered = message.lower()
+    if any(token in lowered for token in ("user not found", "not found", "no user")):
+        return
+    raise AuthError("We could not send the reset email. Wait a moment and try again.")
 
 
 def _reject_reused_password(email: str, new_password: str) -> None:
