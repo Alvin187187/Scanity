@@ -25,8 +25,8 @@ import {
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
-import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName } from "./api/scan"
-import { extractOcrImage, PACKAGE_READ_TIMEOUT_MS } from "./api/ocr"
+import { lookupBarcodeProduct, searchOffByName } from "./api/scan"
+import { PACKAGE_READ_TIMEOUT_MS, readPackageTitle } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   conditionsForApi,
@@ -7237,7 +7237,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     go("productResult")
   }
 
-  const presentPackageMatch = async (title: string, origin: "barcode" | "ocr") => {
+  const presentPackageMatch = async (
+    title: string,
+    origin: "barcode" | "ocr",
+    extraTitles: string[] = [],
+  ) => {
     const cleanTitle = title.trim()
     if (!cleanTitle) {
       throw new Error("Could not read the product name. Please try again.")
@@ -7245,9 +7249,20 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     setProductName(cleanTitle)
     setScanStatus("productProcessing")
 
+    const guesses = [cleanTitle, ...extraTitles].filter((item, index, list) => {
+      const key = item.trim().toLowerCase()
+      return key.length >= 3 && list.findIndex((other) => other.trim().toLowerCase() === key) === index
+    })
+
     try {
-      const matches = await searchOffByName(cleanTitle)
-      const best = matches[0]
+      let best: { code: string; product_name: string } | undefined
+      for (const guess of guesses.slice(0, 5)) {
+        const matches = await searchOffByName(guess)
+        if (matches[0]?.code) {
+          best = matches[0]
+          break
+        }
+      }
       if (best?.code) {
         const result = await lookupBarcodeProduct(
           best.code,
@@ -7302,9 +7317,9 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       const prepared = await shrinkSource(source)
       const controller = new AbortController()
       const timeoutId = window.setTimeout(() => controller.abort(), PACKAGE_READ_TIMEOUT_MS)
-      let data
+      let read
       try {
-        data = await extractOcrImage(
+        read = await readPackageTitle(
           await sourceToBlob(prepared),
           allergyCategoriesForApi(),
           controller.signal,
@@ -7312,18 +7327,14 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       } finally {
         window.clearTimeout(timeoutId)
       }
-      const text = String(data?.extracted_text || data?.product_name || "").trim()
-      const title = String(data?.product_name || "").trim() || productTitleFromOcr(text) || text
-      if (!title) {
-        throw new Error("No product name was detected. Hold the name steady and try again in good light.")
-      }
-      await presentPackageMatch(title, origin)
+      await presentPackageMatch(read.title, origin, read.candidates)
     } catch (error) {
       console.error("OCR processing error:", error)
+      const message = error instanceof Error ? error.message : ""
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while reading the package.",
+        /failed to fetch|networkerror|load failed|SCANITY_API_UNREACHABLE/i.test(message)
+          ? "Could not read this package photo. Hold the name steady and try again."
+          : message || "Something went wrong while reading the package.",
       )
       setScanStatus("error")
       stopCamera()
