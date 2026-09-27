@@ -330,6 +330,9 @@ async function lookupViaOpenFoodFacts(
 const TITLE_NOISE =
   /^(ingredients?|ingredientes?|nutrition|nutritional|contains|allergen|allergens|serving|calories|energy|protein|total|saturated|carbohydrate|sugars?|sodium|fat|dietary|best before|www\.|http|imported|manufactured|net wt|net weight|per 100|may contain|storage|keep|distributed)/i
 
+const TITLE_DESCRIPTION =
+  /\b(made with|baked with|perfect for|serving suggestion|delicious|recipe|contains|rich in|source of|for your family|no artificial)\b/i
+
 const GENERIC_TITLE_WORDS = new Set([
   "water",
   "milk",
@@ -351,13 +354,30 @@ function titleTokens(value: string): string[] {
     .filter((token) => token.length > 2 && !["the", "and", "with", "for"].includes(token))
 }
 
+function tokensClose(left: string, right: string): boolean {
+  if (left === right) return true
+  if (left.length > 3 && (right.includes(left) || left.includes(right))) return true
+  if (Math.min(left.length, right.length) < 5 || Math.abs(left.length - right.length) > 1) return false
+  let mismatches = 0
+  const limit = Math.max(left.length, right.length)
+  for (let index = 0; index < limit; index += 1) {
+    if (left[index] !== right[index]) mismatches += 1
+    if (mismatches > 1) return false
+  }
+  return mismatches === 1
+}
+
+function looksLikeDescription(line: string): boolean {
+  if (line.includes(",") || TITLE_DESCRIPTION.test(line)) return true
+  return line.split(/\s+/).length > 7
+}
+
 /** True when the proposed name still uses the words that were read off the package. */
 export function titleAgreesWithOcr(title: string, source: string): boolean {
   const wanted = titleTokens(title)
   if (!wanted.length) return false
   const haystack = titleTokens(source)
-  const hit = (token: string) =>
-    haystack.some((word) => word === token || (token.length > 3 && (word.includes(token) || token.includes(word))))
+  const hit = (token: string) => haystack.some((word) => tokensClose(token, word))
   const distinctive = wanted.filter((token) => !GENERIC_TITLE_WORDS.has(token))
   const required = distinctive.length ? distinctive : wanted
   const hits = required.filter(hit).length
@@ -368,9 +388,7 @@ function productNameScore(query: string, candidate: string): number {
   const wanted = titleTokens(query).filter((token) => !GENERIC_TITLE_WORDS.has(token))
   if (!wanted.length || !titleAgreesWithOcr(query, candidate)) return 0
   const haystack = titleTokens(candidate)
-  const hits = wanted.filter((token) =>
-    haystack.some((word) => word === token || (token.length > 3 && (word.includes(token) || token.includes(word)))),
-  ).length
+  const hits = wanted.filter((token) => haystack.some((word) => tokensClose(token, word))).length
   return hits / wanted.length
 }
 
@@ -380,7 +398,7 @@ export function productTitleFromOcr(text: string): string {
   for (const raw of String(text || "").split(/\r?\n/)) {
     const line = raw.replace(/\s+/g, " ").replace(/^[\s.|–—-]+|[\s.|–—-]+$/g, "")
     if (line.length < 3 || line.length > 60) continue
-    if (TITLE_NOISE.test(line)) continue
+    if (TITLE_NOISE.test(line) || looksLikeDescription(line)) continue
     if (/^[\d\s./%-]+$/.test(line)) continue
     if (line.replace(/[^A-Za-z]/g, "").length < 3) continue
     lines.push(line)
