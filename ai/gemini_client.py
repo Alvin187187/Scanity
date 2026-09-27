@@ -154,15 +154,28 @@ def _extract_openrouter_text(data: dict) -> str:
     return ""
 
 
-def _call_google(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float, timeout: float) -> str:
+def _call_google(
+    api_key: str,
+    model: str,
+    prompt: str,
+    system_instructions: str,
+    max_output_tokens: int,
+    temperature: float,
+    timeout: float,
+    image_b64: str | None = None,
+    image_mime: str = "image/jpeg",
+) -> str:
     url = GOOGLE_ENDPOINT.format(model=model)
     headers = {
         "Content-Type": "application/json",
         "x-goog-api-key": api_key,
     }
+    parts: list[dict] = [{"text": prompt}]
+    if image_b64:
+        parts.append({"inline_data": {"mime_type": image_mime, "data": image_b64}})
     payload = {
         "systemInstruction": {"parts": [{"text": system_instructions}]},
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {
             "temperature": temperature,
             "maxOutputTokens": max_output_tokens,
@@ -180,7 +193,17 @@ def _call_google(api_key: str, model: str, prompt: str, system_instructions: str
         return ""
 
 
-def _call_openrouter(api_key: str, model: str, prompt: str, system_instructions: str, max_output_tokens: int, temperature: float, timeout: float) -> str:
+def _call_openrouter(
+    api_key: str,
+    model: str,
+    prompt: str,
+    system_instructions: str,
+    max_output_tokens: int,
+    temperature: float,
+    timeout: float,
+    image_b64: str | None = None,
+    image_mime: str = "image/jpeg",
+) -> str:
     routed_model = _normalize_openrouter_model(model)
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -188,11 +211,22 @@ def _call_openrouter(api_key: str, model: str, prompt: str, system_instructions:
         "HTTP-Referer": os.environ.get("OPENROUTER_REFERER", "https://scanity.app"),
         "X-Title": os.environ.get("OPENROUTER_TITLE", "Scanity"),
     }
+    user_content: str | list[dict]
+    if image_b64:
+        user_content = [
+            {"type": "text", "text": prompt},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{image_mime};base64,{image_b64}"},
+            },
+        ]
+    else:
+        user_content = prompt
     payload = {
         "model": routed_model,
         "messages": [
             {"role": "system", "content": system_instructions},
-            {"role": "user", "content": prompt},
+            {"role": "user", "content": user_content},
         ],
         "temperature": temperature,
         "max_tokens": max_output_tokens,
@@ -221,6 +255,8 @@ def call_hosted_ai(
     max_output_tokens: int = 512,
     temperature: float = 0.35,
     timeout_seconds: float | None = None,
+    image_b64: str | None = None,
+    image_mime: str = "image/jpeg",
 ) -> str:
     """
     Send a prompt to hosted Gemini (Google or OpenRouter) and return plain text.
@@ -241,13 +277,33 @@ def call_hosted_ai(
     timeout = float(timeout_seconds) if timeout_seconds is not None else float(TIMEOUT_SECONDS)
     try:
         if provider == "openrouter":
-            text = _call_openrouter(api_key, model, prompt, system, max_output_tokens, temperature, timeout)
+            text = _call_openrouter(
+                api_key,
+                model,
+                prompt,
+                system,
+                max_output_tokens,
+                temperature,
+                timeout,
+                image_b64=image_b64,
+                image_mime=image_mime,
+            )
             if text:
                 _set_status("gemini", f"openrouter:{_normalize_openrouter_model(model)}")
                 return text
             return FALLBACK_TEXT
 
-        text = _call_google(api_key, model, prompt, system, max_output_tokens, temperature, timeout)
+        text = _call_google(
+            api_key,
+            model,
+            prompt,
+            system,
+            max_output_tokens,
+            temperature,
+            timeout,
+            image_b64=image_b64,
+            image_mime=image_mime,
+        )
         if text:
             _set_status("gemini", f"google:{model}")
             return text

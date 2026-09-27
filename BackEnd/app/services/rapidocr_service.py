@@ -80,9 +80,9 @@ def _load_engine():
 
 
 def _prepare_image_bytes(image_bytes: bytes) -> bytes:
-    """Straighten, enlarge, and sharpen a gallery photo before recognition."""
+    """Downscale a package photo so vision and OCR stay fast."""
     try:
-        from PIL import Image, ImageFilter, ImageOps
+        from PIL import Image, ImageOps
     except ImportError:
         return image_bytes
 
@@ -94,21 +94,14 @@ def _prepare_image_bytes(image_bytes: bytes) -> bytes:
 
     width, height = image.size
     longest = max(width, height) or 1
-    if longest < 1200:
-        scale = min(2.0, 1800 / longest)
-    elif longest > 2000:
-        scale = 2000 / longest
-    else:
-        scale = 1.0
-    if scale != 1.0:
+    if longest > 1024:
+        scale = 1024 / longest
         image = image.resize(
             (max(1, int(width * scale)), max(1, int(height * scale))),
-            Image.Resampling.LANCZOS,
+            Image.Resampling.BILINEAR,
         )
-    image = ImageOps.autocontrast(image, cutoff=1)
-    image = image.filter(ImageFilter.SHARPEN)
     buffer = io.BytesIO()
-    image.save(buffer, format="JPEG", quality=92)
+    image.save(buffer, format="JPEG", quality=82)
     return buffer.getvalue()
 
 
@@ -161,27 +154,43 @@ def _texts_from_result(result) -> list[str]:
 
 
 def extract_text_from_image(image_bytes: bytes, content_type: str | None = None) -> str:
-    """Run RapidOCR PP-OCRv5 on a nutrition-label photo and return plain text."""
+    """Read a package photo and return the product name (or label text)."""
     if not image_bytes:
         raise InvalidLabelImageError("The uploaded image was empty.")
     if len(image_bytes) > MAX_IMAGE_BYTES:
-        raise InvalidLabelImageError("Please upload a label photo smaller than 8 MB.")
+        raise InvalidLabelImageError("Please upload a package photo smaller than 8 MB.")
     if content_type and content_type.lower() not in ALLOWED_CONTENT_TYPES:
-        raise InvalidLabelImageError("Please upload a JPEG, PNG, or WebP photo of the label.")
+        raise InvalidLabelImageError("Please upload a JPEG, PNG, or WebP photo of the package.")
+
+    prepared = _prepare_image_bytes(image_bytes)
+    mime = (content_type or "image/jpeg").lower()
+    if mime not in {"image/jpeg", "image/jpg", "image/png", "image/webp"}:
+        mime = "image/jpeg"
+    if mime == "image/jpg":
+        mime = "image/jpeg"
+
+    try:
+        from app.services.product_title_service import title_from_package_photo
+
+        title = title_from_package_photo(prepared, mime)
+        if title:
+            return title
+    except Exception:
+        logger.warning("Hosted package reading was unavailable.")
 
     try:
         engine = _load_engine()
-        result = engine(_prepare_image_bytes(image_bytes))
+        result = engine(prepared)
     except OCREngineUnavailableError:
         raise
     except Exception as exc:
-        logger.exception("RapidOCR failed to read the label image.")
-        raise OCREngineUnavailableError("RapidOCR could not read this label image.") from exc
+        logger.exception("RapidOCR failed to read the package photo.")
+        raise OCREngineUnavailableError("Could not read this package photo.") from exc
 
     lines = _texts_from_result(result)
     text = "\n".join(lines).strip()
     if not text:
         raise InvalidLabelImageError(
-            "No text was detected. Please make sure the nutrition label is clear and readable."
+            "No product name was detected. Hold the name steady and try again in good light."
         )
     return text

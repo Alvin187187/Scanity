@@ -7,7 +7,6 @@ import {
   type CSSProperties,
   type ChangeEvent,
 } from "react"
-import { createWorker, PSM } from "tesseract.js"
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser"
 import { BarcodeFormat, DecodeHintType } from "@zxing/library"
 import logoImg from "@/imports/image-19.png"
@@ -26,8 +25,8 @@ import {
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
-import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName, titleAgreesWithOcr } from "./api/scan"
-import { analyzeOcrText, cleanProductTitle, extractOcrImage } from "./api/ocr"
+import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName } from "./api/scan"
+import { extractOcrImage } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   conditionsForApi,
@@ -6361,7 +6360,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                     style={{
                       position: "absolute",
                       inset: 0,
-                      background: "rgba(233,237,242,0.97)",
+                      background: SOFT_SLATE.bg,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
@@ -6374,13 +6373,13 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                         width: 45,
                         height: 45,
                         borderRadius: "50%",
-                        border: "4px solid #c6ccd4",
+                        border: "4px solid color-mix(in srgb, var(--ss-text-muted) 45%, transparent)",
                         borderTopColor: SOFT_SLATE.green,
                         animation: "scanitySpin 0.8s linear infinite",
                         marginBottom: 15,
                       }}
                     />
-                    <strong style={{ fontSize: 16, color: SOFT_SLATE.textPrimary }}>Analyzing product...</strong>
+                    <strong style={{ fontSize: 16, color: SOFT_SLATE.textPrimary }}>Finding the product</strong>
                     <span style={{ maxWidth: 390, marginTop: 7, padding: "0 20px", fontSize: 10, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
                       Getting real product information from the Scanity backend.
                     </span>
@@ -6430,7 +6429,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                     style={{
                       position: "absolute",
                       inset: 0,
-                      background: "rgba(233,237,242,0.97)",
+                      background: SOFT_SLATE.bg,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
@@ -7058,7 +7057,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   const [showLogoutLoading, setShowLogoutLoading] = useState(false)
 
   const [scanStatus, setScanStatus] = useState<
-    "ready" | "scanning" | "captured" | "ocrProcessing" | "textPreview" | "productProcessing" | "error"
+    "ready" | "scanning" | "captured" | "ocrProcessing" | "productProcessing" | "error"
   >(() => (ocrRetryNote("ocr") ? "error" : "ready"))
 
   const [extractedText, setExtractedText] = useState("")
@@ -7195,65 +7194,10 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     return canvas
   }
 
-  // ── PARSE INGREDIENTS ──────────────────────────────────────────────────
-  // Mirrors BackEnd clean_ingredient_text: do not require the word
-  // "Ingredients" (OCR often mangles it). Split the whole label if needed.
-  const parseIngredients = (text: string) => {
-    if (!text?.trim()) return []
-
-    const headerMatch = text.match(
-      /(?:ingredients?|ingredientes?|mga\s+sangkap|sangkap|composition)\s*:?\s*/i,
-    )
-    let ingredientText = headerMatch
-      ? text.slice(headerMatch.index! + headerMatch[0].length)
-      : text
-
-    const stopWords = [
-      "nutrition facts",
-      "nutrition information",
-      "nutritional information",
-      "allergen information",
-      "allergens",
-      "contains:",
-      "may contain",
-      "serving size",
-      "calories",
-      "best before",
-      "net wt",
-      "net weight",
-    ]
-    const lower = ingredientText.toLowerCase()
-    let cut = ingredientText.length
-    for (const stopWord of stopWords) {
-      const index = lower.indexOf(stopWord)
-      if (index >= 0 && index < cut) cut = index
-    }
-    ingredientText = ingredientText.slice(0, cut)
-      .replace(/\s+and\s+/gi, ", ")
-      .replace(/[•·|]/g, ",")
-
-    const seen = new Set<string>()
-    return ingredientText
-      .split(/[,;\n/]+/)
-      .map((item) => item.replace(/[•*]/g, "").trim().replace(/^[\d.)\s%-]+/, "").trim())
-      .filter((item) => {
-        if (item.length < 2 || item.length > 80) return false
-        if (/^[\d.,%\s]+$/.test(item)) return false
-        const letters = (item.match(/[a-zA-Z]/g) || []).length
-        if (letters < 2) return false
-        const key = item.toLowerCase()
-        if (seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
-      .slice(0, 40)
-  }
-
-  // ── OCR PROCESS ─────────────────────────────────────────────────────────
   const sourceToBlob = async (source: string | HTMLCanvasElement | File): Promise<Blob> => {
     if (source instanceof File) return source
     if (source instanceof HTMLCanvasElement) {
-      const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.92))
+      const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.82))
       if (blob) return blob
       throw new Error("Unable to capture the package photo.")
     }
@@ -7262,11 +7206,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   }
 
   const shrinkSource = async (source: string | HTMLCanvasElement | File) => {
-    if (source instanceof File) return shrinkPhoto(source, 1800)
+    if (source instanceof File) return shrinkPhoto(source, 960)
     if (source instanceof HTMLCanvasElement) {
       const longest = Math.max(source.width, source.height) || 1
-      if (longest <= 1800) return source
-      const scale = 1800 / longest
+      if (longest <= 960) return source
+      const scale = 960 / longest
       const canvas = document.createElement("canvas")
       canvas.width = Math.max(1, Math.round(source.width * scale))
       canvas.height = Math.max(1, Math.round(source.height * scale))
@@ -7276,28 +7220,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       return canvas
     }
     const blob = await (await fetch(source)).blob()
-    return shrinkPhoto(new File([blob], "label.jpg", { type: blob.type || "image/jpeg" }), 1800)
-  }
-
-  const readWithTesseract = async (prepared: HTMLCanvasElement) => {
-    const worker = await createWorker("eng")
-    try {
-      await worker.setParameters({
-        tessedit_pageseg_mode: PSM.SPARSE_TEXT,
-        preserve_interword_spaces: "1",
-      })
-      const result = await worker.recognize(prepared)
-      return result?.data?.text?.trim() || ""
-    } finally {
-      await worker.terminate().catch(() => undefined)
-    }
-  }
-
-  const packageTextIsWeak = (value: string, title: string) => {
-    const letters = value.replace(/[^A-Za-z]/g, "")
-    if (letters.length < 8 || !title.trim()) return true
-    const foreign = (value.match(/[^\u0000-\u007F]/g) || []).length
-    return foreign > Math.max(4, letters.length * 0.25)
+    return shrinkPhoto(new File([blob], "label.jpg", { type: blob.type || "image/jpeg" }), 960)
   }
 
   const openConfirmedResult = (
@@ -7314,12 +7237,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     go("productResult")
   }
 
-  const presentPackageMatch = async (
-    title: string,
-    text: string,
-    parsedIngredients: string[],
-    origin: "barcode" | "ocr",
-  ) => {
+  const presentPackageMatch = async (title: string, origin: "barcode" | "ocr") => {
     const cleanTitle = title.trim()
     if (!cleanTitle) {
       throw new Error("Could not read the product name. Please try again.")
@@ -7345,7 +7263,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             barcode: best.code,
             imageUrl: product.image_url,
             ingredients: product.ingredients,
-            ingredientsText: product.ingredients_raw_text || text,
+            ingredientsText: product.ingredients_raw_text || cleanTitle,
             verdict: result?.verdict,
             grade: result?.nutri_score_grade,
             explanation: result?.explanation,
@@ -7363,33 +7281,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       console.warn("Open Food Facts lookup failed:", lookupError)
     }
 
-    const fromLabel = parsedIngredients.map((item) => item.trim()).filter(Boolean)
-    const finalIngredients = fromLabel.length > 0 ? fromLabel : parseIngredients(text)
-    if (finalIngredients.length === 0) {
-      throw new Error("Could not read this package clearly. Please try again.")
-    }
-
-    const data = await analyzeOcrText({
-      extracted_text: text,
-      edited_ingredients: finalIngredients,
-      user_allergies: allergyCategoriesForApi(),
-      user_conditions: conditionsForApi(),
-      product_name: cleanTitle,
-    })
     openConfirmedResult(
       storedScanFromAnalysis({
         source: "ocr",
         name: cleanTitle,
-        ingredients: data?.parsed_ingredients || finalIngredients,
-        ingredientsText: data?.extracted_text || text,
-        verdict: data?.verdict,
-        grade: data?.nutri_score_grade || data?.score,
-        explanation: data?.explanation,
-        allergyFlags: data?.allergy_flags,
-        allergyMatches: data?.allergy_matches,
-        labelInsights: data?.label_insights,
-        aiSource: data?.ai_source,
-        safetyScore: data?.safety_score,
+        ingredientsText: cleanTitle,
       }),
       origin,
     )
@@ -7403,64 +7299,19 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       stopCamera()
       setScanStatus("ocrProcessing")
-      await new Promise((resolve) => window.setTimeout(resolve, 40))
-
       const prepared = await shrinkSource(source)
-      let text = ""
-      let parsedIngredients: string[] = []
-
-      try {
-        const data = await Promise.race([
-          extractOcrImage(await sourceToBlob(prepared), allergyCategoriesForApi()),
-          new Promise<never>((_, reject) => {
-            window.setTimeout(() => reject(new Error("Package reading timed out.")), 20000)
-          }),
-        ])
-        text = String(data?.extracted_text || "").trim()
-        parsedIngredients = Array.isArray(data?.parsed_ingredients) ? data.parsed_ingredients : []
-      } catch (apiError) {
-        console.warn("Package OCR API unavailable:", apiError)
+      const data = await Promise.race([
+        extractOcrImage(await sourceToBlob(prepared), allergyCategoriesForApi()),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("Package reading timed out.")), 12000)
+        }),
+      ])
+      const text = String(data?.extracted_text || data?.product_name || "").trim()
+      const title = String(data?.product_name || "").trim() || productTitleFromOcr(text) || text
+      if (!title) {
+        throw new Error("No product name was detected. Hold the name steady and try again in good light.")
       }
-
-      if (prepared instanceof HTMLCanvasElement && packageTextIsWeak(text, productTitleFromOcr(text))) {
-        try {
-          const localText = await Promise.race([
-            readWithTesseract(prepared),
-            new Promise<string>((_, reject) => {
-              window.setTimeout(() => reject(new Error("On-device reading took too long.")), 12000)
-            }),
-          ])
-          const localLetters = localText.replace(/[^A-Za-z]/g, "").length
-          const currentLetters = text.replace(/[^A-Za-z]/g, "").length
-          if (localLetters > currentLetters || (productTitleFromOcr(localText) && !productTitleFromOcr(text))) {
-            text = localText
-            parsedIngredients = []
-          }
-        } catch (localError) {
-          console.warn("On-device OCR failed:", localError)
-        }
-      }
-
-      if (!text) {
-        throw new Error(
-          "No text was detected. Hold the product name steady, fill the frame, and try again in good light.",
-        )
-      }
-
-      let title = productTitleFromOcr(text)
-      try {
-        const cleaned = await cleanProductTitle(text)
-        const wordCount = cleaned.split(/\s+/).filter(Boolean).length
-        if (cleaned && !cleaned.includes(",") && wordCount > 0 && wordCount <= 8 && titleAgreesWithOcr(cleaned, text)) {
-          title = cleaned
-        }
-      } catch (titleError) {
-        console.warn("AI title cleanup unavailable:", titleError)
-      }
-
-      const ingredientsFromText = parseIngredients(text)
-      const merged = parsedIngredients.length > 0 ? parsedIngredients : ingredientsFromText
-      await presentPackageMatch(title, text, merged, origin)
+      await presentPackageMatch(title, origin)
     } catch (error) {
       console.error("OCR processing error:", error)
       setErrorMessage(
@@ -7503,33 +7354,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     }
   }
 
-  const handleGallery = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (!isLikelyImageFile(file)) {
-      setErrorMessage("Please select a photo of the label. JPG and PNG work best.")
-      event.target.value = ""
-      return
-    }
-    if (processingRef.current) return
-
-    try {
-      setErrorMessage("")
-      stopCamera()
-      setScanStatus("ocrProcessing")
-      const imageUrl = URL.createObjectURL(file)
-      setGalleryImage(imageUrl)
-      event.target.value = ""
-      await new Promise((resolve) => window.setTimeout(resolve, 30))
-      await processOCR(file)
-    } catch (error) {
-      console.error("Gallery OCR error:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Unable to read the selected image.")
-      setScanStatus("error")
-    }
-    if (event.target.value) event.target.value = ""
-  }
-
   const handleRetry = () => {
     stopCamera()
     clearOcrRetryNote()
@@ -7570,7 +7394,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       case "ocrProcessing": return ""
       case "productProcessing": return ""
       case "error": return errorMessage || "Please try again."
-      default: return "Point the camera at the product name, or choose a gallery photo."
+      default: return "Point the camera at the product name, then capture."
     }
   }
 
@@ -7641,7 +7465,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   Find the product
                 </div>
                 <div style={{ fontSize: 16, color: SOFT_SLATE.textSecondary, marginTop: 8, lineHeight: 1.5, maxWidth: "42ch" }}>
-                  Use the camera or a gallery photo of the product name.
+                  Use the camera to photograph the product name.
                 </div>
               </div>
 
@@ -7663,7 +7487,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
               </Tooltip>
             </div>
 
-            {/* ── Text preview / ingredient editor ───────────────────────── */}
+            {/* ── Camera ───────────────────────────────────────────── */}
             {(
               <section
                 style={{
@@ -7781,20 +7605,20 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                         <i className="fa fa-check" style={{ fontSize: 32 }} />
                       </div>
                       <strong style={{ fontSize: 18, fontWeight: 800 }}>Image Captured</strong>
-                      <span style={{ marginTop: 7, fontSize: 12 }}>Preparing OCR analysis...</span>
+                      <span style={{ marginTop: 7, fontSize: 12 }}>Reading the product name</span>
                     </div>
                   )}
 
                   {scanStatus === "ocrProcessing" && (
                     <div
                       style={{
-                        position: "absolute", inset: 0, background: "rgba(233,237,242,0.97)",
+                        position: "absolute", inset: 0, background: SOFT_SLATE.bg,
                         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center",
                       }}
                     >
                       <div
                         style={{
-                          width: 56, height: 56, borderRadius: "50%", border: "5px solid #c6ccd4",
+                          width: 56, height: 56, borderRadius: "50%", border: "5px solid color-mix(in srgb, var(--ss-text-muted) 45%, transparent)",
                           borderTopColor: SOFT_SLATE.green, animation: "scanitySpin 0.8s linear infinite", marginBottom: 18,
                         }}
                       />
@@ -7816,13 +7640,13 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   {scanStatus === "productProcessing" && (
                     <div
                       style={{
-                        position: "absolute", inset: 0, background: "rgba(233,237,242,0.97)",
+                        position: "absolute", inset: 0, background: SOFT_SLATE.bg,
                         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center",
                       }}
                     >
                       <div
                         style={{
-                          width: 56, height: 56, borderRadius: "50%", border: "5px solid #c6ccd4",
+                          width: 56, height: 56, borderRadius: "50%", border: "5px solid color-mix(in srgb, var(--ss-text-muted) 45%, transparent)",
                           borderTopColor: SOFT_SLATE.green, animation: "scanitySpin 0.8s linear infinite", marginBottom: 18,
                         }}
                       />
@@ -7846,14 +7670,14 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   {scanStatus === "error" && (
                     <div
                       style={{
-                        position: "absolute", inset: 0, background: "rgba(233,237,242,0.97)",
+                        position: "absolute", inset: 0, background: SOFT_SLATE.bg,
                         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                         textAlign: "center", padding: 25,
                       }}
                     >
                       <div
                         style={{
-                          width: 60, height: 60, borderRadius: "50%", background: "#F1DEDA", color: SOFT_SLATE.unsafe,
+                          width: 60, height: 60, borderRadius: "50%", background: "var(--ss-status-avoid-bg)", color: SOFT_SLATE.unsafe,
                           display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 13,
                         }}
                       >
@@ -7892,7 +7716,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                 </div>
 
                 {/* Controls - raised neumorphic squares, like the rail icons */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
                   <button
                     type="button"
                     className="scanity-slate-btn"
@@ -7926,21 +7750,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                     <i className="fa fa-refresh" style={{ fontSize: 17 }} />
                     <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Rotate</div>
                   </button>
-
-                  <label
-                    className="scanity-slate-btn"
-                    style={{
-                      border: "none", background: SOFT_SLATE.bg, borderRadius: 16,
-                      padding: isDesktop ? "15px 8px" : "13px 5px",
-                      boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
-                      color: SOFT_SLATE.green, cursor: scannerBusy ? "not-allowed" : "pointer",
-                      textAlign: "center", opacity: scannerBusy ? 0.55 : 1,
-                    }}
-                  >
-                    <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
-                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Gallery</div>
-                    <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif" onChange={handleGallery} disabled={scannerBusy} style={{ display: "none" }} />
-                  </label>
 
                   <button
                     type="button"
@@ -8002,7 +7811,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             </h3>
 
             {[
-              "Tap Camera or Gallery.",
+              "Tap Camera.",
               "Place the product name inside the frame.",
               "Scanity asks whether that product is correct.",
               "Choose yes to see the result, or try again.",

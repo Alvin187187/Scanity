@@ -19,6 +19,26 @@ def test_title_keeps_the_brand_instead_of_a_generic_word():
     assert heuristic_product_title(text) == "Nature Spring"
 
 
+def test_package_photo_title_uses_hosted_reader(monkeypatch):
+    from app.services.product_title_service import title_from_package_photo
+
+    monkeypatch.setattr(
+        "app.services.product_title_service.call_hosted_ai",
+        lambda *args, **kwargs: "Bravo Biscuits",
+    )
+    assert title_from_package_photo(b"fake-bytes") == "Bravo Biscuits"
+
+
+def test_package_photo_title_drops_unknown(monkeypatch):
+    from app.services.product_title_service import title_from_package_photo
+
+    monkeypatch.setattr(
+        "app.services.product_title_service.call_hosted_ai",
+        lambda *args, **kwargs: "UNKNOWN",
+    )
+    assert title_from_package_photo(b"fake-bytes") == ""
+
+
 def test_package_title_skips_marketing_description():
     text = "\n".join(
         [
