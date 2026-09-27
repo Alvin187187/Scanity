@@ -7389,6 +7389,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             appendScanHistory(stored)
             saveActiveScan(stored)
             setProductFound(true)
+            try {
+              window.sessionStorage.setItem("scanity_confirm_ocr", "1")
+            } catch {
+              // ignore
+            }
             go("productResult")
             return
           }
@@ -7397,7 +7402,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
         }
       }
 
-      setScanStatus("textPreview")
+      await lookupProductFromOCR({ force: true })
     } catch (error) {
       console.error("OCR processing error:", error)
       setErrorMessage(
@@ -7474,8 +7479,8 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   const removeIngredient = (index: number) => setIngredients(ingredients.filter((_, i) => i !== index))
 
   // ── PRODUCT LOOKUP ─────────────────────────────────────────────────────
-  const lookupProductFromOCR = async () => {
-    if (processingRef.current) return
+  const lookupProductFromOCR = async (options?: { force?: boolean }) => {
+    if (processingRef.current && !options?.force) return
     processingRef.current = true
 
     try {
@@ -7514,6 +7519,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           saveActiveScan(stored)
           setProductName(stored.name)
           setProductFound(true)
+          try {
+            window.sessionStorage.setItem("scanity_confirm_ocr", "1")
+          } catch {
+            // ignore
+          }
           go("productResult")
           return
         }
@@ -7559,7 +7569,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       setProductName(stored.name)
       setProductFound(true)
-
+      try {
+        window.sessionStorage.setItem("scanity_confirm_ocr", "1")
+      } catch {
+        // ignore
+      }
       go("productResult")
     } catch (error) {
       console.error("Product lookup error:", error)
@@ -9195,6 +9209,56 @@ function AllergySignalsCard({
   )
 }
 
+function whySafetyScore(
+  score: number,
+  verdict: CompareVerdict,
+  signals: AllergySignal[],
+  allergens: string[],
+) {
+  const avoid = signals.filter((item) => String(item.status).toLowerCase() === "avoid").map((item) => item.name)
+  const flagged = signals
+    .filter((item) => {
+      const status = String(item.status).toLowerCase()
+      return status === "caution" || status === "flagged" || status === "review"
+    })
+    .map((item) => item.name)
+  const avoidNames = (avoid.length ? avoid : allergens).filter(Boolean)
+  if (avoidNames.length) {
+    return `The score is ${score} because ${avoidNames.join(", ")} matches an allergy or restriction you saved. Avoid means do not treat this as a safe pick.`
+  }
+  if (flagged.length) {
+    return `The score is ${score} because ${flagged.join(", ")} needs a closer look for a dietary restriction you saved. It is not a direct allergy match.`
+  }
+  if (verdict === "safe") {
+    return `The score is ${score} because this label did not match the allergies or dietary restrictions you saved.`
+  }
+  return `The score is ${score} from the ingredients on this label and the allergies and restrictions saved on your profile.`
+}
+
+function whyNutritionGrade(
+  grade: NutritionGrade | null,
+  nutrition?: Record<string, number | undefined> | null,
+) {
+  const meaning: Record<NutritionGrade, string> = {
+    a: "A means the nutrient balance is mostly favorable.",
+    b: "B means the balance is good, with one or two less favorable nutrients.",
+    c: "C means the balance is mixed.",
+    d: "D means several nutrients are less favorable, often sugar, salt, or saturated fat.",
+    e: "E means many nutrients are less favorable.",
+  }
+  const sugars = nutrition?.sugars100g ?? nutrition?.sugars_g
+  const sat = nutrition?.saturatedFat100g ?? nutrition?.sat_fat_g
+  const sodium = nutrition?.sodiumMg ?? nutrition?.sodium_mg
+  const drivers = [
+    typeof sugars === "number" && sugars >= 12.5 ? "sugar is high per 100 g" : "",
+    typeof sat === "number" && sat >= 5 ? "saturated fat is high per 100 g" : "",
+    typeof sodium === "number" && sodium >= 400 ? "sodium is high per 100 g" : "",
+  ].filter(Boolean)
+  const letter = grade ? meaning[grade] : "This product has no Nutri-Score letter on file."
+  const driverText = drivers.length ? ` On this label, ${drivers.join(", ")}.` : ""
+  return `${letter}${driverText} This letter describes the product. It does not use your allergies.`
+}
+
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
   const scan = loadActiveScan()
@@ -9208,6 +9272,14 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const [reportText, setReportText] = useState("")
   const [reportBusy, setReportBusy] = useState(false)
   const [ingredientSheet, setIngredientSheet] = useState<IngredientSheetPayload | null>(null)
+  const [confirmOcr, setConfirmOcr] = useState(() => {
+    try {
+      return window.sessionStorage.getItem("scanity_confirm_ocr") === "1"
+    } catch {
+      return false
+    }
+  })
+  const [gradeNote, setGradeNote] = useState("")
   const chatEndRef = useRef<HTMLDivElement | null>(null)
 
   const rawGrade = scan?.grade
@@ -9459,8 +9531,37 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               />
             </div>
             <SafetySpeedGauge score={safetyScore} />
-            <p style={{ margin: "12px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
-              Starts high when nothing on this product hits allergies you asked Scanity to watch for. It drops when an ingredient is linked to your notes.
+            <p style={{ margin: "12px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
+              {whySafetyScore(safetyScore, verdict, allergySignals, allergens)}
+            </p>
+          </div>
+
+          <div
+            style={{
+              background: SOFT_SLATE.bg,
+              borderRadius: 18,
+              padding: "18px 16px",
+              boxShadow: SOFT_SLATE.raisedSm,
+              marginBottom: 24,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>
+                Nutri-Score {grade ? grade.toUpperCase() : "not listed"}
+              </h3>
+              <ExplainThisButton
+                busy={reportBusy}
+                label="Explain this grade"
+                onClick={() => {
+                  setGradeNote(whyNutritionGrade(grade, scan?.nutrition))
+                  void runSafetyReport(
+                    `Explain why this product received Nutri-Score ${grade ? grade.toUpperCase() : "unknown"}. Name the nutrients that pushed the letter up or down. Do not talk about my allergies in this answer.`,
+                  )
+                }}
+              />
+            </div>
+            <p style={{ margin: "12px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
+              {gradeNote || whyNutritionGrade(grade, scan?.nutrition)}
             </p>
           </div>
 
@@ -9797,6 +9898,97 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         productName={productName}
         onClose={() => setIngredientSheet(null)}
       />
+
+      {confirmOcr && (
+        <div
+          className="scanity-scrim"
+          role="presentation"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(36,41,47,0.55)",
+            zIndex: 240,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            className="scanity-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ocr-confirm-title"
+            style={{
+              width: "min(440px, 100%)",
+              background: SOFT_SLATE.bg,
+              borderRadius: 22,
+              padding: 20,
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+            }}
+          >
+            <h2 id="ocr-confirm-title" style={{ margin: 0, fontSize: 20, lineHeight: 1.3 }}>
+              Is this the product?
+            </h2>
+            <p style={{ margin: "8px 0 16px", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+              Scanity matched {productName}. Keep it only if this is what you photographed.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => {
+                  try {
+                    window.sessionStorage.removeItem("scanity_confirm_ocr")
+                  } catch {
+                    // ignore
+                  }
+                  setConfirmOcr(false)
+                }}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: SOFT_SLATE.green,
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                Yes, this is it
+              </button>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => {
+                  if (scan?.id) removeScanFromHistory(scan.id)
+                  try {
+                    window.sessionStorage.removeItem("scanity_confirm_ocr")
+                  } catch {
+                    // ignore
+                  }
+                  go("ocr")
+                }}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  color: SOFT_SLATE.textPrimary,
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                No, scan again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -9942,6 +10134,7 @@ type CompareProduct = {
   verdictReason?: string
   score?: number
   allergens?: string[]
+  signals?: AllergySignal[]
   ingredientsText?: string
   nutrition?: {
     energyKcal100g?: number
@@ -10235,6 +10428,46 @@ function StatusBadge({
 
 // ── Allergen List ────────────────────────────────────────────────────────────
 
+function CompareSignalSummary({
+  signals = [],
+  allergens = [],
+}: {
+  signals?: AllergySignal[]
+  allergens?: string[]
+}) {
+  const avoid = signals.filter((item) => String(item.status).toLowerCase() === "avoid").map((item) => item.name)
+  const flagged = signals
+    .filter((item) => {
+      const status = String(item.status).toLowerCase()
+      return status === "caution" || status === "flagged" || status === "review"
+    })
+    .map((item) => item.name)
+  const avoidNames = avoid.length ? avoid : allergens
+  if (!avoidNames.length && !flagged.length) {
+    return (
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+        No flagged allergens found.
+      </p>
+    )
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {flagged.length > 0 && (
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45, color: SOFT_SLATE.textPrimary }}>
+          <span style={{ fontWeight: 800, color: SOFT_SLATE.caution }}>Flagged </span>
+          {flagged.join(", ")}
+        </p>
+      )}
+      {avoidNames.length > 0 && (
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45, color: SOFT_SLATE.textPrimary }}>
+          <span style={{ fontWeight: 800, color: SOFT_SLATE.unsafe }}>Avoid </span>
+          {avoidNames.join(", ")}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function AllergenList({
   allergens,
 }: {
@@ -10393,6 +10626,22 @@ function splitIngredients(text: string): string[] {
     .filter(Boolean)
 }
 
+function signalTone(
+  fragment: string,
+  signals: AllergySignal[] = [],
+  allergens: string[] = [],
+): "avoid" | "caution" | null {
+  const lower = fragment.toLowerCase()
+  const match = signals.find((item) => item.name && lower.includes(item.name.toLowerCase()))
+  if (match) {
+    const status = String(match.status).toLowerCase()
+    if (status === "avoid") return "avoid"
+    if (status === "caution" || status === "flagged" || status === "review") return "caution"
+  }
+  const allergen = allergens.find((name) => lower.includes(name.toLowerCase()))
+  return allergen ? "avoid" : null
+}
+
 function flagForIngredient(
   fragment: string,
   allergens: string[] = []
@@ -10436,9 +10685,7 @@ function IngredientBreakdown({
 
   const items = splitIngredients(product.ingredientsText)
 
-  const flagged = items.filter((item) =>
-    flagForIngredient(item, product.allergens)
-  )
+  const flagged = items.filter((item) => signalTone(item, product.signals, product.allergens))
 
   const visible = expanded
     ? items
@@ -10485,8 +10732,7 @@ function IngredientBreakdown({
             }}
           >
             {flagged.length} ingredient
-            {flagged.length > 1 ? "s" : ""} linked to a flagged
-            allergen
+            {flagged.length > 1 ? "s" : ""} linked to an allergy or dietary restriction
           </span>
         </div>
       )}
@@ -10499,10 +10745,8 @@ function IngredientBreakdown({
         }}
       >
         {visible.map((item, index) => {
-          const flag = flagForIngredient(
-            item,
-            product.allergens
-          )
+          const tone = signalTone(item, product.signals, product.allergens)
+          const flag = tone !== null
 
           return (
             <div
@@ -10513,14 +10757,18 @@ function IngredientBreakdown({
                 justifyContent: "space-between",
                 gap: 10,
                 padding: "9px 12px",
-                background: flag
-                  ? "rgba(232,69,60,0.10)"
-                  : index % 2 === 0
-                    ? "rgb(from var(--ss-text-primary) r g b / 0.03)"
-                    : "transparent",
-                borderLeft: flag
+                background: tone === "avoid"
+                  ? "rgba(232,69,60,0.12)"
+                  : tone === "caution"
+                    ? "rgba(212,160,23,0.16)"
+                    : index % 2 === 0
+                      ? "rgb(from var(--ss-text-primary) r g b / 0.03)"
+                      : "transparent",
+                borderLeft: tone === "avoid"
                   ? `3px solid ${C.statusDanger}`
-                  : "3px solid transparent",
+                  : tone === "caution"
+                    ? `3px solid ${SOFT_SLATE.caution}`
+                    : "3px solid transparent",
                 borderTop:
                   index === 0
                     ? "none"
@@ -10532,8 +10780,8 @@ function IngredientBreakdown({
                 onClick={() =>
                   setSheet({
                     name: item,
-                    status: flag ? "avoid" : "info",
-                    reason: flag ? `Flagged because this ingredient matches ${flag}.` : undefined,
+                    status: tone === "caution" ? "caution" : flag ? "avoid" : "info",
+                    reason: tone ? `Flagged because this ingredient matches a saved ${tone === "caution" ? "dietary restriction" : "allergy"}.` : undefined,
                   })
                 }
                 style={{
@@ -10794,13 +11042,13 @@ function NutritionTable({
               ? bv < av
               : bv > av
             : false
-        const valueStyle = (wins: boolean, missing: boolean): CSSProperties => ({
+        const valueStyle = (wins: boolean, worse: boolean, missing: boolean): CSSProperties => ({
           textAlign: "right",
-          fontSize: 14,
+          fontSize: 16,
           fontVariantNumeric: "tabular-nums",
           fontWeight: wins ? 800 : 600,
-          color: missing ? SOFT_SLATE.textMuted : wins ? SOFT_SLATE.green : SOFT_SLATE.textPrimary,
-          background: wins ? "rgb(from var(--ss-green, #176b3a) r g b / 0.08)" : "transparent",
+          color: missing ? SOFT_SLATE.textMuted : wins ? SOFT_SLATE.green : worse ? SOFT_SLATE.caution : SOFT_SLATE.textPrimary,
+          background: wins ? "rgb(from var(--ss-green, #176b3a) r g b / 0.16)" : worse ? "rgb(from var(--ss-caution, #b8860b) r g b / 0.14)" : "transparent",
           borderRadius: 10,
           padding: "8px 10px",
         })
@@ -10820,8 +11068,8 @@ function NutritionTable({
               {row.label}
               {isDesktop ? "" : " / 100 g"}
             </span>
-            <span style={{ ...valueStyle(aWins, av === undefined), textAlign: isDesktop ? "right" : "left" }}>{formatValue(av, row.unit)}</span>
-            <span style={valueStyle(bWins, bv === undefined)}>{formatValue(bv, row.unit)}</span>
+            <span style={{ ...valueStyle(aWins, bWins, av === undefined), textAlign: isDesktop ? "right" : "left" }}>{formatValue(av, row.unit)}</span>
+            <span style={valueStyle(bWins, aWins, bv === undefined)}>{formatValue(bv, row.unit)}</span>
           </div>
         )
       })}
@@ -11168,7 +11416,7 @@ function CmpSection({
             margin: 0,
             fontFamily: FONT_HEAD,
             fontWeight: 800,
-            fontSize: 17,
+            fontSize: 20,
             color: C.black,
           }}
         >
@@ -11180,7 +11428,7 @@ function CmpSection({
             style={{
               margin: "8px 0 0",
               fontFamily: FONT_BODY,
-              fontSize: 15,
+              fontSize: 16,
               lineHeight: 1.5,
               color: "var(--ss-ink-mid)",
             }}
@@ -11508,21 +11756,24 @@ function ProductCompareScreen({
   const [showResult, setShowResult] = useState(false)
   const [picking, setPicking] = useState<"a" | "b" | null>(null)
   const [scenario, setScenario] = useState<CompareScenario>("initial")
-  const [compareChatOpen, setCompareChatOpen] = useState(false)
+  const [compareChatOpen, setCompareChatOpen] = useState(true)
   const [compareChatInput, setCompareChatInput] = useState("")
   const [compareChatBusy, setCompareChatBusy] = useState(false)
   const [compareChatError, setCompareChatError] = useState("")
   const [compareMessages, setCompareMessages] = useState<AiChatMessage[]>([])
 
-  const sendCompareChat = async () => {
-    const text = compareChatInput.trim()
+  const sendCompareChat = async (preset?: string) => {
+    const text = (preset || compareChatInput).trim()
     if (!text || compareChatBusy) return
     const scanA = history.find((item) => item.id === slotA) || null
     const scanB = history.find((item) => item.id === slotB) || null
     const asked = [
-      `Compare ${scanA?.name || "the first product"} with ${scanB?.name || "the second product"} for my saved allergies.`,
+      `Compare ${scanA?.name || "the first product"} with ${scanB?.name || "the second product"} for my saved allergies and dietary restrictions.`,
+      scanA
+        ? `${scanA.name}: verdict ${scanA.verdict || "unknown"}. Signals: ${(scanA.allergySignals || []).map((item) => `${item.name} (${item.status})`).join(", ") || "none"}.`
+        : "",
       scanB
-        ? `${scanB.name}: verdict ${scanB.verdict || "unknown"}. Ingredients: ${(scanB.ingredients || []).slice(0, 16).join(", ") || "not listed"}.`
+        ? `${scanB.name}: verdict ${scanB.verdict || "unknown"}. Signals: ${(scanB.allergySignals || []).map((item) => `${item.name} (${item.status})`).join(", ") || "none"}. Ingredients: ${(scanB.ingredients || []).slice(0, 16).join(", ") || "not listed"}.`
         : "",
       `Question: ${text}`,
     ]
@@ -11615,6 +11866,7 @@ function ProductCompareScreen({
     verdictReason: scan.explanation,
     score: typeof scan.score === "number" ? scan.score : undefined,
     allergens: scan.allergens,
+    signals: scan.allergySignals,
     ingredientsText: scan.ingredientsText,
     nutrition: mapCompareNutrition(scan.nutrition as Record<string, unknown> | undefined),
     breakdown: null,
@@ -11974,9 +12226,9 @@ function ProductCompareScreen({
               color: SOFT_SLATE.textMuted,
             }}
           >
-            Allergens on this scan
+            Allergies and restrictions
           </p>
-          <AllergenList allergens={product.allergens} />
+          <CompareSignalSummary signals={product.signals} allergens={product.allergens} />
         </div>
       </div>
     )
@@ -12822,40 +13074,42 @@ function ProductCompareScreen({
             </Section>
 
             <section
-              className={compareChatOpen ? "scanity-dialog" : undefined}
-              style={{ ...raisedCard, marginTop: 22, padding: 16 }}
+              className="scanity-motion-fade"
+              style={{ ...raisedCard, marginTop: 28, padding: 18 }}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 18, color: SOFT_SLATE.textPrimary }}>Ask AI</h2>
-                  <p style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
-                    Ask which of these two fits your allergies better.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="scanity-hit"
-                  onClick={() => setCompareChatOpen((open) => !open)}
-                  style={{
-                    minHeight: 44,
-                    padding: "0 14px",
-                    border: "none",
-                    borderRadius: 14,
-                    background: SOFT_SLATE.green,
-                    color: "#fff",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  {compareChatOpen ? "Close" : "Ask"}
-                </button>
+              <h2 style={{ margin: 0, fontSize: 20, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>Ask about these two</h2>
+              <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
+                Ask which product fits your allergies and dietary restrictions.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+                {["Which one should I avoid?", "What is flagged on each?", "Which fits my restrictions?"].map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="scanity-hit"
+                    onClick={() => void sendCompareChat(prompt)}
+                    style={{
+                      minHeight: 40,
+                      padding: "8px 12px",
+                      border: "none",
+                      borderRadius: 12,
+                      background: SOFT_SLATE.bg,
+                      boxShadow: SOFT_SLATE.raisedSm,
+                      color: SOFT_SLATE.textPrimary,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {prompt}
+                  </button>
+                ))}
               </div>
               {compareChatOpen && (
                 <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
                   {compareMessages.length === 0 && (
-                    <p style={{ margin: 0, fontSize: 14, color: SOFT_SLATE.textSecondary }}>
-                      Try “Which one should I avoid?”
+                    <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+                      Answers use the flagged items and restrictions on both products.
                     </p>
                   )}
                   {compareMessages.map((item, index) => (
@@ -13851,7 +14105,6 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
         .then((rows) => {
           setResults(rows.filter((row) => row.ingredient_name))
           setSubmitted(term)
-          setPicked(null)
           setShowMore(false)
           setError("")
           setStatus("ready")
