@@ -26,8 +26,8 @@ import {
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
-import { lookupBarcodeProduct } from "./api/scan"
-import { analyzeOcrText, extractOcrImage } from "./api/ocr"
+import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName } from "./api/scan"
+import { analyzeOcrText, cleanProductTitle, extractOcrImage } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   conditionsForApi,
@@ -636,6 +636,7 @@ const APP_RAIL_WIDTH = 248
 function railShortLabel(label: string) {
   if (label === "Dashboard") return "Home"
   if (label === "Scan History") return "History"
+  if (label === "Settings") return "Settings"
   if (label === "Log out") return "Log out"
   return label
 }
@@ -1518,29 +1519,17 @@ function SplashScreen({ go }: { go: (s: Screen) => void }) {
         <button
           type="button"
           className="scanity-auth-primary"
+          onClick={() => go("login")}
+        >
+          Log in
+        </button>
+        <button
+          type="button"
+          className="scanity-auth-secondary"
           onClick={() => go("register")}
         >
-          Get started
+          Sign up
         </button>
-
-        <p
-          style={{
-            textAlign: "center",
-            marginTop: 8,
-            marginBottom: 0,
-            fontSize: 16,
-            color: SOFT_SLATE.textSecondary,
-          }}
-        >
-          Already have an account?{" "}
-          <button
-            type="button"
-            className="scanity-auth-link"
-            onClick={() => go("login")}
-          >
-            Sign in
-          </button>
-        </p>
       </div>
     </div>
   )
@@ -4315,7 +4304,10 @@ function DashboardIconRail({
         boxShadow: SOFT_SLATE.raisedLg,
         fontFamily: SOFT_SLATE.fontFamily,
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: isDesktop ? "hidden" : "visible",
+        marginBottom: isDesktop ? 0 : 22,
+        position: "relative",
+        zIndex: 2,
       }}
     >
       {/* Brand mark uses the Scanity logo */}
@@ -4363,11 +4355,12 @@ function DashboardIconRail({
           gap: isDesktop ? 4 : 4,
           flex: 1,
           minWidth: 0,
-          justifyContent: isDesktop ? undefined : "space-evenly",
+          justifyContent: isDesktop ? undefined : "flex-start",
           overflowX: isDesktop ? undefined : "auto",
           overflowY: "hidden",
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none",
+          paddingBottom: 2,
         }}
       >
         {navItems.map((item) => {
@@ -4390,7 +4383,8 @@ function DashboardIconRail({
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 style={{
-                  width: isDesktop ? "100%" : 64,
+                  width: isDesktop ? "100%" : "auto",
+                  minWidth: isDesktop ? undefined : 64,
                   minHeight: 44,
                   height: isDesktop ? 44 : "auto",
                   borderRadius: 16,
@@ -4423,7 +4417,7 @@ function DashboardIconRail({
                 >
                   {item.path}
                 </svg>
-                <span style={{ fontSize: isDesktop ? 14 : 12, lineHeight: 1.2 }}>
+                <span style={{ fontSize: isDesktop ? 14 : 11, lineHeight: 1.2, whiteSpace: "nowrap" }}>
                   {isDesktop ? item.label : railShortLabel(item.label)}
                 </span>
               </button>
@@ -4455,7 +4449,8 @@ function DashboardIconRail({
             marginTop: 0,
             marginLeft: isDesktop ? 0 : 2,
             flexShrink: 0,
-            width: isDesktop ? "100%" : 64,
+            width: isDesktop ? "100%" : "auto",
+            minWidth: isDesktop ? undefined : 64,
             minHeight: 44,
             height: isDesktop ? 44 : "auto",
             borderRadius: 16,
@@ -4489,7 +4484,7 @@ function DashboardIconRail({
             <path d="m16 17 5-5-5-5" />
             <path d="M21 12H9" />
           </svg>
-          <span style={{ fontSize: isDesktop ? 14 : 12, lineHeight: 1.2 }}>
+          <span style={{ fontSize: isDesktop ? 14 : 11, lineHeight: 1.2, whiteSpace: "nowrap" }}>
             {isDesktop ? "Log out" : railShortLabel("Log out")}
           </span>
         </button>
@@ -5579,6 +5574,17 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
           safetyScore: result?.safety_score,
         })
         appendScanHistory(stored)
+        const compareSlot = window.sessionStorage.getItem("scanity_compare_slot")
+        if ((compareSlot === "a" || compareSlot === "b") && stored.id) {
+          window.sessionStorage.removeItem("scanity_compare_slot")
+          window.sessionStorage.setItem(
+            "scanity_compare_filled",
+            JSON.stringify({ slot: compareSlot, id: stored.id }),
+          )
+          setScanStatus("success")
+          if (isMountedRef.current) go("productCompare")
+          return
+        }
         localStorage.setItem("scanityLastBarcode", cleanBarcode)
       } catch (storageError) {
         console.warn("Unable to save scan result:", storageError)
@@ -6488,6 +6494,37 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                 </button>
               )}
 
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => go("ocr")}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  width: "100%",
+                  maxWidth: 560,
+                  margin: "22px auto 0",
+                  minHeight: 88,
+                  padding: "16px 18px",
+                  border: "none",
+                  borderRadius: 20,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedMd,
+                  color: SOFT_SLATE.textPrimary,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontSize: 18, fontWeight: 800, color: SOFT_SLATE.green, letterSpacing: "-0.02em" }}>
+                  Read the package
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+                  No barcode? Point the camera at the product name, or upload a photo. Scanity keeps the name and looks it up.
+                </span>
+              </button>
+
               {/* ── Manual barcode entry ──────────────────────────────── */}
               <div style={{ maxWidth: 560, margin: "26px auto 0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -6564,30 +6601,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                     {errorMessage}
                   </p>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => go("ocr")}
-                  style={{
-                    marginTop: 16,
-                    minHeight: 44,
-                    padding: "10px 4px",
-                    border: "none",
-                    background: "none",
-                    color: SOFT_SLATE.green,
-                    fontFamily: SOFT_SLATE.fontFamily,
-                    fontSize: 16,
-                    fontWeight: 700,
-                    lineHeight: 1.4,
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  No barcode? Read the package text
-                </button>
-                <p style={{ margin: "4px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
-                  Scanity can recognize the product from the words printed on the label.
-                </p>
               </div>
             </div>
           </div>
@@ -7102,6 +7115,38 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     return response.blob()
   }
 
+  const shrinkSource = async (source: string | HTMLCanvasElement | File) => {
+    if (source instanceof File) return shrinkPhoto(source, 960)
+    if (source instanceof HTMLCanvasElement) {
+      const longest = Math.max(source.width, source.height) || 1
+      if (longest <= 960) return source
+      const scale = 960 / longest
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.max(1, Math.round(source.width * scale))
+      canvas.height = Math.max(1, Math.round(source.height * scale))
+      const context = canvas.getContext("2d")
+      if (!context) return source
+      context.drawImage(source, 0, 0, canvas.width, canvas.height)
+      return canvas
+    }
+    const blob = await (await fetch(source)).blob()
+    return shrinkPhoto(new File([blob], "label.jpg", { type: blob.type || "image/jpeg" }), 960)
+  }
+
+  const readWithTesseract = async (prepared: HTMLCanvasElement) => {
+    const worker = await createWorker("eng")
+    try {
+      await worker.setParameters({
+        tessedit_pageseg_mode: "6",
+        preserve_interword_spaces: "1",
+      })
+      const result = await worker.recognize(prepared)
+      return result?.data?.text?.trim() || ""
+    } finally {
+      await worker.terminate().catch(() => undefined)
+    }
+  }
+
   const processOCR = async (source: string | HTMLCanvasElement | File) => {
     if (processingRef.current) return
     processingRef.current = true
@@ -7109,73 +7154,98 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     try {
       setErrorMessage("")
       stopCamera()
-      setScanStatus("captured")
-
       setScanStatus("ocrProcessing")
+      await new Promise((resolve) => window.setTimeout(resolve, 40))
+
+      const prepared = await shrinkSource(source)
       let text = ""
       let parsedIngredients: string[] = []
 
-      // Prefer on-device OCR first. RapidOCR on the free Render host is often
-      // cold/unavailable and was making phone label scans feel broken.
       try {
-        const prepared = await preprocessLabelImage(source)
-        const worker = await createWorker("eng")
-        await worker.setParameters({
-          tessedit_pageseg_mode: "6",
-          preserve_interword_spaces: "1",
-        })
-        const result = await worker.recognize(prepared)
-        text = result?.data?.text?.trim() || ""
-        await worker.terminate()
-        parsedIngredients = parseIngredients(text)
-      } catch (localError) {
-        console.warn("On-device OCR failed:", localError)
+        const data = await Promise.race([
+          extractOcrImage(await sourceToBlob(prepared), allergyCategoriesForApi()),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(() => reject(new Error("Package reading timed out.")), 20000)
+          }),
+        ])
+        text = String(data?.extracted_text || "").trim()
+        parsedIngredients = Array.isArray(data?.parsed_ingredients) ? data.parsed_ingredients : []
+      } catch (apiError) {
+        console.warn("Package OCR API unavailable:", apiError)
       }
 
-      if (!text || parsedIngredients.length < 2) {
+      if (text.replace(/[^A-Za-z]/g, "").length < 6 && prepared instanceof HTMLCanvasElement) {
         try {
-          const data = await extractOcrImage(
-            await sourceToBlob(source),
-            allergyCategoriesForApi(),
-          )
-          const remoteText = data?.extracted_text || ""
-          const remoteIngredients = Array.isArray(data?.parsed_ingredients)
-            ? data.parsed_ingredients
-            : []
-          if (remoteText && remoteText.length > text.length) text = remoteText
-          if (remoteIngredients.length > parsedIngredients.length) {
-            parsedIngredients = remoteIngredients
-          }
-        } catch (apiError) {
-          console.warn("RapidOCR API unavailable:", apiError)
+          const localText = await Promise.race([
+            readWithTesseract(prepared),
+            new Promise<string>((_, reject) => {
+              window.setTimeout(() => reject(new Error("On-device reading took too long.")), 12000)
+            }),
+          ])
+          if (localText.length > text.length) text = localText
+        } catch (localError) {
+          console.warn("On-device OCR failed:", localError)
         }
       }
 
       if (!text) {
         throw new Error(
-          "No text was detected. Hold the label steady, fill the frame, and try again in good light.",
+          "No text was detected. Hold the product name steady, fill the frame, and try again in good light.",
         )
       }
 
-      const ingredientsFromText = parseIngredients(text)
-      const merged =
-        parsedIngredients.length > 0 ? parsedIngredients : ingredientsFromText
-
-      setExtractedText(text)
-      setIngredients(merged.length > 0 ? merged : [""])
-
+      let title = productTitleFromOcr(text)
       try {
-        localStorage.setItem(
-          "scanityOCRResult",
-          JSON.stringify({
-            text,
-            ingredients: merged,
-            source: "ocr",
-            scannedAt: new Date().toISOString(),
-          }),
-        )
-      } catch (error) {
-        console.warn("Unable to save OCR result:", error)
+        const cleaned = await cleanProductTitle(text)
+        if (cleaned) title = cleaned
+      } catch (titleError) {
+        console.warn("AI title cleanup unavailable:", titleError)
+      }
+
+      const ingredientsFromText = parseIngredients(text)
+      const merged = parsedIngredients.length > 0 ? parsedIngredients : ingredientsFromText
+      setProductName(title)
+      setExtractedText(title || text)
+      setIngredients(merged.length > 0 ? merged : [])
+
+      if (title) {
+        setScanStatus("productProcessing")
+        try {
+          const matches = await searchOffByName(title)
+          const best = matches[0]
+          if (best?.code) {
+            const result = await lookupBarcodeProduct(
+              best.code,
+              allergyCategoriesForApi(),
+              conditionsForApi(),
+            )
+            const product = result?.product || {}
+            const stored = storedScanFromAnalysis({
+              source: "ocr",
+              name: product.product_name || product.name || best.product_name || title,
+              brand: product.brand,
+              barcode: best.code,
+              imageUrl: product.image_url,
+              ingredients: product.ingredients,
+              ingredientsText: product.ingredients_raw_text || text,
+              verdict: result?.verdict,
+              grade: result?.nutri_score_grade,
+              explanation: result?.explanation,
+              allergyFlags: result?.allergy_flags,
+              allergyMatches: result?.allergy_matches,
+              labelInsights: result?.label_insights,
+              aiSource: result?.ai_source,
+              safetyScore: result?.safety_score,
+            })
+            appendScanHistory(stored)
+            saveActiveScan(stored)
+            setProductFound(true)
+            go("productResult")
+            return
+          }
+        } catch (lookupError) {
+          console.warn("Open Food Facts lookup failed:", lookupError)
+        }
       }
 
       setScanStatus("textPreview")
@@ -7232,15 +7302,18 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     try {
       setErrorMessage("")
       stopCamera()
+      setScanStatus("ocrProcessing")
       const imageUrl = URL.createObjectURL(file)
       setGalleryImage(imageUrl)
+      event.target.value = ""
+      await new Promise((resolve) => window.setTimeout(resolve, 30))
       await processOCR(file)
     } catch (error) {
       console.error("Gallery OCR error:", error)
       setErrorMessage(error instanceof Error ? error.message : "Unable to read the selected image.")
       setScanStatus("error")
     }
-    event.target.value = ""
+    if (event.target.value) event.target.value = ""
   }
 
   const addIngredient = () => setIngredients([...ingredients, ""])
@@ -7259,6 +7332,43 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     try {
       setErrorMessage("")
       setScanStatus("productProcessing")
+
+      const title = productName.trim() || productTitleFromOcr(extractedText)
+      if (title) {
+        const matches = await searchOffByName(title)
+        const best = matches[0]
+        if (best?.code) {
+          const result = await lookupBarcodeProduct(
+            best.code,
+            allergyCategoriesForApi(),
+            conditionsForApi(),
+          )
+          const product = result?.product || {}
+          const stored = storedScanFromAnalysis({
+            source: "ocr",
+            name: product.product_name || product.name || best.product_name || title,
+            brand: product.brand,
+            barcode: best.code,
+            imageUrl: product.image_url,
+            ingredients: product.ingredients,
+            ingredientsText: product.ingredients_raw_text || extractedText,
+            verdict: result?.verdict,
+            grade: result?.nutri_score_grade,
+            explanation: result?.explanation,
+            allergyFlags: result?.allergy_flags,
+            allergyMatches: result?.allergy_matches,
+            labelInsights: result?.label_insights,
+            aiSource: result?.ai_source,
+            safetyScore: result?.safety_score,
+          })
+          appendScanHistory(stored)
+          saveActiveScan(stored)
+          setProductName(stored.name)
+          setProductFound(true)
+          go("productResult")
+          return
+        }
+      }
 
       let finalIngredients = ingredients.map((item) => item.trim()).filter(Boolean)
       if (finalIngredients.length === 0) {
@@ -7337,7 +7447,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     switch (scanStatus) {
       case "scanning": return "Ready to capture"
       case "captured": return "Image captured"
-      case "ocrProcessing": return "Reading Nutrition Label..."
+      case "ocrProcessing": return "Reading the package..."
       case "textPreview": return "Review Extracted Information"
       case "productProcessing": return "Analyzing Product..."
       case "error": return "Unable to scan"
@@ -7349,8 +7459,8 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     switch (scanStatus) {
       case "scanning": return "Position the nutrition label clearly inside the frame, then tap Capture."
       case "captured": return "Your nutrition label image has been captured."
-      case "ocrProcessing": return "Scanity is reading the text from your nutrition label."
-      case "textPreview": return "Review the extracted ingredients before continuing with product analysis."
+      case "ocrProcessing": return "Scanity is reading the package and keeping just the product name."
+      case "textPreview": return "Confirm the product name, then look it up."
       case "productProcessing": return "Scanity is analyzing the product, nutrition information, and allergies."
       case "error": return errorMessage || "Please try scanning again."
       default: return "Point the camera at the product name or ingredient list, then capture."
@@ -7470,27 +7580,29 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
-                      Text Extracted Successfully
+                      Product name
                     </h2>
-                    <p style={{ margin: "4px 0 0", fontSize: 11, color: SOFT_SLATE.textMuted }}>
-                      Review the information before product analysis.
+                    <p style={{ margin: "4px 0 0", fontSize: 14, color: SOFT_SLATE.textMuted, lineHeight: 1.45 }}>
+                      Extra label text was removed. This name is what Scanity searches.
                     </p>
                   </div>
                 </div>
 
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: "block", marginBottom: 8, fontSize: 11.5, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>
-                    Extracted Text
+                  <label htmlFor="ocr-product-name" style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 700, color: SOFT_SLATE.textPrimary }}>
+                    Search this name
                   </label>
-                  <textarea
+                  <input
+                    id="ocr-product-name"
                     className="scanity-slate-input"
-                    value={extractedText}
-                    onChange={(event) => setExtractedText(event.target.value)}
+                    value={productName}
+                    onChange={(event) => setProductName(event.target.value)}
+                    placeholder="Product name from the package"
                     style={{
-                      width: "100%", minHeight: 150, resize: "vertical", boxSizing: "border-box",
-                      padding: 14, border: "none", borderRadius: 16,
+                      width: "100%", boxSizing: "border-box",
+                      minHeight: 48, padding: "12px 14px", border: "none", borderRadius: 16,
                       background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.insetMd,
-                      fontFamily: SOFT_SLATE.fontFamily, fontSize: 12, lineHeight: 1.6, color: SOFT_SLATE.textPrimary,
+                      fontFamily: SOFT_SLATE.fontFamily, fontSize: 16, color: SOFT_SLATE.textPrimary,
                     }}
                   />
                 </div>
@@ -7587,7 +7699,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                     }}
                   >
                     <i className="fa fa-search" style={{ marginRight: 7 }} />
-                    Analyze Product
+                    Look up product
                   </button>
                 </div>
               </section>
@@ -8283,10 +8395,16 @@ function friendlyWhyFlagged(reason?: string, status?: string): string {
   return raw
 }
 
-function renderCoachMarkdown(text: string): ReactNode {
-  const blocks = String(text || "").trim().split(/\n{2,}/)
-  if (!blocks.length) return null
+function shopperPlainText(text: string): string {
+  return String(text || "")
+    .replace(/\*\*(.+?)\*\*/gs, "$1")
+    .replace(/\*\*/g, "")
+    .replace(/`/g, "")
+    .replace(/^#+\s*/gm, "")
+    .trim()
+}
 
+function renderCoachMarkdown(text: string): ReactNode {
   const inline = (line: string, keyPrefix: string): ReactNode[] => {
     const parts = line.split(/(\*\*[^*]+\*\*)/g)
     return parts.map((part, index) => {
@@ -8305,6 +8423,10 @@ function renderCoachMarkdown(text: string): ReactNode {
       return <span key={`${keyPrefix}-t-${index}`}>{part}</span>
     })
   }
+
+  const source = shopperPlainText(text)
+  const blocks = source.split(/\n{2,}/)
+  if (!blocks.length || !source) return null
 
   return (
     <div className="scanity-reading" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 16, lineHeight: 1.5, fontWeight: 400, color: SOFT_SLATE.textPrimary, textAlign: "left" }}>
@@ -10004,7 +10126,7 @@ function StatusBadge({
               color: "var(--ss-ink-strong)",
             }}
           >
-            {reason}
+            {shopperPlainText(reason)}
           </p>
         )}
       </div>
@@ -11282,8 +11404,25 @@ function ProductCompareScreen({
 }) {
   const isDesktop = useIsDesktop()
   const history = loadScanHistory()
-  const [scenario, setScenario] =
-    useState<CompareScenario>(history.length >= 2 ? "success-a" : "initial")
+  const [slotA, setSlotA] = useState<string | null>(null)
+  const [slotB, setSlotB] = useState<string | null>(null)
+  const [showResult, setShowResult] = useState(false)
+  const [picking, setPicking] = useState<"a" | "b" | null>(null)
+  const [scenario, setScenario] = useState<CompareScenario>("initial")
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem("scanity_compare_filled")
+      if (!raw) return
+      const parsed = JSON.parse(raw) as { slot?: string; id?: string }
+      window.sessionStorage.removeItem("scanity_compare_filled")
+      if (!parsed.id) return
+      if (parsed.slot === "a") setSlotA(parsed.id)
+      if (parsed.slot === "b") setSlotB(parsed.id)
+    } catch {
+      // ignore a bad compare handoff
+    }
+  }, [])
 
 
   const H_PAD = isDesktop ? 40 : 16
@@ -11344,15 +11483,19 @@ function ProductCompareScreen({
     breakdown: null,
   })
 
-  let a: CompareProduct = history[0]
-    ? toCompareProduct(history[0])
+  const scanA = history.find((scan) => scan.id === slotA) || null
+  const scanB = history.find((scan) => scan.id === slotB) || null
+  const compareReady = Boolean(scanA && scanB)
+
+  let a: CompareProduct = scanA
+    ? toCompareProduct(scanA)
     : {
         name: "First product",
         grade: null,
         verdict: null,
       }
-  let b: CompareProduct = history[1]
-    ? toCompareProduct(history[1])
+  let b: CompareProduct = scanB
+    ? toCompareProduct(scanB)
     : {
         name: "Second product",
         grade: null,
@@ -11854,7 +11997,106 @@ function ProductCompareScreen({
     </div>
   )
 
-  if (scenario === "initial" || history.length < 2) {
+  if (!showResult || !compareReady) {
+    const choose = (slot: "a" | "b", id: string) => {
+      if (slot === "a") {
+        setSlotA(id)
+        if (slotB === id) setSlotB(null)
+      } else {
+        setSlotB(id)
+        if (slotA === id) setSlotA(null)
+      }
+      setPicking(null)
+    }
+    const scanNew = (slot: "a" | "b") => {
+      window.sessionStorage.setItem("scanity_compare_slot", slot)
+      go("barcode")
+    }
+    const slotCard = (slot: "a" | "b", selectedId: string | null, title: string) => {
+      const selected = history.find((scan) => scan.id === selectedId)
+      const open = picking === slot
+      return (
+        <section key={slot} style={{ ...raisedCard, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{title}</h2>
+          <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: selected ? SOFT_SLATE.textPrimary : SOFT_SLATE.textSecondary }}>
+            {selected ? selected.name : "Nothing selected yet."}
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="scanity-hit"
+              onClick={() => setPicking(open ? null : slot)}
+              style={{
+                minHeight: 48,
+                padding: "0 16px",
+                border: "none",
+                borderRadius: 14,
+                background: SOFT_SLATE.bg,
+                boxShadow: open ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                color: SOFT_SLATE.textPrimary,
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: "pointer",
+              }}
+            >
+              {open ? "Close list" : "Choose a scanned product"}
+            </button>
+            <button
+              type="button"
+              className="scanity-hit"
+              onClick={() => scanNew(slot)}
+              style={{
+                minHeight: 48,
+                padding: "0 16px",
+                border: "none",
+                borderRadius: 14,
+                background: SOFT_SLATE.green,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: "pointer",
+              }}
+            >
+              Scan a product
+            </button>
+          </div>
+          {open && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {history.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 15, color: SOFT_SLATE.textMuted }}>
+                  No scans yet. Scan a product, then come back to compare.
+                </p>
+              ) : (
+                history.slice(0, 12).map((scan) => (
+                  <button
+                    key={`${slot}-${scan.id}`}
+                    type="button"
+                    className="scanity-hit"
+                    onClick={() => choose(slot, scan.id)}
+                    style={{
+                      minHeight: 48,
+                      padding: "10px 14px",
+                      border: "none",
+                      borderRadius: 14,
+                      textAlign: "left",
+                      background: SOFT_SLATE.bg,
+                      boxShadow: selectedId === scan.id ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                      color: SOFT_SLATE.textPrimary,
+                      fontFamily: SOFT_SLATE.fontFamily,
+                      fontSize: 16,
+                      fontWeight: 650,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {scan.name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </section>
+      )
+    }
     return (
       <CompareLayout>
         <div
@@ -11864,73 +12106,39 @@ function ProductCompareScreen({
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <BackBtn onPress={goBack} />
-            <h1
-              style={{
-                margin: 0,
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontWeight: 800,
-                fontSize: isDesktop ? 26 : 22,
-                color: SOFT_SLATE.textPrimary,
-              }}
-            >
-              Compare Products
-            </h1>
+            <div>
+              <h1 style={{ margin: 0, fontFamily: SOFT_SLATE.fontFamily, fontWeight: 800, fontSize: isDesktop ? 26 : 22, color: SOFT_SLATE.textPrimary }}>
+                Compare Products
+              </h1>
+              <p style={{ margin: "6px 0 0", fontSize: 16, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+                Choose two products from your scans, or scan one. Nothing is compared until you ask.
+              </p>
+            </div>
           </div>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: `20px ${H_PAD}px 50px` }}>
-          <Center maxWidth={700}>
-            <div
-              style={{
-                ...raisedCard,
-                padding: isDesktop ? 48 : 30,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center",
-                gap: 14,
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 17,
-                  fontWeight: 800,
-                  color: SOFT_SLATE.textPrimary,
-                }}
-              >
-                Scan two products first
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  maxWidth: 420,
-                  fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 12.5,
-                  lineHeight: 1.6,
-                  color: SOFT_SLATE.textSecondary,
-                }}
-              >
-                Compare uses your latest real scans. Scan a barcode or nutrition label twice, then come back here.
-              </p>
+        <div style={{ flex: 1, overflowY: "auto", padding: `12px ${H_PAD}px 40px` }}>
+          <Center maxWidth={720}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {slotCard("a", slotA, "First product")}
+              {slotCard("b", slotB, "Second product")}
               <button
                 type="button"
-                onClick={() => go("barcode")}
+                className="scanity-hit"
+                disabled={!compareReady}
+                onClick={() => compareReady && setShowResult(true)}
                 style={{
-                  marginTop: 8,
-                  padding: "12px 24px",
+                  minHeight: 52,
                   border: "none",
-                  borderRadius: 15,
-                  background: SOFT_SLATE.bg,
-                  color: SOFT_SLATE.green,
-                  fontFamily: SOFT_SLATE.fontFamily,
+                  borderRadius: 16,
+                  background: compareReady ? SOFT_SLATE.green : SOFT_SLATE.bg,
+                  boxShadow: compareReady ? SOFT_SLATE.raisedBtn : SOFT_SLATE.insetSm,
+                  color: compareReady ? "#fff" : SOFT_SLATE.textMuted,
                   fontWeight: 800,
-                  fontSize: 12.5,
-                  boxShadow: SOFT_SLATE.raisedBtn,
-                  cursor: "pointer",
+                  fontSize: 16,
+                  cursor: compareReady ? "pointer" : "not-allowed",
                 }}
               >
-                Scan a product
+                Compare these products
               </button>
             </div>
           </Center>
@@ -12478,9 +12686,11 @@ function ProductCompareScreen({
             {/* ── Add another product ────────────────────────────────────── */}
             <button
               type="button"
-              onClick={() =>
-                setScenario("initial")
-              }
+              onClick={() => {
+                setShowResult(false)
+                setSlotA(null)
+                setSlotB(null)
+              }}
               style={{
                 width: "100%",
 
@@ -13077,7 +13287,14 @@ function OtherChip({
 }) {
   return (
     <div
-      onClick={!active ? onToggle : undefined}
+      onClick={
+        !active
+          ? (event) => {
+              event.preventDefault()
+              window.setTimeout(() => onToggle(), 0)
+            }
+          : undefined
+      }
       style={{
         display: "flex",
         alignItems: "center",
@@ -13273,7 +13490,14 @@ function SoftSlateOtherChip({
 }) {
   return (
     <div
-      onClick={!active ? onToggle : undefined}
+      onClick={
+        !active
+          ? (event) => {
+              event.preventDefault()
+              window.setTimeout(() => onToggle(), 0)
+            }
+          : undefined
+      }
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -13732,6 +13956,10 @@ function ProfileScreen({
 
   const [otherAllergy, setOtherAllergy] =
     useState(loadHealthProfile().otherAllergy || "")
+  const [allergyOtherOpen, setAllergyOtherOpen] = useState(false)
+  const [healthOtherOpen, setHealthOtherOpen] = useState(false)
+  const chipGuardUntil = useRef(Date.now() + 800)
+  const chipPressAllowed = () => Date.now() >= chipGuardUntil.current
 
   const [otherHealth, setOtherHealth] =
     useState(loadHealthProfile().otherCondition || "")
@@ -14417,11 +14645,23 @@ function ProfileScreen({
                       />
                     ))}
                     <SoftSlateOtherChip
-                      active={allergies.has("other")}
+                      active={allergyOtherOpen}
                       value={otherAllergy.split("\n")[0] || ""}
                       onToggle={() => {
-                        if (allergies.has("other")) setOtherAllergy("")
-                        toggleAllergy("other")
+                        if (!chipPressAllowed() && !allergyOtherOpen) return
+                        if (allergyOtherOpen) {
+                          setAllergyOtherOpen(false)
+                          if (!otherAllergy.trim()) {
+                            setAllergies((prev) => {
+                              const next = new Set(prev)
+                              next.delete("other")
+                              return next
+                            })
+                          }
+                          return
+                        }
+                        setAllergyOtherOpen(true)
+                        if (!allergies.has("other")) toggleAllergy("other")
                       }}
                       onChangeText={(text) => {
                         const lines = otherAllergy.split("\n")
@@ -14434,7 +14674,7 @@ function ProfileScreen({
                     {otherAllergy.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`allergy-extra-${index}`}
-                        active
+                        active={false}
                         value={item}
                         placeholder="Add another allergy"
                         onToggle={() => {
@@ -14489,11 +14729,23 @@ function ProfileScreen({
                       />
                     ))}
                     <SoftSlateOtherChip
-                      active={health.has("other")}
+                      active={healthOtherOpen}
                       value={otherHealth.split("\n")[0] || ""}
                       onToggle={() => {
-                        if (health.has("other")) setOtherHealth("")
-                        toggleHealth("other")
+                        if (!chipPressAllowed() && !healthOtherOpen) return
+                        if (healthOtherOpen) {
+                          setHealthOtherOpen(false)
+                          if (!otherHealth.trim()) {
+                            setHealth((prev) => {
+                              const next = new Set(prev)
+                              next.delete("other")
+                              return next
+                            })
+                          }
+                          return
+                        }
+                        setHealthOtherOpen(true)
+                        if (!health.has("other")) toggleHealth("other")
                       }}
                       onChangeText={(text) => {
                         const lines = otherHealth.split("\n")
@@ -14506,7 +14758,7 @@ function ProfileScreen({
                     {otherHealth.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`health-extra-${index}`}
-                        active
+                        active={false}
                         value={item}
                         placeholder="Add another condition"
                         onToggle={() => {
@@ -17371,8 +17623,8 @@ function ForgotPasswordScreen({
             {sending ? "Sending…" : sent ? "Reset link sent" : "Send reset link"}
           </button>
           {sent ? (
-            <p style={{ margin: "14px 0 0", maxWidth: 340, textAlign: "center", fontSize: 16, lineHeight: 1.5, color: PALETTE.textDark }}>
-              Check {email.trim()} and open the link. It brings you back here to set a new password.
+            <p style={{ margin: "14px 0 0", maxWidth: 360, textAlign: "center", fontSize: 16, lineHeight: 1.5, color: PALETTE.textDark }}>
+              Check {email.trim()} and open the newest link. It should open scanity-eta.vercel.app so you can set a new password. If Gmail still opens localhost and the page will not load, that link was built from an old Supabase site address. Send a new email after the site address is updated, and ignore the older messages.
             </p>
           ) : null}
           {sendError ? (

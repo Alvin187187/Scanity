@@ -61,3 +61,17 @@ export async function extractOcrImage(file: Blob, userAllergies: string[]) {
   if (!response.ok) throw new Error(readError(data, "RapidOCR could not read this nutrition label."))
   return data
 }
+
+export async function cleanProductTitle(extractedText: string): Promise<string> {
+  const response = await fetch(`${requireApiBaseUrl()}/scan/ai/product-title`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ extracted_text: extractedText }),
+  })
+  const data = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(readError(data, "Could not clean the package text."))
+  return String(data?.product_title || "").trim()
+}

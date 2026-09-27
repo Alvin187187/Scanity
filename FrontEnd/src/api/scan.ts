@@ -327,6 +327,59 @@ async function lookupViaOpenFoodFacts(
   }
 }
 
+const TITLE_NOISE =
+  /^(ingredients?|ingredientes?|nutrition|nutritional|contains|allergen|allergens|serving|calories|energy|protein|total|saturated|carbohydrate|sugars?|sodium|fat|dietary|best before|www\.|http|imported|manufactured|net wt|net weight|per 100|may contain|storage|keep|distributed)/i
+
+/** Pick a short product name from noisy package OCR before the AI cleanup runs. */
+export function productTitleFromOcr(text: string): string {
+  const lines: string[] = []
+  for (const raw of String(text || "").split(/\r?\n/)) {
+    const line = raw.replace(/\s+/g, " ").replace(/^[\s.|–—-]+|[\s.|–—-]+$/g, "")
+    if (line.length < 3 || line.length > 60) continue
+    if (TITLE_NOISE.test(line)) continue
+    if (/^[\d\s./%-]+$/.test(line)) continue
+    if (line.replace(/[^A-Za-z]/g, "").length < 3) continue
+    lines.push(line)
+  }
+  if (!lines.length) return ""
+  const ranked = lines.slice(0, 6).sort((a, b) => a.split(/\s+/).length - b.split(/\s+/).length || a.length - b.length)
+  return ranked[0].slice(0, 80)
+}
+
+export async function searchOffByName(name: string): Promise<{ code: string; product_name: string }[]> {
+  const query = name.trim()
+  if (query.length < 2) return []
+  const url =
+    "https://world.openfoodfacts.org/cgi/search.pl?" +
+    new URLSearchParams({
+      search_terms: query,
+      search_simple: "1",
+      action: "process",
+      json: "1",
+      page_size: "5",
+    }).toString()
+  const response = await fetchWithTimeout(
+    url,
+    {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Scanity/1.0 (https://scanity-eta.vercel.app)",
+      },
+      mode: "cors",
+    },
+    OFF_TIMEOUT_MS,
+  )
+  if (!response.ok) return []
+  const data = await response.json().catch(() => null)
+  const products = Array.isArray(data?.products) ? data.products : []
+  return products
+    .map((product: any) => ({
+      code: String(product?.code || product?._id || "").trim(),
+      product_name: String(product?.product_name || product?.product_name_en || "").trim(),
+    }))
+    .filter((product: { code: string }) => product.code.length > 0)
+}
+
 export async function lookupBarcodeProduct(
   barcode: string,
   userAllergies: AllergyList = [],

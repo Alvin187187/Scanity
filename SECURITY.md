@@ -1,29 +1,17 @@
 # Security policy
 
-## Supported versions
+This repository is closed. Only the owners may access it.
 
-This is an academic project under active development. Only the latest `main` branch is supported.
+## Outside access
 
-## How to report a vulnerability
+- Do not clone, fork, download, or copy the repository or its files to look for problems.
+- Do not open a public issue, pull request, or discussion about this project.
+- Only the repository owners have the right to hold and inspect these files.
 
-Do **not** open a public GitHub issue for secrets, leaked keys, or security bugs.
+## Owners
 
-Contact the repository owner ([@Alvin187187](https://github.com/Alvin187187)) in a private GitHub message or the team group chat. Include:
+If you already have owner access and you find a security problem, tell [@Alvin187187](https://github.com/Alvin187187) in a private GitHub message. Do not open a public issue, and do not paste secrets into chat.
 
-- What is exposed (for example a JWT secret in a commit)
-- Where you found it (PR number or file path — not the secret itself)
-- Whether you already rotated the credential
+Include what is exposed, where you found it, and whether the credential was already rotated. Leave the secret itself out of the message.
 
-## Secrets
-
-Never commit:
-
-- `BackEnd/.env`
-- Supabase service role keys, JWT secrets, or database passwords
-- Real project URLs and keys in `.env.example` (use placeholders)
-
-If a secret lands in git, rotate it in Supabase (or the other provider) even after the file is edited. History still contains the old value.
-
-## What happens next
-
-The owner will acknowledge the report, rotate or revoke credentials if needed, and tell the team what to put in their local `.env`.
+Owners do not commit `BackEnd/.env`, service-role keys, JWT secrets, database passwords, or real keys in `.env.example`. If a secret lands in git, rotate it. History still contains the old value.

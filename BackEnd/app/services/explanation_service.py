@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 import requests
 
@@ -34,11 +35,11 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
         if str(item.get("status", "")).lower() in {"avoid", "caution"}
     ]
     if label == "Avoid":
-        lines = ["**Avoid** — something on this label lines up with an allergy or dietary restriction you asked Scanity to watch for."]
+        lines = ["Avoid. Something on this label lines up with an allergy or dietary restriction you asked Scanity to watch for."]
     elif label == "Safe":
-        lines = ["**Safe** for your saved allergies and dietary restrictions based on this label check."]
+        lines = ["Safe for your saved allergies and dietary restrictions based on this label check."]
     else:
-        lines = ["**Flagged** — worth a closer look before you buy."]
+        lines = ["Flagged. Worth a closer look before you buy."]
 
     if flagged:
         for item in flagged[:4]:
@@ -46,13 +47,13 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
             status = str(item.get("status") or "").lower()
             condition = str(item.get("condition") or "").replace("_", " ").strip()
             if status == "avoid" and condition:
-                lines.append(f"- **{name}** lines up with a dietary restriction you saved ({condition}).")
+                lines.append(f"- {name} lines up with a dietary restriction you saved ({condition}).")
             elif status == "avoid":
-                lines.append(f"- **{name}** looks linked to an allergy you saved.")
+                lines.append(f"- {name} looks linked to an allergy you saved.")
             elif condition:
-                lines.append(f"- **{name}** is worth a closer look for {condition}.")
+                lines.append(f"- {name} is worth a closer look for {condition}.")
             else:
-                lines.append(f"- **{name}** could not be fully confirmed yet.")
+                lines.append(f"- {name} could not be fully confirmed yet.")
     elif label == "Safe":
         lines.append("- Nothing on this label matched your saved allergies or dietary restrictions.")
     else:
@@ -61,10 +62,18 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
     grade = (nutrition_result or {}).get("grade") if nutrition_result else None
     if grade:
         lines.append(
-            f"- Nutri-Score **{str(grade).upper()}** is about nutrition quality only — it does not change the allergy result."
+            f"- Nutri-Score {str(grade).upper()} is about nutrition quality only. It does not change the allergy result."
         )
     lines.append("- This is consumer guidance, not medical advice.")
-    return "\n".join(lines)
+    return plain_shopper_text("\n".join(lines))
+
+
+def plain_shopper_text(text: str) -> str:
+    """Drop markdown markers so shoppers never see asterisks on a result card."""
+    cleaned = re.sub(r"\*\*(.+?)\*\*", r"\1", str(text or ""), flags=re.S)
+    cleaned = cleaned.replace("**", "").replace("`", "")
+    cleaned = re.sub(r"^#+\s*", "", cleaned, flags=re.M)
+    return cleaned.strip()
 
 
 def _call_ollama(prompt: str) -> str:
@@ -125,10 +134,10 @@ def explain_scan(
         temperature=0.35,
     )
     if text and text != FALLBACK_TEXT:
-        return text
+        return plain_shopper_text(text)
 
     ollama_text = _call_ollama(prompt)
     if ollama_text:
-        return ollama_text
+        return plain_shopper_text(ollama_text)
 
     return _template_explanation(allergy_result, nutrition_result, verdict)
