@@ -82,6 +82,10 @@ export function saveActiveScan(scan: StoredScan) {
   window.localStorage.setItem(ACTIVE_RESULT_KEY, JSON.stringify(scan))
 }
 
+export function clearActiveScan() {
+  window.localStorage.removeItem(ACTIVE_RESULT_KEY)
+}
+
 export function loadActiveScan(): StoredScan | null {
   try {
     const raw = window.localStorage.getItem(ACTIVE_RESULT_KEY)

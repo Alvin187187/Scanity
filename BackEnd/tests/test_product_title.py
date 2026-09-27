@@ -19,6 +19,17 @@ def test_title_keeps_the_brand_instead_of_a_generic_word():
     assert heuristic_product_title(text) == "Nature Spring"
 
 
+def test_package_title_skips_marketing_description():
+    text = "\n".join(
+        [
+            "Crispy biscuits baked with sesame seeds and a touch of sugar",
+            "Bravo Biscuits",
+            "Ingredients: Wheat Flour, Sesame Seeds",
+        ]
+    )
+    assert heuristic_product_title(text) == "Bravo Biscuits"
+
+
 def test_plain_shopper_text_removes_markdown_stars():
     raw = "**Avoid** — **Wheat Flour**, **Sesame Seeds** lined up with an allergy you saved."
     cleaned = plain_shopper_text(raw)

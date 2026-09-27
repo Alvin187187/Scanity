@@ -27,6 +27,12 @@ _NOISE = re.compile(
     re.IGNORECASE,
 )
 
+_DESCRIPTION = re.compile(
+    r"\b(made with|baked with|perfect for|serving suggestion|delicious|recipe|"
+    r"contains|rich in|source of|for your family|no artificial)\b",
+    re.IGNORECASE,
+)
+
 _TITLE_INSTRUCTIONS = """You clean text read from a food package photo.
 Return only the product name a shopper would type into a search box.
 Rules:
@@ -39,13 +45,20 @@ Rules:
 """
 
 
+def _looks_like_description(line: str) -> bool:
+    """Marketing sentences and ingredient dumps are not the product name."""
+    if "," in line or _DESCRIPTION.search(line):
+        return True
+    return len(line.split()) > 7
+
+
 def heuristic_product_title(text: str) -> str:
     lines = []
     for raw in str(text or "").splitlines():
         line = re.sub(r"\s+", " ", raw).strip(" .-–—|")
         if len(line) < 3 or len(line) > 60:
             continue
-        if _NOISE.match(line):
+        if _NOISE.match(line) or _looks_like_description(line):
             continue
         if re.fullmatch(r"[\d\s./%-]+", line):
             continue
@@ -89,7 +102,9 @@ def clean_product_title(text: str) -> tuple[str, str]:
     title = re.sub(r"\*+", "", title).strip(" .-")
     if len(re.sub(r"[^A-Za-z]", "", title)) < 3 or len(title) > 80:
         return fallback, "heuristic"
-    if _NOISE.match(title):
+    if _NOISE.match(title) or _looks_like_description(title):
+        return fallback, "heuristic"
+    if len(title.split()) > 8:
         return fallback, "heuristic"
     if not _title_agrees(title, sample):
         return fallback, "heuristic"
@@ -115,6 +130,24 @@ def _title_agrees(title: str, source: str) -> bool:
     required = distinctive or wanted
 
     def hit(token: str) -> bool:
-        return any(word == token or (len(token) > 3 and (token in word or word in token)) for word in haystack)
+        return any(_tokens_close(token, word) for word in haystack)
 
     return sum(1 for token in required if hit(token)) / len(required) >= 0.67
+
+
+def _tokens_close(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    if len(left) > 3 and (left in right or right in left):
+        return True
+    if min(len(left), len(right)) < 5 or abs(len(left) - len(right)) > 1:
+        return False
+    mismatches = 0
+    for index in range(max(len(left), len(right))):
+        left_char = left[index] if index < len(left) else ""
+        right_char = right[index] if index < len(right) else ""
+        if left_char != right_char:
+            mismatches += 1
+            if mismatches > 1:
+                return False
+    return mismatches == 1
