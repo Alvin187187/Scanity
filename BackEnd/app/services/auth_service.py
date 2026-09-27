@@ -343,7 +343,8 @@ def delete_auth_user(access_token: str) -> None:
                 raise AuthError("Account could not be deleted")
     except urllib.error.HTTPError as exc:
         if exc.code not in (200, 204):
-            raise AuthError("Account could not be deleted")
+            detail = exc.read().decode("utf-8", errors="replace")[:180]
+            raise AuthError(detail or "Account could not be deleted")
     except AuthError:
         raise
     except Exception:
@@ -352,6 +353,8 @@ def delete_auth_user(access_token: str) -> None:
 
 def delete_local_user(db, user_id: str) -> None:
     uid = uuid.UUID(str(user_id))
+    if db.get(User, uid) is None:
+        return
     db.execute(delete(user_allergies).where(user_allergies.c.user_id == uid))
     db.execute(
         delete(user_health_conditions).where(user_health_conditions.c.user_id == uid)

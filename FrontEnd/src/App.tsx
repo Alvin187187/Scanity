@@ -631,7 +631,7 @@ function railShortLabel(label: string) {
   if (label === "Dashboard") return "Home"
   if (label === "Scan History") return "History"
   if (label === "Settings") return "Settings"
-  if (label === "Log out") return "Log out"
+  if (label === "Log out") return "Logout"
   return label
 }
 
@@ -4298,7 +4298,7 @@ function DashboardIconRail({
         boxShadow: SOFT_SLATE.raisedLg,
         fontFamily: SOFT_SLATE.fontFamily,
         boxSizing: "border-box",
-        overflow: isDesktop ? "hidden" : "visible",
+        overflow: "hidden",
         marginBottom: isDesktop ? 0 : 8,
         position: "relative",
         zIndex: 2,
@@ -4311,8 +4311,8 @@ function DashboardIconRail({
           onClick={() => go("dashboard")}
           aria-label="Scanity home"
           style={{
-            width: isDesktop ? "100%" : iconSize,
-            height: 44,
+            width: isDesktop ? "100%" : 32,
+            height: isDesktop ? 44 : 40,
             borderRadius: 14,
             border: "none",
             background: SOFT_SLATE.bg,
@@ -4320,10 +4320,11 @@ function DashboardIconRail({
             alignItems: "center",
             justifyContent: isDesktop ? "flex-start" : "center",
             gap: 10,
-            boxShadow: SOFT_SLATE.raisedSm,
+            boxShadow: isDesktop ? SOFT_SLATE.raisedSm : "none",
+            flex: isDesktop ? undefined : "0 0 32px",
             flexShrink: 0,
             cursor: "pointer",
-            padding: isDesktop ? "0 10px" : 4,
+            padding: isDesktop ? "0 10px" : 0,
             color: SOFT_SLATE.textPrimary,
             fontSize: 15,
             fontWeight: 700,
@@ -4346,12 +4347,11 @@ function DashboardIconRail({
           display: "flex",
           flexDirection: isDesktop ? "column" : "row",
           alignItems: isDesktop ? "stretch" : "center",
-          gap: isDesktop ? 4 : 2,
-          flex: 1,
+          gap: isDesktop ? 4 : 6,
+          flex: isDesktop ? 1 : "1 1 auto",
           minWidth: 0,
-          justifyContent: isDesktop ? undefined : "flex-start",
-          overflowX: isDesktop ? undefined : "auto",
-          overflowY: "hidden",
+          justifyContent: "flex-start",
+          overflow: "hidden",
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none",
           paddingBottom: 2,
@@ -4378,8 +4378,8 @@ function DashboardIconRail({
                 aria-current={isActive ? "page" : undefined}
                 style={{
                   width: isDesktop ? "100%" : "auto",
-                  minWidth: 0,
-                  flex: isDesktop ? undefined : "1 1 0",
+                  minWidth: isDesktop ? 0 : 44,
+                  flex: isDesktop ? undefined : "0 0 auto",
                   minHeight: 44,
                   height: isDesktop ? 44 : "auto",
                   borderRadius: 16,
@@ -4393,7 +4393,8 @@ function DashboardIconRail({
                   gap: isDesktop ? 10 : 2,
                   cursor: "pointer",
                   flexShrink: isDesktop ? 0 : 1,
-                  padding: isDesktop ? "0 10px" : "4px 2px",
+                  overflow: "hidden",
+                  padding: isDesktop ? "0 10px" : "4px 1px",
                   color: isActive ? SOFT_SLATE.green : SOFT_SLATE.textSecondary,
                   fontFamily: SOFT_SLATE.fontFamily,
                   fontSize: 14,
@@ -4412,13 +4413,50 @@ function DashboardIconRail({
                 >
                   {item.path}
                 </svg>
-                <span style={{ fontSize: isDesktop ? 14 : 10, lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: isDesktop ? 14 : 11, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
                   {isDesktop ? item.label : railShortLabel(item.label)}
                 </span>
               </button>
             </Tooltip>
           )
         })}
+        {!isDesktop && (
+          <button
+            type="button"
+            className="scanity-hit"
+            onClick={() => setShowLogoutConfirm(true)}
+            aria-label="Log out"
+            style={{
+              flex: "0 0 auto",
+              minWidth: 44,
+              overflow: "hidden",
+              minHeight: 44,
+              borderRadius: 16,
+              border: "none",
+              background: SOFT_SLATE.bg,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+              cursor: "pointer",
+              padding: "4px 1px",
+              color: SOFT_SLATE.textSecondary,
+              fontFamily: SOFT_SLATE.fontFamily,
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="m16 17 5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+            <span style={{ fontSize: 11, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+              Logout
+            </span>
+          </button>
+        )}
       </div>
 
       {isDesktop && (
@@ -4433,7 +4471,7 @@ function DashboardIconRail({
         />
       )}
 
-      {/* Logout stays inside the rail on mobile */}
+      {isDesktop && (
       <Tooltip label="Log out">
         <button
           type="button"
@@ -4485,6 +4523,7 @@ function DashboardIconRail({
           </span>
         </button>
       </Tooltip>
+      )}
     </div>
 
     {showLogoutConfirm && (
@@ -6049,37 +6088,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               </Tooltip>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 560, margin: "0 auto" }}>
-              <button
-                type="button"
-                className="scanity-hit"
-                onClick={() => go("ocr")}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "100%",
-                  minHeight: 52,
-                  padding: "0 18px",
-                  border: "none",
-                  borderRadius: 16,
-                  background: SOFT_SLATE.green,
-                  color: "#fff",
-                  fontFamily: SOFT_SLATE.fontFamily,
-                  fontSize: 16,
-                  fontWeight: 800,
-                  lineHeight: 1.2,
-                  cursor: "pointer",
-                  boxShadow: SOFT_SLATE.raisedBtn,
-                }}
-              >
-                Find product from the package
-              </button>
-              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
-                No barcode? Photograph the product name. Scanity searches that name.
-              </p>
-            </div>
-
             {/* ── Scanner card ─────────────────────────────────────────── */}
             <div
               style={{
@@ -6598,6 +6606,37 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                   </p>
                 )}
               </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 560, margin: "18px auto 0" }}>
+                <button
+                  type="button"
+                  className="scanity-hit"
+                  onClick={() => go("ocr")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "100%",
+                    minHeight: 52,
+                    padding: "0 18px",
+                    border: "none",
+                    borderRadius: 16,
+                    background: SOFT_SLATE.green,
+                    color: "#fff",
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    fontWeight: 800,
+                    lineHeight: 1.2,
+                    cursor: "pointer",
+                    boxShadow: SOFT_SLATE.raisedBtn,
+                  }}
+                >
+                  Find product from the package
+                </button>
+                <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+                  No barcode? Photograph the product name. Scanity searches that name.
+                </p>
+              </div>
             </div>
           </div>
         </Center>
@@ -7105,7 +7144,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     if (source instanceof HTMLCanvasElement) {
       const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.86))
       if (blob) return blob
-      throw new Error("Unable to capture the nutrition label image.")
+      throw new Error("Unable to capture the package photo.")
     }
     const response = await fetch(source)
     return response.blob()
@@ -7250,7 +7289,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Something went wrong while reading the nutrition label.",
+          : "Something went wrong while reading the package.",
       )
       setScanStatus("error")
       stopCamera()
@@ -7280,7 +7319,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       await processOCR(canvas)
     } catch (error) {
       console.error("OCR capture error:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Unable to capture the nutrition label.")
+      setErrorMessage(error instanceof Error ? error.message : "Unable to capture the package photo.")
       setScanStatus("error")
     }
   }
@@ -7457,7 +7496,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       case "captured": return "The package photo is ready."
       case "ocrProcessing": return "Scanity is reading the package and keeping just the product name."
       case "textPreview": return "Confirm the product name, then look it up."
-      case "productProcessing": return "Scanity is analyzing the product, nutrition information, and allergies."
+      case "productProcessing": return "Scanity is matching this product name and checking your allergies."
       case "error": return errorMessage || "Please try scanning again."
       default: return "Point the camera at the product name, then capture."
     }
@@ -7738,7 +7777,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   {galleryImage && scanStatus !== "ready" && (
                     <img
                       src={galleryImage}
-                      alt="Selected nutrition label"
+                      alt="Package photo"
                       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", background: "#111111" }}
                     />
                   )}
@@ -7794,7 +7833,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                           color: "#ffffff", fontSize: 11, fontWeight: 600, textShadow: "0 1px 5px rgba(0,0,0,0.8)",
                         }}
                       >
-                        Position the nutrition label inside the frame
+                        Position the product name inside the frame
                       </div>
                     </>
                   )}
@@ -7843,10 +7882,10 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                         <i className="fa fa-file-text-o" style={{ fontSize: 18 }} />
                       </div>
                       <strong style={{ fontSize: isDesktop ? 19 : 16, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
-                        Reading Nutrition Label...
+                        Reading the package...
                       </strong>
                       <span style={{ maxWidth: 390, marginTop: 8, padding: "0 20px", fontSize: 11, lineHeight: 1.6, color: SOFT_SLATE.textMuted }}>
-                        Scanity is extracting text and ingredients from the nutrition label.
+                        Scanity is keeping the product name from the package.
                       </span>
                     </div>
                   )}
@@ -8013,7 +8052,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                     }}
                   >
                     <i className="fa fa-camera" style={{ marginRight: 8 }} />
-                    Capture Nutrition Label
+                    Capture product name
                   </button>
                 )}
               </section>
@@ -8043,8 +8082,8 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             {[
               "Tap Camera.",
               "Allow camera permission.",
-              "Place the nutrition label inside the frame.",
-              "Tap Capture Nutrition Label.",
+              "Place the product name inside the frame.",
+              "Tap Capture product name.",
               "Review the extracted text and ingredients.",
               "Tap Analyze Product.",
               "Scanity will show the product result and allergy status.",
@@ -9074,7 +9113,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     e: "Lowest",
   }
   const verdict: CompareVerdict = (scan?.verdict as CompareVerdict) || null
-  const verdictReason = scan?.explanation || "Scan a barcode or nutrition label to see a safety result."
+  const verdictReason = scan?.explanation || "Scan a barcode or the product name to see a safety result."
   const allergens = scan?.allergens || []
   const allergySignals = scan?.allergySignals || []
   const labelInsights = scan?.labelInsights || []
@@ -9227,7 +9266,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               Product Result
             </h1>
             <p style={{ margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
-              Safety for your profile, plus nutrition quality
+              Safety for your saved allergies and restrictions
             </p>
           </div>
         </div>
@@ -9259,12 +9298,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             <div style={{ minWidth: 0 }}>
               <h2 style={{ margin: 0, fontSize: isDesktop ? 24 : 22, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.3 }}>{productName}</h2>
               <p style={{ margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>{productBrand}</p>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              <GradeBadge grade={grade} size={56} />
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: SOFT_SLATE.textMuted }}>
-                Nutri-Score
-              </span>
             </div>
           </div>
 
@@ -9315,50 +9348,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             <p style={{ margin: "12px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
               Starts high when nothing on this product hits allergies you asked Scanity to watch for. It drops when an ingredient is linked to your notes.
             </p>
-          </div>
-
-          <div
-            style={{
-              background: SOFT_SLATE.bg,
-              borderRadius: 24,
-              padding: "22px 20px 18px",
-              boxShadow: SOFT_SLATE.raisedSm,
-              marginBottom: 26,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>
-                Nutrition quality
-              </h3>
-              <ExplainThisButton
-                busy={reportBusy}
-                onClick={() =>
-                  void runSafetyReport(
-                    "Explain this Nutri-Score and the nutrition numbers in plain language. Remind me it is separate from allergy safety. Use short bullets if helpful.",
-                  )
-                }
-              />
-            </div>
-            <GradeScale grade={grade} />
-            <p style={{ margin: "16px 0 0", fontSize: 15, color: SOFT_SLATE.textSecondary, lineHeight: 1.55 }}>
-              {grade
-                ? `Grade ${grade.toUpperCase()} - ${gradeLabels[grade]}. Nutri-Score is general nutrition quality only; it does not change your allergy safety score.`
-                : "Nutrition grade unavailable for this product. Your allergy safety score above still applies."}
-            </p>
-            {nutrients.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginTop: 18 }}>
-                {nutrients.map((row) => (
-                  <div key={row.label} style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: SOFT_SLATE.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{row.label}</div>
-                    <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800 }}>{row.value}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ marginTop: 16, padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm, fontSize: 12.5, color: SOFT_SLATE.textMuted }}>
-                No detailed nutrition numbers were included for this product in Open Food Facts.
-              </div>
-            )}
           </div>
 
           <AllergySignalsCard
@@ -16645,6 +16634,7 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
             {/* SECURITY */}
             <div>
               <Section title="Security" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <Row
                 onClick={() => go("changePassword")}
                 label="Change Password"
@@ -16658,6 +16648,19 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
                   </>
                 }
               />
+              <Row
+                onClick={() => go("forgotPassword")}
+                label="Forgot password"
+                sub="Email a reset link to the address on this account"
+                right={<Chevron />}
+                icon={
+                  <>
+                    <rect width="18" height="14" x="3" y="5" rx="2" />
+                    <path d="m3 7 9 6 9-6" />
+                  </>
+                }
+              />
+              </div>
             </div>
 
             {/* SUPPORT & INFO */}
@@ -17318,7 +17321,7 @@ function ForgotPasswordScreen({
   go: (s: Screen) => void
   goBack: () => void
 }) {
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(() => loadSessionUser()?.email || "")
   const [pressed, setPressed] = useState(false)
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
