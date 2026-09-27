@@ -26,7 +26,7 @@ import {
   requireApiBaseUrl,
 } from "./api/auth"
 import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName } from "./api/scan"
-import { extractOcrImage } from "./api/ocr"
+import { extractOcrImage, PACKAGE_READ_TIMEOUT_MS } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   conditionsForApi,
@@ -7300,12 +7300,18 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       stopCamera()
       setScanStatus("ocrProcessing")
       const prepared = await shrinkSource(source)
-      const data = await Promise.race([
-        extractOcrImage(await sourceToBlob(prepared), allergyCategoriesForApi()),
-        new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("Package reading timed out.")), 12000)
-        }),
-      ])
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), PACKAGE_READ_TIMEOUT_MS)
+      let data
+      try {
+        data = await extractOcrImage(
+          await sourceToBlob(prepared),
+          allergyCategoriesForApi(),
+          controller.signal,
+        )
+      } finally {
+        window.clearTimeout(timeoutId)
+      }
       const text = String(data?.extracted_text || data?.product_name || "").trim()
       const title = String(data?.product_name || "").trim() || productTitleFromOcr(text) || text
       if (!title) {
