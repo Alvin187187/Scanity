@@ -4289,12 +4289,13 @@ function DashboardIconRail({
         borderRadius: isDesktop ? 26 : 20,
         borderRight: "none",
         borderBottom: "none",
-        padding: isDesktop ? "28px 12px 12px" : "6px 4px",
-        display: "flex",
-        flexDirection: isDesktop ? "column" : "row",
-        alignItems: isDesktop ? "stretch" : "center",
+        padding: isDesktop ? "28px 12px 12px" : "8px 6px",
+        display: isDesktop ? "flex" : "grid",
+        gridTemplateColumns: isDesktop ? undefined : "36px repeat(5, minmax(0, 1fr))",
+        flexDirection: isDesktop ? "column" : undefined,
+        alignItems: "center",
         justifyContent: "flex-start",
-        gap: isDesktop ? 8 : 2,
+        gap: isDesktop ? 8 : 0,
         boxShadow: SOFT_SLATE.raisedLg,
         fontFamily: SOFT_SLATE.fontFamily,
         boxSizing: "border-box",
@@ -4344,14 +4345,14 @@ function DashboardIconRail({
       {/* Nav icons */}
       <div
         style={{
-          display: "flex",
-          flexDirection: isDesktop ? "column" : "row",
+          display: isDesktop ? "flex" : "contents",
+          flexDirection: isDesktop ? "column" : undefined,
           alignItems: isDesktop ? "stretch" : "center",
-          gap: isDesktop ? 4 : 6,
-          flex: isDesktop ? 1 : "1 1 auto",
+          gap: isDesktop ? 4 : 0,
+          flex: isDesktop ? 1 : undefined,
           minWidth: 0,
           justifyContent: "flex-start",
-          overflow: "hidden",
+          overflow: isDesktop ? "hidden" : "visible",
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none",
           paddingBottom: 2,
@@ -4362,7 +4363,11 @@ function DashboardIconRail({
             ? savedActive && active === "history"
             : item.screen === active && !(savedActive && item.screen === "history")
           return (
-            <Tooltip key={item.label} label={item.label}>
+            <Tooltip
+              key={item.label}
+              label={item.label}
+              wrapperStyle={isDesktop ? undefined : { width: "100%", display: "flex", justifyContent: "center" }}
+            >
               <button
                 type="button"
                 className="scanity-hit"
@@ -4377,9 +4382,9 @@ function DashboardIconRail({
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 style={{
-                  width: isDesktop ? "100%" : "auto",
-                  minWidth: isDesktop ? 0 : 44,
-                  flex: isDesktop ? undefined : "0 0 auto",
+                  width: "100%",
+                  minWidth: 0,
+                  flex: isDesktop ? undefined : "none",
                   minHeight: 44,
                   height: isDesktop ? 44 : "auto",
                   borderRadius: 16,
@@ -4427,8 +4432,8 @@ function DashboardIconRail({
             onClick={() => setShowLogoutConfirm(true)}
             aria-label="Log out"
             style={{
-              flex: "0 0 auto",
-              minWidth: 44,
+              width: "100%",
+              minWidth: 0,
               overflow: "hidden",
               minHeight: 44,
               borderRadius: 16,
@@ -5426,6 +5431,7 @@ async function barcodeFromCanvas(canvas: HTMLCanvasElement): Promise<string | nu
 function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   // ── UI STATE ──────────────────────────────────────────────────────────────
   const [showHelp, setShowHelp] = useState(false)
+  const [scanHelpOpen, setScanHelpOpen] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showLogoutLoading, setShowLogoutLoading] = useState(false)
   const [scanStatus, setScanStatus] = useState<ScannerStatus>("ready")
@@ -5446,6 +5452,16 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   const lastScanTimeRef = useRef<number>(0)
   const isMountedRef = useRef(true)
   const galleryObjectUrlRef = useRef<string | null>(null)
+  const manualBarcodeRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (scanStatus !== "scanning") {
+      setScanHelpOpen(false)
+      return
+    }
+    const timer = window.setTimeout(() => setScanHelpOpen(true), 45_000)
+    return () => window.clearTimeout(timer)
+  }, [scanStatus])
 
   const isDesktop = useIsDesktop()
 
@@ -6540,6 +6556,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
                 <div style={{ display: "flex", gap: 10 }}>
                   <input
+                    ref={manualBarcodeRef}
                     className="scanity-manual-input"
                     type="text"
                     inputMode="numeric"
@@ -6873,6 +6890,103 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               }}
             />
             <strong style={{ fontSize: 14, color: SOFT_SLATE.textPrimary }}>Logging out...</strong>
+          </div>
+        </div>
+      )}
+
+      {scanHelpOpen && (
+        <div
+          className="scanity-scrim"
+          role="presentation"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(36,41,47,0.55)",
+            zIndex: 230,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            className="scanity-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scan-help-title"
+            style={{
+              width: "min(420px, 100%)",
+              background: SOFT_SLATE.bg,
+              borderRadius: 22,
+              padding: 22,
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+            }}
+          >
+            <h2 id="scan-help-title" style={{ margin: 0, fontSize: 20, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
+              No barcode yet
+            </h2>
+            <p style={{ margin: "8px 0 16px", fontSize: 15, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+              The camera has been looking for 45 seconds. Try another way, or keep the camera on.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => {
+                  setScanHelpOpen(false)
+                  manualBarcodeRef.current?.focus()
+                  manualBarcodeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+                }}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: SOFT_SLATE.green,
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                }}
+              >
+                Type the barcode
+              </button>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => go("ocr")}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  color: SOFT_SLATE.textPrimary,
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                }}
+              >
+                Find product from the package
+              </button>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => setScanHelpOpen(false)}
+                style={{
+                  minHeight: 48,
+                  border: "none",
+                  borderRadius: 14,
+                  background: "transparent",
+                  color: SOFT_SLATE.textSecondary,
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                }}
+              >
+                Keep using the camera
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -11394,6 +11508,44 @@ function ProductCompareScreen({
   const [showResult, setShowResult] = useState(false)
   const [picking, setPicking] = useState<"a" | "b" | null>(null)
   const [scenario, setScenario] = useState<CompareScenario>("initial")
+  const [compareChatOpen, setCompareChatOpen] = useState(false)
+  const [compareChatInput, setCompareChatInput] = useState("")
+  const [compareChatBusy, setCompareChatBusy] = useState(false)
+  const [compareChatError, setCompareChatError] = useState("")
+  const [compareMessages, setCompareMessages] = useState<AiChatMessage[]>([])
+
+  const sendCompareChat = async () => {
+    const text = compareChatInput.trim()
+    if (!text || compareChatBusy) return
+    const scanA = history.find((item) => item.id === slotA) || null
+    const scanB = history.find((item) => item.id === slotB) || null
+    const asked = [
+      `Compare ${scanA?.name || "the first product"} with ${scanB?.name || "the second product"} for my saved allergies.`,
+      scanB
+        ? `${scanB.name}: verdict ${scanB.verdict || "unknown"}. Ingredients: ${(scanB.ingredients || []).slice(0, 16).join(", ") || "not listed"}.`
+        : "",
+      `Question: ${text}`,
+    ]
+      .filter(Boolean)
+      .join(" ")
+    const next: AiChatMessage[] = [...compareMessages, { role: "user", content: text }]
+    setCompareMessages(next)
+    setCompareChatInput("")
+    setCompareChatBusy(true)
+    setCompareChatError("")
+    try {
+      const reply = await askAiAboutProduct({
+        message: asked,
+        scan: scanA,
+        history: compareMessages,
+      })
+      setCompareMessages([...next, { role: "assistant", content: shopperPlainText(reply) }])
+    } catch (error) {
+      setCompareChatError(error instanceof Error ? error.message : "The assistant could not answer.")
+    } finally {
+      setCompareChatBusy(false)
+    }
+  }
 
   useEffect(() => {
     try {
@@ -12667,6 +12819,108 @@ function ProductCompareScreen({
                 </CompareCard>
               </div>
             </Section>
+
+            <section
+              className={compareChatOpen ? "scanity-dialog" : undefined}
+              style={{ ...raisedCard, marginTop: 22, padding: 16 }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 18, color: SOFT_SLATE.textPrimary }}>Ask AI</h2>
+                  <p style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+                    Ask which of these two fits your allergies better.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="scanity-hit"
+                  onClick={() => setCompareChatOpen((open) => !open)}
+                  style={{
+                    minHeight: 44,
+                    padding: "0 14px",
+                    border: "none",
+                    borderRadius: 14,
+                    background: SOFT_SLATE.green,
+                    color: "#fff",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  {compareChatOpen ? "Close" : "Ask"}
+                </button>
+              </div>
+              {compareChatOpen && (
+                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                  {compareMessages.length === 0 && (
+                    <p style={{ margin: 0, fontSize: 14, color: SOFT_SLATE.textSecondary }}>
+                      Try “Which one should I avoid?”
+                    </p>
+                  )}
+                  {compareMessages.map((item, index) => (
+                    <p
+                      key={`${item.role}-${index}`}
+                      style={{
+                        margin: 0,
+                        padding: "10px 12px",
+                        borderRadius: 14,
+                        background: item.role === "user" ? SOFT_SLATE.green : SOFT_SLATE.bg,
+                        color: item.role === "user" ? "#fff" : SOFT_SLATE.textPrimary,
+                        boxShadow: item.role === "user" ? "none" : SOFT_SLATE.insetSm,
+                        fontSize: 14,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {item.content}
+                    </p>
+                  ))}
+                  {compareChatError && (
+                    <p style={{ margin: 0, fontSize: 14, color: SOFT_SLATE.unsafe }}>{compareChatError}</p>
+                  )}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      value={compareChatInput}
+                      onChange={(event) => setCompareChatInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") void sendCompareChat()
+                      }}
+                      placeholder="Ask about these two products"
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        height: 48,
+                        border: "none",
+                        borderRadius: 14,
+                        background: SOFT_SLATE.bg,
+                        boxShadow: SOFT_SLATE.insetSm,
+                        padding: "0 12px",
+                        fontSize: 16,
+                        color: SOFT_SLATE.textPrimary,
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="scanity-hit"
+                      onClick={() => void sendCompareChat()}
+                      disabled={compareChatBusy || !compareChatInput.trim()}
+                      style={{
+                        minHeight: 48,
+                        padding: "0 16px",
+                        border: "none",
+                        borderRadius: 14,
+                        background: SOFT_SLATE.green,
+                        color: "#fff",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        opacity: compareChatBusy ? 0.6 : 1,
+                      }}
+                    >
+                      {compareChatBusy ? "..." : "Send"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
 
             {/* ── Add another product ────────────────────────────────────── */}
             <button
@@ -14080,8 +14334,8 @@ function ProfileScreen({
   const profileBadge =
     savedAllergies.size > 0 ||
     savedHealth.size > 0
-      ? "Health Conscious"
-      : "Getting Started"
+      ? "Used on every scan"
+      : "Add allergies so scans can warn you"
 
   const avoidsLabel =
     [
@@ -14198,7 +14452,7 @@ function ProfileScreen({
                     maxWidth: "42ch",
                   }}
                 >
-                  Your saved details and preferences
+                  Allergies and conditions here change what a scan warns you about.
                 </div>
               </div>
 
@@ -14701,7 +14955,7 @@ function ProfileScreen({
                 <div>
                   <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>Dietary restrictions</h3>
                   <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.textSecondary, maxWidth: "42ch" }}>
-                    These shape how we read sodium, sugar, and saturated fat on a label.
+                    These change the safety warning when a product conflicts with what you avoid.
                   </p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 13 }}>
                     {HEALTH_LIST.filter((i) => i.id !== "none").map((item) => (
