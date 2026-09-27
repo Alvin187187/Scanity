@@ -416,6 +416,66 @@ function productNameScore(query: string, candidate: string): number {
   return hits / wanted.length
 }
 
+function brandsText(brands: unknown): string {
+  if (Array.isArray(brands)) {
+    return brands.map((part) => String(part || "").trim()).filter(Boolean).join(" ")
+  }
+  return String(brands || "").trim()
+}
+
+function offHitBlob(product: {
+  product_name?: string
+  brand?: string
+  brands?: unknown
+}): string {
+  return [product.product_name, product.brand, brandsText(product.brands)].filter(Boolean).join(" ")
+}
+
+function offHitScore(
+  query: string,
+  product: { product_name?: string; brand?: string; brands?: unknown; image_url?: string },
+): number {
+  const wanted = titleTokens(query).filter((token) => !GENERIC_TITLE_WORDS.has(token))
+  const haystack = titleTokens(offHitBlob(product))
+  if (!wanted.length || !haystack.length) return 0
+  const hits = wanted.filter((token) => haystack.some((word) => tokensClose(token, word))).length
+  if (wanted.length <= 3 && hits < wanted.length) return 0
+  const ratio = hits / wanted.length
+  if (ratio < 0.67) return 0
+  let score = ratio * 100
+  const brand = (product.brand || brandsText(product.brands)).toLowerCase()
+  const name = String(product.product_name || "").toLowerCase()
+  const needle = query.trim().toLowerCase()
+  if (needle && (brand === needle || brand.split(",")[0].trim() === needle || brand.includes(needle))) {
+    score += 50
+  }
+  if (needle && (name === needle || name.startsWith(needle))) score += 30
+  if (product.image_url) score += 5
+  score -= Math.min(15, haystack.filter((token) => !wanted.includes(token)).length)
+  return score
+}
+
+function rankOffHits(
+  query: string,
+  products: any[],
+): { code: string; product_name: string; brand?: string; image_url?: string }[] {
+  return products
+    .map((product) => {
+      const code = String(product?.code || product?._id || "").trim()
+      const mapped = {
+        code,
+        product_name: String(product?.product_name || product?.product_name_en || "").trim(),
+        brand: brandsText(product?.brands) || String(product?.brand || "").trim() || undefined,
+        image_url: String(product?.image_url || product?.image_front_url || "").trim() || undefined,
+      }
+      return { ...mapped, score: code ? offHitScore(query, mapped) : 0 }
+    })
+    .filter((product) => product.code && product.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map(({ score: _score, ...product }) => product)
+}
+
 function rankTitleLine(line: string, index: number) {
   const words = line.split(/\s+/)
   const genericOnly = words.every((word) => GENERIC_TITLE_WORDS.has(word.toLowerCase().replace(/[.,]/g, "")))
@@ -452,50 +512,86 @@ export function productTitleFromOcr(text: string): string {
 async function offSearch(query: string): Promise<{ code: string; product_name: string }[]> {
   const distinctive = titleTokens(query).filter((token) => !GENERIC_TITLE_WORDS.has(token))
   if (distinctive.length === 0) return []
-  const url =
+  const urls = [
+    "https://search.openfoodfacts.org/search?" +
+      new URLSearchParams({ q: query, page_size: "40" }).toString(),
     "https://world.openfoodfacts.org/cgi/search.pl?" +
-    new URLSearchParams({
-      search_terms: query,
-      search_simple: "1",
-      action: "process",
-      json: "1",
-      page_size: "20",
-    }).toString()
-  const response = await fetchWithTimeout(
-    url,
-    {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Scanity/1.0 (https://scanity-eta.vercel.app)",
+      new URLSearchParams({
+        search_terms: query,
+        search_simple: "1",
+        action: "process",
+        json: "1",
+        page_size: "40",
+      }).toString(),
+  ]
+  for (const url of urls) {
+    try {
+      const response = await fetchWithTimeout(
+        url,
+        {
+          headers: { Accept: "application/json" },
+          mode: "cors",
+        },
+        OFF_TIMEOUT_MS,
+      )
+      if (!response.ok) continue
+      const data = await response.json().catch(() => null)
+      const products = Array.isArray(data?.hits)
+        ? data.hits
+        : Array.isArray(data?.products)
+          ? data.products
+          : []
+      const ranked = rankOffHits(query, products)
+      if (ranked.length) return ranked
+    } catch {
+      // Try the next Open Food Facts host.
+    }
+  }
+  return []
+}
+
+async function searchViaScanityApi(query: string): Promise<{ code: string; product_name: string }[]> {
+  const token = getAccessToken()
+  if (!token) return []
+  try {
+    const response = await fetchWithTimeout(
+      `${requireApiBaseUrl()}/scan/search?q=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       },
-      mode: "cors",
-    },
-    OFF_TIMEOUT_MS,
-  )
-  if (!response.ok) return []
-  const data = await response.json().catch(() => null)
-  const products = Array.isArray(data?.products) ? data.products : []
-  return products
-    .map((product: any) => ({
-      code: String(product?.code || product?._id || "").trim(),
-      product_name: String(product?.product_name || product?.product_name_en || "").trim(),
-    }))
-    .filter((product: { code: string; product_name: string }) => product.code && productNameScore(query, product.product_name) >= 0.5)
-    .sort(
-      (a: { product_name: string }, b: { product_name: string }) =>
-        productNameScore(query, b.product_name) - productNameScore(query, a.product_name),
+      API_TIMEOUT_MS,
     )
-    .slice(0, 5)
+    if (!response.ok) return []
+    const data = await response.json().catch(() => null)
+    const products = Array.isArray(data?.products) ? data.products : []
+    return products
+      .map((product: any) => ({
+        code: String(product?.code || "").trim(),
+        product_name: String(product?.product_name || "").trim(),
+        brand: String(product?.brand || "").trim() || undefined,
+        image_url: String(product?.image_url || "").trim() || undefined,
+      }))
+      .filter((product: { code: string }) => product.code)
+  } catch {
+    return []
+  }
 }
 
 export async function searchOffByName(name: string): Promise<{ code: string; product_name: string }[]> {
   const query = cleanSearchQuery(name)
   const distinctive = titleTokens(query).filter((token) => !GENERIC_TITLE_WORDS.has(token))
   if (distinctive.length === 0) return []
+  const fromApi = await searchViaScanityApi(query)
+  if (fromApi.length) return fromApi
   const first = await offSearch(query)
   if (first.length) return first
   const shortened = distinctive.slice(0, 3).join(" ")
   if (shortened.toLowerCase() === query.toLowerCase()) return []
+  const fromShortApi = await searchViaScanityApi(shortened)
+  if (fromShortApi.length) return fromShortApi
   return offSearch(shortened)
 }
 

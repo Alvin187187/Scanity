@@ -56,3 +56,15 @@ class ProductNotFoundResponse(BaseModel):
 
 class ExternalServiceErrorResponse(BaseModel):
     error: str
+
+
+class ProductSearchMatch(BaseModel):
+    code: str
+    product_name: str = ""
+    brand: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class ProductSearchResponse(BaseModel):
+    query: str
+    products: list[ProductSearchMatch] = Field(default_factory=list)
