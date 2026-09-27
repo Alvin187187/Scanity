@@ -12537,6 +12537,7 @@ function ProductCompareScreen({
 
   return (
     <CompareLayout>
+      <div className="scanity-motion-forward" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         {/* ── Header ─────────────────────────────────────────────────────── */}
 
         <div
@@ -12958,6 +12959,7 @@ function ProductCompareScreen({
 
           </Center>
         </div>
+      </div>
     </CompareLayout>
   )
 }
@@ -13830,6 +13832,7 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
   const [error, setError] = useState("")
   const [picked, setPicked] = useState<string | null>(null)
   const [showMore, setShowMore] = useState(false)
+  const [suggestOpen, setSuggestOpen] = useState(false)
 
   useEffect(() => {
     const term = query.trim()
@@ -13863,8 +13866,8 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
     return () => window.clearTimeout(handle)
   }, [query])
 
-  const active =
-    results.find((row) => row.ingredient_name === picked) || (results.length === 1 ? results[0] : null)
+  const active = results.find((row) => row.ingredient_name === picked) || null
+  const showSuggestions = suggestOpen && query.trim().length >= 2
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden", background: SOFT_SLATE.bg }}>
@@ -13899,6 +13902,8 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
                 borderRadius: 16,
                 background: SOFT_SLATE.bg,
                 boxShadow: SOFT_SLATE.raisedSm,
+                position: "relative",
+                zIndex: 3,
               }}
             >
               <label htmlFor="knowledge-search" style={{ display: "block", fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
@@ -13907,7 +13912,22 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
               <input
                 id="knowledge-search"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                role="combobox"
+                aria-expanded={showSuggestions}
+                aria-controls="knowledge-suggestions"
+                aria-autocomplete="list"
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  setPicked(null)
+                  setSuggestOpen(true)
+                }}
+                onFocus={() => {
+                  if (query.trim().length >= 2) setSuggestOpen(true)
+                }}
+                onBlur={() => setSuggestOpen(false)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setSuggestOpen(false)
+                }}
                 placeholder="MSG, gluten, soy lecithin"
                 autoComplete="off"
                 style={{
@@ -13927,6 +13947,79 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
                   color: SOFT_SLATE.textPrimary,
                 }}
               />
+              {showSuggestions && (
+                <div
+                  id="knowledge-suggestions"
+                  role="listbox"
+                  className="scanity-motion-fade"
+                  style={{
+                    position: "absolute",
+                    left: 16,
+                    right: 16,
+                    top: "calc(100% - 8px)",
+                    zIndex: 5,
+                    maxHeight: 280,
+                    overflowY: "auto",
+                    borderRadius: 16,
+                    background: SOFT_SLATE.bg,
+                    boxShadow: SOFT_SLATE.raisedMd,
+                    padding: 6,
+                  }}
+                >
+                  {status === "searching" && (
+                    <div role="status" style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="scanity-skeleton" style={{ width: "70%" }} />
+                      <div className="scanity-skeleton" style={{ width: "46%" }} />
+                    </div>
+                  )}
+                  {status === "error" && (
+                    <p role="alert" style={{ margin: 0, padding: 10, fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.caution }}>
+                      {error}
+                    </p>
+                  )}
+                  {status === "ready" && results.length === 0 && (
+                    <p style={{ margin: 0, padding: 10, fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+                      No guide entry for "{submitted}". Try an ingredient, additive, or allergen.
+                    </p>
+                  )}
+                  {status === "ready" &&
+                    results.map((row) => (
+                      <button
+                        key={row.ingredient_name}
+                        type="button"
+                        role="option"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setPicked(row.ingredient_name)
+                          setQuery(row.ingredient_name)
+                          setSuggestOpen(false)
+                          setShowMore(false)
+                        }}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          width: "100%",
+                          minHeight: 48,
+                          padding: "10px 12px",
+                          border: "none",
+                          borderRadius: 12,
+                          background: "transparent",
+                          color: SOFT_SLATE.textPrimary,
+                          fontFamily: SOFT_SLATE.fontFamily,
+                          textAlign: "left",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>{row.ingredient_name}</span>
+                        <span style={{ fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textSecondary }}>
+                          {row.display_category}
+                          {row.what_it_is ? ` · ${row.what_it_is}` : ""}
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              )}
             </div>
 
             {status === "idle" && (
@@ -13971,71 +14064,13 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
               </div>
             )}
 
-            {status === "searching" && (
-              <p role="status" style={{ marginTop: 24, fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
-                Searching Scanity Knowledge...
-              </p>
-            )}
-
-            {status === "error" && (
-              <p role="alert" style={{ marginTop: 24, fontSize: 16, lineHeight: 1.6, color: SOFT_SLATE.caution, maxWidth: "42ch" }}>
-                {error}
-              </p>
-            )}
-
-            {status === "ready" && results.length === 0 && (
-              <div style={{ marginTop: 24, maxWidth: "42ch" }}>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>
-                  No information found for "{submitted}"
-                </h2>
-                <p style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.6 }}>Try searching for:</p>
-                <ul style={{ margin: "8px 0 0", paddingLeft: 20, fontSize: 16, lineHeight: 1.6 }}>
-                  <li>An ingredient</li>
-                  <li>An additive</li>
-                  <li>An allergen</li>
-                  <li>A food-related term</li>
-                </ul>
-              </div>
-            )}
-
-            {status === "ready" && results.length > 1 && (
-              <div style={{ marginTop: 24 }}>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.3 }}>Results for "{submitted}"</h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-                  {results.map((row) => {
-                    const selected = active?.ingredient_name === row.ingredient_name
-                    return (
-                      <button
-                        key={row.ingredient_name}
-                        type="button"
-                        onClick={() => {
-                          setPicked(row.ingredient_name)
-                          setShowMore(false)
-                        }}
-                        style={{
-                          minHeight: 44,
-                          textAlign: "left",
-                          padding: "12px 16px",
-                          borderRadius: 12,
-                          border: selected ? `2px solid ${SOFT_SLATE.green}` : "1px solid var(--scanity-border)",
-                          background: "var(--scanity-panel)",
-                          cursor: "pointer",
-                          fontFamily: SOFT_SLATE.fontFamily,
-                        }}
-                      >
-                        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>{row.ingredient_name}</div>
-                        <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>{row.display_category}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
             {active && status === "ready" && (
-              <article style={{ marginTop: 24, padding: "20px 16px", borderRadius: 12, border: "1px solid var(--scanity-border)", background: "var(--scanity-panel)", maxWidth: 640 }}>
+              <article className="scanity-motion-fade" style={{ marginTop: 24, padding: "20px 16px", borderRadius: 16, background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.raisedSm, maxWidth: 640 }}>
                 <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.3 }}>{active.ingredient_name}</h2>
                 <KnowledgeFact label="What is it?">{active.what_it_is || "A food-related term in the Scanity guide."}</KnowledgeFact>
+                {active.aliases.length > 0 ? (
+                  <KnowledgeFact label="On a label, also look for">{active.aliases.slice(0, 6).join(", ")}</KnowledgeFact>
+                ) : null}
                 <KnowledgeFact label="Category">{active.display_category}</KnowledgeFact>
                 <KnowledgeFact label={active.display_category === "Allergen" ? "Why does it matter?" : "Why is it used?"}>
                   {active.possible_effects || "Scanity uses this as a plain-language note, not a medical diagnosis."}
@@ -14046,9 +14081,9 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
                 {active.affects_allergens.length > 0 ? (
                   <KnowledgeFact label="Allergen information">{active.affects_allergens.join(", ")}</KnowledgeFact>
                 ) : null}
-                {active.aliases.length > 0 ? (
-                  <KnowledgeFact label="Related terms">{active.aliases.slice(0, 6).join(" · ")}</KnowledgeFact>
-                ) : null}
+                {active.commonly_seen_in ? null : (
+                  <KnowledgeFact label="On a label">Look for this name in the ingredient list, not only on the front of the pack.</KnowledgeFact>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowMore((open) => !open)}
@@ -14512,12 +14547,14 @@ function ProfileScreen({
                     boxShadow: SOFT_SLATE.raisedSm,
                     boxSizing: "border-box",
                     display: "flex",
-                    flexDirection: "column",
+                    flexDirection: editingIdentity ? "column" : "row",
+                    flexWrap: "wrap",
                     alignItems: "center",
-                    textAlign: "center",
+                    textAlign: editingIdentity ? "center" : "left",
+                    gap: 14,
                   }}
                 >
-                  <div style={{ position: "relative" }}>
+                  <div style={{ position: "relative", flexShrink: 0, paddingRight: 16, paddingBottom: 12 }}>
                     <input
                       ref={avatarInputRef}
                       type="file"
@@ -14635,24 +14672,11 @@ function ProfileScreen({
                   </div>
 
                   {!editingIdentity ? (
-                    <>
-                      <div
-                        style={{
-                          marginTop: 16,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          padding: "6px 0",
-                        }}
-                      >
-                        <span style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: SOFT_SLATE.green }}>{profileBadge}</span>
-                      </div>
-
-                      <h2 style={{ margin: "8px 0 0", fontSize: isDesktop ? 24 : 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
+                    <div style={{ minWidth: 0, flex: "1 1 140px", alignSelf: "center" }}>
+                      <h2 style={{ margin: 0, fontSize: isDesktop ? 24 : 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
                         {name || "Your name"}
                       </h2>
-                      <div style={{ marginTop: 8, fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>{email || "No email on file"}</div>
-                      <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>Member since {joinedLabel}</div>
-                    </>
+                    </div>
                   ) : (
                     <div style={{ marginTop: 18, width: "100%", maxWidth: 360, textAlign: "left" }}>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
@@ -14759,9 +14783,18 @@ function ProfileScreen({
                       </div>
                     </div>
                   )}
+                  {!editingIdentity && (
+                    <div style={{ flex: "1 1 100%", minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: SOFT_SLATE.green }}>{profileBadge}</div>
+                      <div style={{ marginTop: 6, fontSize: 16, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>{email || "No email on file"}</div>
+                      <div style={{ marginTop: 4, fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textMuted }}>Member since {joinedLabel}</div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Stat row - Avoids / Watching / Last Scan */}
+                <h2 style={{ margin: "4px 0 0", fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
+                  What scans check
+                </h2>
                 <div
                   style={{
                     display: "grid",
@@ -15247,7 +15280,8 @@ function ScreenBackButton({ onClick, label }: { onClick: () => void; label: stri
       style={{
         width: 44,
         height: 44,
-        marginBottom: 12,
+        marginBottom: 0,
+        flexShrink: 0,
         borderRadius: "50%",
         border: "none",
         background: SOFT_SLATE.bg,
@@ -15312,13 +15346,15 @@ function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => 
           >
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="help" />}
 
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <ScreenBackButton onClick={goBack} label="Back" />
-              <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
-                Help &amp; FAQ
-              </div>
-              <div style={{ fontSize: 14, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
-                Answers for a safer scan
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
+                  Help &amp; FAQ
+                </div>
+                <div style={{ fontSize: 14, color: SOFT_SLATE.textSecondary, marginTop: 4 }}>
+                  Answers for a safer scan
+                </div>
               </div>
             </div>
 
@@ -15430,6 +15466,7 @@ function HelpFaqScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => 
 
                       {open && (
                         <div
+                          className="scanity-motion-fade"
                           style={{
                             marginTop: 12,
                             paddingTop: 12,
@@ -15645,7 +15682,7 @@ function AboutScreen({ go, goBack }: { go: (s: Screen) => void; goBack: () => vo
           >
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="about" />}
 
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <ScreenBackButton onClick={goBack} label="Back" />
               <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
                 About Us
@@ -16571,30 +16608,30 @@ function LegalScreen({
             {!isDesktop && <DashboardIconRail go={go} isDesktop={false} active="settings" />}
 
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
-              <div>
-                <button
-                  type="button"
-                  onClick={goBack}
-                  aria-label="Back"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    marginBottom: 12,
-                    borderRadius: "50%",
-                    border: "none",
-                    background: SOFT_SLATE.bg,
-                    boxShadow: SOFT_SLATE.raisedSm,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                type="button"
+                onClick={goBack}
+                aria-label="Back"
+                style={{
+                  width: 44,
+                  height: 44,
+                  flexShrink: 0,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: isDesktop ? 30 : 24, fontWeight: 800, letterSpacing: "-0.02em", color: SOFT_SLATE.textPrimary }}>
                   {privacy ? "Privacy Policy" : "Terms of Service"}
                 </div>
@@ -16602,7 +16639,6 @@ function LegalScreen({
                   {privacy ? "Your information and choices" : "Using Scanity responsibly"}
                 </div>
               </div>
-
             </div>
 
             {/* Intro card */}
@@ -16892,25 +16928,13 @@ function SettingsScreen({ go }: { go: (s: Screen) => void }) {
               <Row
                 onClick={() => go("changePassword")}
                 label="Change Password"
-                sub="Update your current password"
+                sub="Enter your current password, then choose a new one"
                 right={<Chevron />}
                 icon={
                   <>
                     <circle cx="7.5" cy="15.5" r="5.5" />
                     <path d="m21 2-9.6 9.6" />
                     <path d="m15.5 7.5 3 3L22 7l-3-3" />
-                  </>
-                }
-              />
-              <Row
-                onClick={() => go("forgotPassword")}
-                label="Forgot password"
-                sub="Email a reset link to the address on this account"
-                right={<Chevron />}
-                icon={
-                  <>
-                    <rect width="18" height="14" x="3" y="5" rx="2" />
-                    <path d="m3 7 9 6 9-6" />
                   </>
                 }
               />
@@ -17216,13 +17240,13 @@ function ChangePasswordScreen({
                 fontFamily: SOFT_SLATE.fontFamily,
                 fontSize: 14,
                 fontWeight: 700,
-                boxShadow: "6px 6px 14px #c6ccd4, -4px -4px 10px #ffffff",
+                boxShadow: "none",
                 cursor: canSubmit && !showSaved ? "pointer" : "not-allowed",
                 opacity: canSubmit ? 1 : 0.6,
                 boxSizing: "border-box",
               }}
             >
-              {showSaved ? "Password Updated" : "Update Password"}
+              {showSaved ? "Password updated" : saving ? "Updating password" : "Update Password"}
             </button>
 
             <button
@@ -17429,7 +17453,7 @@ function DeleteAccountScreen({
                 fontFamily: SOFT_SLATE.fontFamily,
                 fontSize: 14,
                 fontWeight: 700,
-                boxShadow: "6px 6px 14px #c6ccd4, -4px -4px 10px #ffffff",
+                boxShadow: "none",
                 cursor: showDeleteLoading ? "not-allowed" : "pointer",
                 opacity: showDeleteLoading ? 0.7 : 1,
                 boxSizing: "border-box",
@@ -18997,8 +19021,11 @@ function VerifyEmailScreen({ go }: { go: (s: Screen) => void }) {
   )
 }
 
+const TOP_LEVEL_SCREENS = new Set<Screen>(["dashboard", "history", "profile", "settings"])
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>(readStoredScreen)
+  const [screenMotion, setScreenMotion] = useState<"fade" | "forward" | "back">("fade")
   useEffect(() => {
     applyThemeMode(loadThemeMode())
   }, [])
@@ -19041,11 +19068,13 @@ export default function App() {
     }
   }, [screen])
   const go = (next: Screen) => {
+    setScreenMotion(TOP_LEVEL_SCREENS.has(screen) && TOP_LEVEL_SCREENS.has(next) ? "fade" : "forward")
     historyRef.current.push(screen)
     persistScreenHistory(historyRef.current)
     setScreen(next)
   }
   const goBack = () => {
+    setScreenMotion("back")
     const previous = historyRef.current.pop()
     persistScreenHistory(historyRef.current)
     setScreen(previous ?? "dashboard")
@@ -19081,7 +19110,7 @@ export default function App() {
   }
   return (
     <AppFrame>
-      <div key={screen} className="scanity-screen">
+      <div key={screen} className={`scanity-screen scanity-motion-${screenMotion}`}>
         {screenMap[screen]}
       </div>
     </AppFrame>

@@ -186,8 +186,15 @@ button:focus-visible,
 
 @media (prefers-reduced-motion: reduce) {
   .scanity-screen,
-  .scanity-profile,
-  .scanity-profile > * {
+  .scanity-motion-forward,
+  .scanity-motion-back,
+  .scanity-motion-fade,
+  .scanity-dialog,
+  .scanity-scrim {
+    animation: scanityFade 120ms ease !important;
+  }
+
+  .scanity-skeleton {
     animation: none !important;
   }
 }
@@ -200,18 +207,6 @@ button:focus-visible,
 
 .scanity-reading p {
   max-width: 42ch;
-}
-
-.scanity-profile > * {
-  animation: scanity-screen-in 280ms ease both;
-}
-
-.scanity-profile > *:nth-child(2) {
-  animation-delay: 40ms;
-}
-
-.scanity-profile > *:nth-child(3) {
-  animation-delay: 80ms;
 }
 
 @keyframes scanity-screen-in {
@@ -329,34 +324,37 @@ button:focus-visible,
   to { opacity: 1; }
 }
 
-@keyframes scanityDialogIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes scanityForward {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  button,
-  .scanity-hit {
-    transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease, background-color 160ms ease, filter 160ms ease;
-  }
-
-  button:active:not(:disabled),
-  .scanity-hit:active:not(:disabled) {
-    transform: scale(0.97);
-  }
-
-  .scanity-scrim {
-    animation: scanityFade 180ms ease;
-  }
-
-  .scanity-dialog {
-    animation: scanityDialogIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
+@keyframes scanityBack {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: none; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .scanity-scrim,
-  .scanity-dialog {
-    animation: none;
-  }
+button,
+.scanity-hit {
+  transition: opacity 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
 }
+
+button:active:not(:disabled),
+.scanity-hit:active:not(:disabled) {
+  opacity: 0.82;
+}
+
+.scanity-motion-fade,
+.scanity-scrim,
+.scanity-dialog {
+  animation: scanityFade 140ms ease;
+}
+
+.scanity-motion-forward {
+  animation: scanityForward 180ms ease;
+}
+
+.scanity-motion-back {
+  animation: scanityBack 180ms ease;
+}
+
