@@ -25,7 +25,7 @@ import {
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
-import { lookupBarcodeProduct, searchOffByName } from "./api/scan"
+import { lookupBarcodeProduct, lookupProductByPackageName } from "./api/scan"
 import { PACKAGE_READ_TIMEOUT_MS, readPackageTitle } from "./api/ocr"
 import {
   allergyCategoriesForApi,
@@ -5439,6 +5439,48 @@ async function shrinkPhoto(file: File, maxSide: number): Promise<HTMLCanvasEleme
   }
 }
 
+async function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82))
+  if (!blob) throw new Error("Unable to capture the package photo.")
+  return blob
+}
+
+function openPackageScanResult(
+  go: (s: Screen) => void,
+  origin: "barcode" | "ocr",
+  title: string,
+  found: Awaited<ReturnType<typeof lookupProductByPackageName>>,
+) {
+  const result = found?.result
+  const match = found?.match
+  const product = result?.product || {}
+  const stored = storedScanFromAnalysis({
+    source: "ocr",
+    name: product.product_name || product.name || match?.product_name || title,
+    brand: product.brand || match?.brand,
+    barcode: match?.code,
+    imageUrl: product.image_url || match?.image_url,
+    ingredients: product.ingredients,
+    ingredientsText: product.ingredients_raw_text || title,
+    verdict: result?.verdict,
+    grade: result?.nutri_score_grade,
+    explanation: result?.explanation,
+    allergyFlags: result?.allergy_flags,
+    allergyMatches: result?.allergy_matches,
+    labelInsights: result?.label_insights,
+    aiSource: result?.ai_source,
+    safetyScore: result?.safety_score,
+  })
+  saveActiveScan(stored)
+  try {
+    window.sessionStorage.setItem("scanity_scan_return", origin)
+    window.sessionStorage.setItem("scanity_confirm_ocr", "1")
+  } catch {
+    // ignore
+  }
+  go("productResult")
+}
+
 async function barcodeFromCanvas(canvas: HTMLCanvasElement): Promise<string | null> {
   const Detector = (
     window as Window & {
@@ -5609,16 +5651,17 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
   }
 
   // ── PROCESS BARCODE (camera + manual share this) ─────────────────────────
-  const processBarcode = async (barcode: string) => {
+  const processBarcode = async (barcode: string, options?: { silentMiss?: boolean }) => {
     const cleanBarcode = barcode.trim()
     const validation = validateBarcode(cleanBarcode)
     if (!validation.valid) {
+      if (options?.silentMiss) return false
       setErrorMessage(validation.message)
       setScanStatus("invalid")
-      return
+      return false
     }
-    if (isDuplicateScan(cleanBarcode)) return
-    if (processingRef.current) return
+    if (isDuplicateScan(cleanBarcode)) return true
+    if (processingRef.current) return false
 
     processingRef.current = true
     lastScannedBarcodeRef.current = cleanBarcode
@@ -5631,11 +5674,11 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
 
       setScanStatus("captured")
       stopCamera()
-      if (!isMountedRef.current) return
+      if (!isMountedRef.current) return false
 
       setScanStatus("processing")
       const result = await lookupBarcode(cleanBarcode)
-      if (!isMountedRef.current) return
+      if (!isMountedRef.current) return false
 
       const normalized = normalizeProductResult(result, cleanBarcode)
       setProductResult(normalized)
@@ -5688,27 +5731,32 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
         // ignore
       }
       if (isMountedRef.current) go("productResult")
+      return true
     } catch (error) {
       console.error("Barcode processing error:", error)
-      if (!isMountedRef.current) return
+      if (!isMountedRef.current) return false
       stopCamera()
 
       if (error instanceof Error && error.message === "__PRODUCT_NOT_FOUND__") {
+        if (options?.silentMiss) return false
         setErrorMessage("We couldn't find a product for this barcode.")
         setScanStatus("not-found")
-        return
+        return false
       }
 
       if (error instanceof Error && error.message === "__NETWORK_ERROR__") {
+        if (options?.silentMiss) return false
         setErrorMessage("Unable to connect to the server. Please check your internet connection and try again.")
         setScanStatus("network-error")
-        return
+        return false
       }
 
+      if (options?.silentMiss) return false
       setErrorMessage(
         error instanceof Error ? error.message : "Something went wrong while looking up the product."
       )
       setScanStatus("error")
+      return false
     } finally {
       processingRef.current = false
     }
@@ -5905,12 +5953,33 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
     setGalleryImage(preview)
     const code = (await barcodeFromCanvas(canvas)) || (await barcodeFromCanvas(cropCenter(canvas, 0.7)))
     if (code) {
-      await processBarcode(code)
-      return
+      const found = await processBarcode(code, { silentMiss: true })
+      if (found) return
     }
-    pendingScanPhoto = file
-    pendingScanOrigin = "barcode"
-    go("ocr")
+    try {
+      setScanStatus("processing")
+      const blob = await canvasToJpegBlob(canvas)
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), PACKAGE_READ_TIMEOUT_MS)
+      let read
+      try {
+        read = await readPackageTitle(blob, allergyCategoriesForApi(), controller.signal)
+      } finally {
+        window.clearTimeout(timeoutId)
+      }
+      const found = await lookupProductByPackageName(
+        read.title,
+        read.candidates,
+        allergyCategoriesForApi(),
+        conditionsForApi(),
+      )
+      openPackageScanResult(go, "barcode", read.title, found)
+    } catch (error) {
+      console.error("Gallery package lookup error:", error)
+      pendingScanPhoto = file
+      pendingScanOrigin = "barcode"
+      go("ocr")
+    }
   }
 
   // ── RETRY / RESCAN ────────────────────────────────────────────────────────
@@ -6752,10 +6821,10 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
             </div>
 
             {[
-              "Tap Camera or Start Camera.",
+              "Tap Camera, Start Camera, or Gallery.",
               "Allow camera permission when your browser asks.",
-              "Place the barcode inside the scanning frame.",
-              "Keep the barcode steady until it is detected.",
+              "Place the barcode inside the scanning frame, or pick a package photo.",
+              "If the photo has no barcode, Scanity reads the product name and searches Open Food Facts.",
               "Scanity will validate the barcode.",
               "The barcode will be sent to the backend.",
               "The backend retrieves product information from OpenFoodFacts.",
@@ -7223,20 +7292,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     return shrinkPhoto(new File([blob], "label.jpg", { type: blob.type || "image/jpeg" }), 960)
   }
 
-  const openConfirmedResult = (
-    stored: ReturnType<typeof storedScanFromAnalysis>,
-    origin: "barcode" | "ocr",
-  ) => {
-    saveActiveScan(stored)
-    try {
-      window.sessionStorage.setItem("scanity_scan_return", origin)
-      window.sessionStorage.setItem("scanity_confirm_ocr", "1")
-    } catch {
-      // ignore
-    }
-    go("productResult")
-  }
-
   const presentPackageMatch = async (
     title: string,
     origin: "barcode" | "ocr",
@@ -7249,61 +7304,22 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     setProductName(cleanTitle)
     setScanStatus("productProcessing")
 
-    const guesses = [cleanTitle, ...extraTitles].filter((item, index, list) => {
-      const key = item.trim().toLowerCase()
-      return key.length >= 3 && list.findIndex((other) => other.trim().toLowerCase() === key) === index
-    })
-
     try {
-      let best: { code: string; product_name: string; brand?: string; image_url?: string } | undefined
-      for (const guess of guesses.slice(0, 5)) {
-        const matches = await searchOffByName(guess)
-        if (matches[0]?.code) {
-          best = matches[0]
-          break
-        }
-      }
-      if (best?.code) {
-        const result = await lookupBarcodeProduct(
-          best.code,
-          allergyCategoriesForApi(),
-          conditionsForApi(),
-        )
-        const product = result?.product || {}
-        openConfirmedResult(
-          storedScanFromAnalysis({
-            source: "ocr",
-            name: product.product_name || product.name || best.product_name || cleanTitle,
-            brand: product.brand || best.brand,
-            barcode: best.code,
-            imageUrl: product.image_url || best.image_url,
-            ingredients: product.ingredients,
-            ingredientsText: product.ingredients_raw_text || cleanTitle,
-            verdict: result?.verdict,
-            grade: result?.nutri_score_grade,
-            explanation: result?.explanation,
-            allergyFlags: result?.allergy_flags,
-            allergyMatches: result?.allergy_matches,
-            labelInsights: result?.label_insights,
-            aiSource: result?.ai_source,
-            safetyScore: result?.safety_score,
-          }),
-          origin,
-        )
+      const found = await lookupProductByPackageName(
+        cleanTitle,
+        extraTitles,
+        allergyCategoriesForApi(),
+        conditionsForApi(),
+      )
+      if (found?.match?.code) {
+        openPackageScanResult(go, origin, cleanTitle, found)
         return
       }
     } catch (lookupError) {
       console.warn("Open Food Facts lookup failed:", lookupError)
     }
 
-    openConfirmedResult(
-      storedScanFromAnalysis({
-        source: "ocr",
-        name: cleanTitle,
-        ingredientsText: cleanTitle,
-      }),
-      origin,
-    )
+    openPackageScanResult(go, origin, cleanTitle, null)
   }
 
   const processOCR = async (source: string | HTMLCanvasElement | File, origin: "barcode" | "ocr" = "ocr") => {
@@ -7369,6 +7385,18 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to capture the package photo.")
       setScanStatus("error")
     }
+  }
+
+  const handleOcrGallery = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file || processingRef.current) return
+    if (!isLikelyImageFile(file)) {
+      setErrorMessage("Please select a photo of the product name. JPG and PNG work best.")
+      setScanStatus("error")
+      return
+    }
+    await processOCR(file)
   }
 
   const handleRetry = () => {
@@ -7733,7 +7761,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                 </div>
 
                 {/* Controls - raised neumorphic squares, like the rail icons */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
                   <button
                     type="button"
                     className="scanity-slate-btn"
@@ -7786,6 +7814,27 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                     <i className="fa fa-bolt" style={{ fontSize: 17 }} />
                     <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Flash</div>
                   </button>
+
+                  <label
+                    className="scanity-slate-btn"
+                    style={{
+                      border: "none", background: SOFT_SLATE.bg, borderRadius: 16,
+                      padding: isDesktop ? "15px 8px" : "13px 5px",
+                      boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                      color: SOFT_SLATE.green, cursor: scannerBusy ? "not-allowed" : "pointer",
+                      opacity: scannerBusy ? 0.55 : 1, textAlign: "center",
+                    }}
+                  >
+                    <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
+                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Gallery</div>
+                    <input
+                      type="file"
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
+                      disabled={scannerBusy}
+                      onChange={handleOcrGallery}
+                      style={{ display: "none" }}
+                    />
+                  </label>
                 </div>
 
                 {scanStatus === "scanning" && (
@@ -7828,9 +7877,9 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             </h3>
 
             {[
-              "Tap Camera.",
-              "Place the product name inside the frame.",
-              "Scanity asks whether that product is correct.",
+              "Tap Camera or Gallery.",
+              "Place the product name inside the frame, or pick a package photo.",
+              "Scanity looks the name up on Open Food Facts.",
               "Choose yes to see the result, or try again.",
             ].map((instruction, index) => (
               <div key={instruction} style={{ display: "flex", gap: 11, marginBottom: 12 }}>

@@ -595,6 +595,38 @@ export async function searchOffByName(name: string): Promise<{ code: string; pro
   return offSearch(shortened)
 }
 
+export type PackageNameMatch = {
+  code: string
+  product_name: string
+  brand?: string
+  image_url?: string
+}
+
+export async function lookupProductByPackageName(
+  title: string,
+  extraTitles: string[] = [],
+  userAllergies: AllergyList = [],
+  userConditions: AllergyList = [],
+): Promise<{ result: any; match: PackageNameMatch } | null> {
+  const guesses = [title, ...extraTitles].filter((item, index, list) => {
+    const key = item.trim().toLowerCase()
+    return key.length >= 3 && list.findIndex((other) => other.trim().toLowerCase() === key) === index
+  })
+
+  for (const guess of guesses.slice(0, 5)) {
+    const matches = await searchOffByName(guess)
+    const best = matches[0] as PackageNameMatch | undefined
+    if (!best?.code) continue
+    try {
+      const result = await lookupBarcodeProduct(best.code, userAllergies, userConditions)
+      if (result) return { result, match: best }
+    } catch (error) {
+      console.warn("Open Food Facts barcode lookup failed for a name match:", error)
+    }
+  }
+  return null
+}
+
 export async function lookupBarcodeProduct(
   barcode: string,
   userAllergies: AllergyList = [],
