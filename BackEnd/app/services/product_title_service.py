@@ -64,9 +64,9 @@ def title_from_package_photo(image_bytes: bytes, mime: str = "image/jpeg") -> st
     ai_text = call_hosted_ai(
         "What product is printed on this package? Product name only:",
         system_instructions=_PHOTO_INSTRUCTIONS,
-        max_output_tokens=24,
+        max_output_tokens=96,
         temperature=0.0,
-        timeout_seconds=8,
+        timeout_seconds=18,
         image_b64=payload,
         image_mime=mime if mime in {"image/jpeg", "image/png", "image/webp"} else "image/jpeg",
     )

@@ -40,7 +40,13 @@ export async function analyzeOcrText(payload: {
   return data
 }
 
-export async function extractOcrImage(file: Blob, userAllergies: string[]) {
+export const PACKAGE_READ_TIMEOUT_MS = 45_000
+
+export async function extractOcrImage(
+  file: Blob,
+  userAllergies: string[],
+  signal?: AbortSignal,
+) {
   const token = getAccessToken()
   if (!token) throw new Error("Please sign in again to scan products.")
 
@@ -48,14 +54,23 @@ export async function extractOcrImage(file: Blob, userAllergies: string[]) {
   form.append("file", file, "label.jpg")
   form.append("user_allergies", userAllergies.join(","))
 
-  const response = await fetch(`${requireApiBaseUrl()}/scan/ocr/image`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-    body: form,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${requireApiBaseUrl()}/scan/ocr/image`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+      body: form,
+      signal,
+    })
+  } catch (error) {
+    if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+      throw new Error("Package reading timed out. Hold the name steady and try again.")
+    }
+    throw error
+  }
   const data = await response.json().catch(() => null)
   if (response.status === 401) throw new Error("Please sign in again to scan products.")
   if (!response.ok) throw new Error(readError(data, "Could not read this package photo."))

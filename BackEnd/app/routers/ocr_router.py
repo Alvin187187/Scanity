@@ -91,12 +91,12 @@ async def scan_ocr_image(
     _current_user: dict = Depends(get_current_user),
 ):
     """Read a package photo and return the product name."""
+    _ = user_allergies
     image_bytes = await file.read()
-    allergies = [part.strip() for part in user_allergies.split(",") if part.strip()]
     try:
         extracted_text = extract_text_from_image(image_bytes, file.content_type)
-        # A product name-only photo is valid. Ingredient analysis waits until
-        # the shopper confirms and Open Food Facts is looked up.
+        # Name-only photos are valid. Allergy scoring waits until Open Food Facts
+        # is looked up after the shopper confirms, so this request stays fast.
         result = process_ocr_result(
             extracted_text=extracted_text,
             require_ingredients=False,
@@ -108,4 +108,8 @@ async def scan_ocr_image(
     except InvalidOCRInputError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
-    return _with_analysis(result, allergies, extracted_text)
+    return OCRScanResponse(
+        extracted_text=result["extracted_text"],
+        parsed_ingredients=[],
+        product_name=result["extracted_text"],
+    )

@@ -178,19 +178,32 @@ def extract_text_from_image(image_bytes: bytes, content_type: str | None = None)
     except Exception:
         logger.warning("Hosted package reading was unavailable.")
 
-    try:
-        engine = _load_engine()
-        result = engine(prepared)
-    except OCREngineUnavailableError:
-        raise
-    except Exception as exc:
-        logger.exception("RapidOCR failed to read the package photo.")
-        raise OCREngineUnavailableError("Could not read this package photo.") from exc
-
-    lines = _texts_from_result(result)
-    text = "\n".join(lines).strip()
+    text = _rapidocr_text(prepared)
     if not text:
         raise InvalidLabelImageError(
             "No product name was detected. Hold the name steady and try again in good light."
         )
     return text
+
+
+def _rapidocr_text(prepared: bytes) -> str:
+    """Local OCR fallback with a hard cap so a cold model load cannot hang the scan."""
+    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import TimeoutError as FuturesTimeout
+
+    def run() -> str:
+        engine = _load_engine()
+        result = engine(prepared)
+        return "\n".join(_texts_from_result(result)).strip()
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(run).result(timeout=6)
+    except OCREngineUnavailableError:
+        raise
+    except FuturesTimeout:
+        logger.warning("RapidOCR timed out while reading the package photo.")
+        return ""
+    except Exception as exc:
+        logger.exception("RapidOCR failed to read the package photo.")
+        raise OCREngineUnavailableError("Could not read this package photo.") from exc

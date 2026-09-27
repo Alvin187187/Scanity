@@ -29,6 +29,21 @@ def test_package_photo_title_uses_hosted_reader(monkeypatch):
     assert title_from_package_photo(b"fake-bytes") == "Bravo Biscuits"
 
 
+def test_package_photo_title_uses_enough_tokens_and_time(monkeypatch):
+    from app.services.product_title_service import title_from_package_photo
+
+    captured = {}
+
+    def fake_call(*args, **kwargs):
+        captured.update(kwargs)
+        return "Bravo Biscuits"
+
+    monkeypatch.setattr("app.services.product_title_service.call_hosted_ai", fake_call)
+    assert title_from_package_photo(b"fake-bytes") == "Bravo Biscuits"
+    assert captured["timeout_seconds"] >= 18
+    assert captured["max_output_tokens"] >= 64
+
+
 def test_package_photo_title_drops_unknown(monkeypatch):
     from app.services.product_title_service import title_from_package_photo
 

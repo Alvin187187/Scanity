@@ -125,7 +125,8 @@ def test_image_upload_uses_rapidocr(monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert "milk" in data["extracted_text"].lower()
-    assert data["verdict"] == "avoid"
+    assert data["product_name"]
+    assert data["verdict"] is None
 
 
 def test_image_upload_returns_text_even_without_ingredients(monkeypatch):
