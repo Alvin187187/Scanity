@@ -6,6 +6,19 @@ import re
 
 from ai.gemini_client import FALLBACK_TEXT, call_hosted_ai
 
+_GENERIC = {
+    "water",
+    "milk",
+    "drink",
+    "original",
+    "natural",
+    "fresh",
+    "pure",
+    "size",
+    "net",
+    "food",
+}
+
 _NOISE = re.compile(
     r"^(ingredients?|ingredientes?|nutrition|nutritional|contains|allergen|allergens|"
     r"serving|calories|energy|protein|total|saturated|carbohydrate|sugars?|sodium|"
@@ -19,8 +32,10 @@ Return only the product name a shopper would type into a search box.
 Rules:
 - One line. No ingredients, nutrition facts, addresses, weights, or barcodes.
 - No markdown, no asterisks, no quotes, no explanation.
-- Keep the brand and the product name when both are visible, such as "Bravo Biscuits".
-- If the photo is mostly ingredients, pick the product name if it appears, otherwise return the shortest recognizable food name.
+- Keep the brand and the product name when both are visible, such as "Nature Spring Water" or "Bravo Biscuits".
+- Copy the name that is printed. Do not substitute a different product.
+- Do not shorten the name down to one generic word such as Water, Milk, or Original.
+- If the photo is mostly ingredients, pick the product name if it appears. Otherwise return nothing useful by answering with the brand line only.
 """
 
 
@@ -40,9 +55,16 @@ def heuristic_product_title(text: str) -> str:
         lines.append(line)
     if not lines:
         return ""
-    # The product name is usually near the top and shorter than an ingredient line.
-    ranked = sorted(lines[:6], key=lambda line: (len(line.split()), len(line)))
-    return ranked[0][:80]
+
+    def rank(item: tuple[int, str]) -> tuple[int, int, int]:
+        index, line = item
+        words = line.split()
+        generic_only = all(word.lower().strip(".,") in _GENERIC for word in words)
+        single_generic = len(words) == 1 and generic_only
+        return (2 if single_generic else 1 if generic_only else 0, index, abs(len(words) - 3))
+
+    ranked = sorted(enumerate(lines), key=rank)
+    return ranked[0][1][:80]
 
 
 def clean_product_title(text: str) -> tuple[str, str]:
@@ -69,4 +91,30 @@ def clean_product_title(text: str) -> tuple[str, str]:
         return fallback, "heuristic"
     if _NOISE.match(title):
         return fallback, "heuristic"
+    if not _title_agrees(title, sample):
+        return fallback, "heuristic"
     return title, "gemini"
+
+
+def _title_agrees(title: str, source: str) -> bool:
+    """Drop an AI name that does not use the words read from the package."""
+    stop = {"the", "and", "with", "for"}
+
+    def tokens(value: str) -> list[str]:
+        return [
+            token
+            for token in re.sub(r"[^a-z0-9\s]", " ", value.lower()).split()
+            if len(token) > 2 and token not in stop
+        ]
+
+    wanted = tokens(title)
+    if not wanted:
+        return False
+    haystack = tokens(source)
+    distinctive = [token for token in wanted if token not in _GENERIC]
+    required = distinctive or wanted
+
+    def hit(token: str) -> bool:
+        return any(word == token or (len(token) > 3 and (token in word or word in token)) for word in haystack)
+
+    return sum(1 for token in required if hit(token)) / len(required) >= 0.67
