@@ -58,7 +58,7 @@ export async function extractOcrImage(file: Blob, userAllergies: string[]) {
   })
   const data = await response.json().catch(() => null)
   if (response.status === 401) throw new Error("Please sign in again to scan products.")
-  if (!response.ok) throw new Error(readError(data, "RapidOCR could not read this nutrition label."))
+  if (!response.ok) throw new Error(readError(data, "Could not read this package photo."))
   return data
 }
 

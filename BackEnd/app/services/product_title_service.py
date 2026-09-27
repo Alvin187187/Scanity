@@ -33,6 +33,15 @@ _DESCRIPTION = re.compile(
     re.IGNORECASE,
 )
 
+_PHOTO_INSTRUCTIONS = """You read a food package photo and return only the product name.
+Rules:
+- One line. Brand plus product name when both are visible.
+- No ingredients, nutrition facts, slogans, weights, addresses, or barcodes.
+- No markdown, quotes, or explanation.
+- Copy the printed name. Do not invent a different product.
+- If you cannot read a product name, reply with the single word UNKNOWN.
+"""
+
 _TITLE_INSTRUCTIONS = """You clean text read from a food package photo.
 Return only the product name a shopper would type into a search box.
 Rules:
@@ -43,6 +52,38 @@ Rules:
 - Do not shorten the name down to one generic word such as Water, Milk, or Original.
 - If the photo is mostly ingredients, pick the product name if it appears. Otherwise return nothing useful by answering with the brand line only.
 """
+
+
+def title_from_package_photo(image_bytes: bytes, mime: str = "image/jpeg") -> str:
+    """Read the product name from a package photo with hosted Gemini."""
+    import base64
+
+    if not image_bytes:
+        return ""
+    payload = base64.b64encode(image_bytes).decode("ascii")
+    ai_text = call_hosted_ai(
+        "What product is printed on this package? Product name only:",
+        system_instructions=_PHOTO_INSTRUCTIONS,
+        max_output_tokens=24,
+        temperature=0.0,
+        timeout_seconds=8,
+        image_b64=payload,
+        image_mime=mime if mime in {"image/jpeg", "image/png", "image/webp"} else "image/jpeg",
+    )
+    if not ai_text or ai_text == FALLBACK_TEXT:
+        return ""
+    title = ai_text.strip().strip("\"'`")
+    title = title.splitlines()[0].strip()
+    title = re.sub(r"\*+", "", title).strip(" .-")
+    if title.upper() in {"UNKNOWN", "NONE", "N/A"}:
+        return ""
+    if len(re.sub(r"[^A-Za-z]", "", title)) < 3 or len(title) > 80:
+        return ""
+    if _NOISE.match(title) or _looks_like_description(title):
+        return ""
+    if len(title.split()) > 8:
+        return ""
+    return title
 
 
 def _looks_like_description(line: str) -> bool:
