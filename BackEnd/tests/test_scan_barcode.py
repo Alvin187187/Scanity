@@ -124,3 +124,25 @@ def test_missing_token_fails_before_barcode_lookup(monkeypatch):
 
     assert response.status_code == 401
     assert service_called["value"] is False
+
+
+def test_name_search_returns_open_food_facts_matches(monkeypatch):
+    async def fake_search(query):
+        assert query == "Lucky Day"
+        return [
+            {
+                "code": "4800193101531",
+                "product_name": "Orange Juice Drink",
+                "brand": "Lucky Day",
+                "image_url": "https://example.com/lucky-day.jpg",
+            }
+        ]
+
+    monkeypatch.setattr(scan_router_module, "search_products_by_name", fake_search)
+
+    response = client.get("/api/v1/scan/search", params={"q": "Lucky Day"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["products"][0]["code"] == "4800193101531"
+    assert data["products"][0]["image_url"]

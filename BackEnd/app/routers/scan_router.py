@@ -1,14 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.dependencies.auth import get_current_user
-from app.schemas.scan import BarcodeScanRequest, BarcodeScanResponse, NutritionOut, ProductOut
+from app.schemas.scan import (
+    BarcodeScanRequest,
+    BarcodeScanResponse,
+    NutritionOut,
+    ProductOut,
+    ProductSearchMatch,
+    ProductSearchResponse,
+)
 from app.services.barcode_lookup_service import (
     get_product_by_barcode,
     ProductNotFoundError,
 )
-from app.services.openfoodfacts_service import OpenFoodFactsError
+from app.services.openfoodfacts_service import OpenFoodFactsError, search_products_by_name
 from app.services.scan_analysis_service import analyze_ingredients
 
 router = APIRouter()
@@ -79,4 +86,29 @@ async def scan_barcode(
         nutri_score_grade=analysis["nutri_score_grade"],
         explanation=analysis["explanation"],
         ai_source=analysis.get("ai_source"),
+    )
+
+
+@router.get("/scan/search", response_model=ProductSearchResponse)
+async def search_products(
+    q: str = Query(..., min_length=3, max_length=80),
+    _current_user: dict = Depends(get_current_user),
+):
+    """Find Open Food Facts products from a printed name or brand."""
+    try:
+        matches = await search_products_by_name(q)
+    except OpenFoodFactsError as error:
+        raise HTTPException(status_code=503, detail={"error": str(error)}) from error
+
+    return ProductSearchResponse(
+        query=q.strip(),
+        products=[
+            ProductSearchMatch(
+                code=item["code"],
+                product_name=item.get("product_name") or "",
+                brand=item.get("brand"),
+                image_url=item.get("image_url"),
+            )
+            for item in matches
+        ],
     )
