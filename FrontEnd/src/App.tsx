@@ -5445,21 +5445,44 @@ async function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return blob
 }
 
-function openPackageScanResult(
+function openPackageDraft(
   go: (s: Screen) => void,
   origin: "barcode" | "ocr",
   title: string,
+  previewUrl?: string,
+  candidates: string[] = [],
+) {
+  const stored = storedScanFromAnalysis({
+    source: "ocr",
+    name: title,
+    imageUrl: previewUrl,
+    ingredientsText: title,
+  })
+  saveActiveScan(stored)
+  try {
+    window.sessionStorage.setItem("scanity_scan_return", origin)
+    window.sessionStorage.setItem("scanity_confirm_ocr", "1")
+    window.sessionStorage.setItem("scanity_ocr_candidates", JSON.stringify(candidates.slice(0, 8)))
+  } catch {
+    // ignore
+  }
+  go("productResult")
+}
+
+function storedFromPackageLookup(
+  title: string,
   found: Awaited<ReturnType<typeof lookupProductByPackageName>>,
+  previewUrl?: string,
 ) {
   const result = found?.result
   const match = found?.match
   const product = result?.product || {}
-  const stored = storedScanFromAnalysis({
+  return storedScanFromAnalysis({
     source: "ocr",
     name: product.product_name || product.name || match?.product_name || title,
     brand: product.brand || match?.brand,
     barcode: match?.code,
-    imageUrl: product.image_url || match?.image_url,
+    imageUrl: product.image_url || match?.image_url || previewUrl,
     ingredients: product.ingredients,
     ingredientsText: product.ingredients_raw_text || title,
     verdict: result?.verdict,
@@ -5471,7 +5494,16 @@ function openPackageScanResult(
     aiSource: result?.ai_source,
     safetyScore: result?.safety_score,
   })
-  saveActiveScan(stored)
+}
+
+function openPackageScanResult(
+  go: (s: Screen) => void,
+  origin: "barcode" | "ocr",
+  title: string,
+  found: Awaited<ReturnType<typeof lookupProductByPackageName>>,
+  previewUrl?: string,
+) {
+  saveActiveScan(storedFromPackageLookup(title, found, previewUrl))
   try {
     window.sessionStorage.setItem("scanity_scan_return", origin)
     window.sessionStorage.setItem("scanity_confirm_ocr", "1")
@@ -5967,13 +5999,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       } finally {
         window.clearTimeout(timeoutId)
       }
-      const found = await lookupProductByPackageName(
-        read.title,
-        read.candidates,
-        allergyCategoriesForApi(),
-        conditionsForApi(),
-      )
-      openPackageScanResult(go, "barcode", read.title, found)
+      openPackageDraft(go, "barcode", read.title, preview, read.candidates)
     } catch (error) {
       console.error("Gallery package lookup error:", error)
       pendingScanPhoto = file
@@ -7296,6 +7322,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     title: string,
     origin: "barcode" | "ocr",
     extraTitles: string[] = [],
+    previewUrl?: string,
   ) => {
     const cleanTitle = title.trim()
     if (!cleanTitle) {
@@ -7303,23 +7330,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     }
     setProductName(cleanTitle)
     setScanStatus("productProcessing")
-
-    try {
-      const found = await lookupProductByPackageName(
-        cleanTitle,
-        extraTitles,
-        allergyCategoriesForApi(),
-        conditionsForApi(),
-      )
-      if (found?.match?.code) {
-        openPackageScanResult(go, origin, cleanTitle, found)
-        return
-      }
-    } catch (lookupError) {
-      console.warn("Open Food Facts lookup failed:", lookupError)
-    }
-
-    openPackageScanResult(go, origin, cleanTitle, null)
+    openPackageDraft(go, origin, cleanTitle, previewUrl || galleryImage || undefined, extraTitles)
   }
 
   const processOCR = async (source: string | HTMLCanvasElement | File, origin: "barcode" | "ocr" = "ocr") => {
@@ -7331,6 +7342,14 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       stopCamera()
       setScanStatus("ocrProcessing")
       const prepared = await shrinkSource(source)
+      let preview = galleryImage
+      if (prepared instanceof HTMLCanvasElement) {
+        preview = prepared.toDataURL("image/jpeg", 0.82)
+        setGalleryImage(preview)
+      } else if (!preview && source instanceof File) {
+        preview = URL.createObjectURL(source)
+        setGalleryImage(preview)
+      }
       const controller = new AbortController()
       const timeoutId = window.setTimeout(() => controller.abort(), PACKAGE_READ_TIMEOUT_MS)
       let read
@@ -7343,7 +7362,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       } finally {
         window.clearTimeout(timeoutId)
       }
-      await presentPackageMatch(read.title, origin, read.candidates)
+      await presentPackageMatch(read.title, origin, read.candidates, preview || undefined)
     } catch (error) {
       console.error("OCR processing error:", error)
       const message = error instanceof Error ? error.message : ""
@@ -8927,9 +8946,9 @@ function whyNutritionGrade(
 
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const isDesktop = useIsDesktop()
-  const scan = loadActiveScan()
-  const [saved, setSaved] = useState(Boolean(scan?.favorite))
-  const [saveNotice, setSaveNotice] = useState(Boolean(scan?.favorite) ? "This product has been saved in your profile" : "")
+  const [scan, setScan] = useState(() => loadActiveScan())
+  const [saved, setSaved] = useState(Boolean(loadActiveScan()?.favorite))
+  const [saveNotice, setSaveNotice] = useState(Boolean(loadActiveScan()?.favorite) ? "This product has been saved in your profile" : "")
   const [chatOpen, setChatOpen] = useState(false)
   const [chatInput, setChatInput] = useState("")
   const [chatBusy, setChatBusy] = useState(false)
@@ -8945,6 +8964,9 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
       return false
     }
   })
+  const [confirmName, setConfirmName] = useState(() => loadActiveScan()?.name || "")
+  const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState("")
   const [gradeNote, setGradeNote] = useState("")
   const chatEndRef = useRef<HTMLDivElement | null>(null)
 
@@ -9605,29 +9627,92 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 16, marginTop: 14, display: "block" }}
               />
             ) : null}
-            <p style={{ margin: "14px 0 4px", fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
-              {productName}
+            <label htmlFor="ocr-confirm-name" style={{ display: "block", margin: "14px 0 6px", fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted }}>
+              Product name
+            </label>
+            <input
+              id="ocr-confirm-name"
+              className="scanity-slate-input"
+              value={confirmName}
+              onChange={(event) => {
+                setConfirmName(event.target.value)
+                setConfirmError("")
+              }}
+              disabled={confirmBusy}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                minHeight: 48,
+                border: "none",
+                borderRadius: 14,
+                padding: "12px 14px",
+                background: SOFT_SLATE.bg,
+                boxShadow: SOFT_SLATE.insetSm,
+                fontSize: 16,
+                fontWeight: 700,
+                color: SOFT_SLATE.textPrimary,
+              }}
+            />
+            <p style={{ margin: "8px 0 16px", fontSize: 13, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
+              Edit the name if the reader missed it. Scanity searches Open Food Facts after you confirm.
             </p>
-            {productBrand && productBrand.toLowerCase() !== productName.toLowerCase() ? (
-              <p style={{ margin: "0 0 16px", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
-                {productBrand}
-              </p>
-            ) : (
-              <div style={{ height: 16 }} />
-            )}
+            {confirmError ? (
+              <p style={{ margin: "0 0 12px", fontSize: 13, color: SOFT_SLATE.unsafe }}>{confirmError}</p>
+            ) : null}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <button
                 type="button"
                 className="scanity-hit"
+                disabled={confirmBusy}
                 onClick={() => {
-                  const active = loadActiveScan()
-                  if (active) appendScanHistory(active)
-                  try {
-                    window.sessionStorage.removeItem("scanity_confirm_ocr")
-                  } catch {
-                    // ignore
-                  }
-                  setConfirmOcr(false)
+                  void (async () => {
+                    const title = confirmName.trim()
+                    if (title.length < 3) {
+                      setConfirmError("Type the product name printed on the package.")
+                      return
+                    }
+                    setConfirmBusy(true)
+                    setConfirmError("")
+                    try {
+                      let candidates: string[] = []
+                      try {
+                        const raw = window.sessionStorage.getItem("scanity_ocr_candidates")
+                        const parsed = raw ? JSON.parse(raw) : []
+                        if (Array.isArray(parsed)) candidates = parsed.map((item) => String(item || "")).filter(Boolean)
+                      } catch {
+                        candidates = []
+                      }
+                      const found = await lookupProductByPackageName(
+                        title,
+                        candidates,
+                        allergyCategoriesForApi(),
+                        conditionsForApi(),
+                      )
+                      if (!found?.match?.code) {
+                        setConfirmError("No Open Food Facts match for that name. Edit it and try again.")
+                        return
+                      }
+                      const stored = storedFromPackageLookup(title, found, scan?.imageUrl)
+                      saveActiveScan(stored)
+                      setScan(stored)
+                      appendScanHistory(stored)
+                      try {
+                        window.sessionStorage.removeItem("scanity_confirm_ocr")
+                        window.sessionStorage.removeItem("scanity_ocr_candidates")
+                      } catch {
+                        // ignore
+                      }
+                      setConfirmOcr(false)
+                    } catch (error) {
+                      setConfirmError(
+                        error instanceof Error
+                          ? error.message
+                          : "Could not search Open Food Facts. Check the name and try again.",
+                      )
+                    } finally {
+                      setConfirmBusy(false)
+                    }
+                  })()
                 }}
                 style={{
                   minHeight: 48,
@@ -9637,19 +9722,22 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                   color: "#fff",
                   fontWeight: 700,
                   fontSize: 16,
-                  cursor: "pointer",
+                  cursor: confirmBusy ? "wait" : "pointer",
+                  opacity: confirmBusy ? 0.7 : 1,
                 }}
               >
-                Yes, show the result
+                {confirmBusy ? "Searching Open Food Facts…" : "Yes, show the result"}
               </button>
               <button
                 type="button"
                 className="scanity-hit"
-                onClick={() => {
+                  disabled={confirmBusy}
+                  onClick={() => {
                   if (scan?.id) removeScanFromHistory(scan.id)
                   clearActiveScan()
                   try {
                     window.sessionStorage.removeItem("scanity_confirm_ocr")
+                    window.sessionStorage.removeItem("scanity_ocr_candidates")
                     window.sessionStorage.setItem(
                       "scanity_ocr_retry",
                       "That was not the right product. Please try again.",

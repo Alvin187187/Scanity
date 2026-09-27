@@ -439,9 +439,9 @@ function offHitScore(
   const haystack = titleTokens(offHitBlob(product))
   if (!wanted.length || !haystack.length) return 0
   const hits = wanted.filter((token) => haystack.some((word) => tokensClose(token, word))).length
-  if (wanted.length <= 3 && hits < wanted.length) return 0
   const ratio = hits / wanted.length
-  if (ratio < 0.67) return 0
+  if (wanted.length <= 2 && hits < wanted.length) return 0
+  if (wanted.length > 2 && ratio < 0.5) return 0
   let score = ratio * 100
   const brand = (product.brand || brandsText(product.brands)).toLowerCase()
   const name = String(product.product_name || "").toLowerCase()
@@ -514,40 +514,50 @@ async function offSearch(query: string): Promise<{ code: string; product_name: s
   if (distinctive.length === 0) return []
   const urls = [
     "https://search.openfoodfacts.org/search?" +
-      new URLSearchParams({ q: query, page_size: "40" }).toString(),
+      new URLSearchParams({ q: query, page_size: "50" }).toString(),
+    "https://search.openfoodfacts.org/search?" +
+      new URLSearchParams({ q: `"${query}"`, page_size: "30" }).toString(),
     "https://world.openfoodfacts.org/cgi/search.pl?" +
       new URLSearchParams({
         search_terms: query,
         search_simple: "1",
         action: "process",
         json: "1",
-        page_size: "40",
+        page_size: "50",
       }).toString(),
   ]
-  for (const url of urls) {
-    try {
-      const response = await fetchWithTimeout(
+  const responses = await Promise.allSettled(
+    urls.map((url) =>
+      fetchWithTimeout(
         url,
         {
           headers: { Accept: "application/json" },
           mode: "cors",
         },
         OFF_TIMEOUT_MS,
-      )
-      if (!response.ok) continue
-      const data = await response.json().catch(() => null)
-      const products = Array.isArray(data?.hits)
-        ? data.hits
-        : Array.isArray(data?.products)
-          ? data.products
-          : []
-      const ranked = rankOffHits(query, products)
-      if (ranked.length) return ranked
-    } catch {
-      // Try the next Open Food Facts host.
+      ).then(async (response) => {
+        if (!response.ok) return []
+        const data = await response.json().catch(() => null)
+        if (Array.isArray(data?.hits)) return data.hits
+        if (Array.isArray(data?.products)) return data.products
+        return []
+      }),
+    ),
+  )
+  const merged: any[] = []
+  const seen = new Set<string>()
+  for (const item of responses) {
+    const products = item.status === "fulfilled" ? item.value : []
+    for (const product of products) {
+      const code = String(product?.code || product?._id || "").trim()
+      if (!code || seen.has(code)) continue
+      seen.add(code)
+      merged.push(product)
     }
   }
-  return []
+  const ranked = rankOffHits(query, merged)
+  if (ranked.length) return ranked
+  return rankOffHits(distinctive.slice(0, 2).join(" "), merged)
 }
 
 async function searchViaScanityApi(query: string): Promise<{ code: string; product_name: string }[]> {

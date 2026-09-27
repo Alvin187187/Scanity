@@ -87,10 +87,10 @@ def _hit_score(query: str, hit: dict) -> float:
     if not wanted or not haystack:
         return 0
     hits = sum(1 for token in wanted if any(_tokens_close(token, word) for word in haystack))
-    if len(wanted) <= 3 and hits < len(wanted):
+    if len(wanted) <= 2 and hits < len(wanted):
         return 0
     ratio = hits / len(wanted)
-    if ratio < 0.67:
+    if len(wanted) > 2 and ratio < 0.5:
         return 0
     score = ratio * 100
     brand_l = brand.lower()
