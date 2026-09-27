@@ -14,6 +14,7 @@ from app.services.ai_assistant_service import (
     build_safety_report,
 )
 from app.services.ingredient_explain_service import explain_ingredient
+from app.services.product_title_service import clean_product_title
 from seed.ingredient_knowledge_loader import search_ingredient_knowledge
 
 router = APIRouter()
@@ -138,6 +139,24 @@ async def knowledge_search(
         query=query,
         results=[KnowledgeSearchHit(**row) for row in rows],
     )
+
+
+class ProductTitleRequest(BaseModel):
+    extracted_text: str = ""
+
+
+class ProductTitleResponse(BaseModel):
+    product_title: str
+    source: str = "heuristic"
+
+
+@router.post("/scan/ai/product-title", response_model=ProductTitleResponse)
+async def ai_product_title(
+    request: ProductTitleRequest,
+    _current_user: dict = Depends(get_current_user),
+):
+    title, source = clean_product_title(request.extracted_text)
+    return ProductTitleResponse(product_title=title, source=source)
 
 
 @router.post("/scan/ai/ingredient-explain", response_model=IngredientExplainResponse)

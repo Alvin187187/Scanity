@@ -36,6 +36,6 @@ Scanity is an AI-powered food safety and nutrition decision support system that 
 
 Currently under development as an academic project.
 
-## Contributing
+## Access
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. This project uses a [Code of Conduct](CODE_OF_CONDUCT.md), a [security policy](SECURITY.md), and the MIT [License](LICENSE).
+This repository is closed. Contributors are not allowed, and the repository and its files are not available to take. Only the owners have the right to access and change it. See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and the [security policy](SECURITY.md).
