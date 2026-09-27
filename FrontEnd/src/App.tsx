@@ -26,7 +26,7 @@ import {
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
-import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName } from "./api/scan"
+import { lookupBarcodeProduct, productTitleFromOcr, searchOffByName, titleAgreesWithOcr } from "./api/scan"
 import { analyzeOcrText, cleanProductTitle, extractOcrImage } from "./api/ocr"
 import {
   allergyCategoriesForApi,
@@ -290,30 +290,24 @@ function BackBtn({ onPress }: { onPress: () => void }) {
       style={{
         width: 44,
         height: 44,
-        borderRadius: "50%",
-        border: `1px solid ${C.border}`,
-        background: C.white,
+        minWidth: 44,
+        minHeight: 44,
+        flex: "0 0 44px",
+        padding: 0,
+        borderRadius: 14,
+        border: "none",
+        background: "var(--ss-bg)",
+        color: "var(--ss-text-primary)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        boxShadow: "none",
+        boxShadow: "var(--ss-raised-sm)",
       }}
     >
-      <svg
-        width="8"
-        height="14"
-        viewBox="0 0 8 14"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M7 1L1 7L7 13"
-          stroke={C.black}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M19 12H5" />
+        <path d="m12 19-7-7 7-7" />
       </svg>
     </button>
   )
@@ -4289,23 +4283,23 @@ function DashboardIconRail({
         width: "100%",
         maxWidth: "100%",
         height: isDesktop ? "100%" : "auto",
-        minHeight: isDesktop ? undefined : 76,
+        minHeight: isDesktop ? undefined : 52,
         flex: "none",
         background: SOFT_SLATE.bg,
         borderRadius: isDesktop ? 26 : 20,
         borderRight: "none",
         borderBottom: "none",
-        padding: isDesktop ? "28px 12px 12px" : "8px 8px",
+        padding: isDesktop ? "28px 12px 12px" : "6px 4px",
         display: "flex",
         flexDirection: isDesktop ? "column" : "row",
         alignItems: isDesktop ? "stretch" : "center",
         justifyContent: "flex-start",
-        gap: isDesktop ? 8 : 4,
+        gap: isDesktop ? 8 : 2,
         boxShadow: SOFT_SLATE.raisedLg,
         fontFamily: SOFT_SLATE.fontFamily,
         boxSizing: "border-box",
         overflow: isDesktop ? "hidden" : "visible",
-        marginBottom: isDesktop ? 0 : 22,
+        marginBottom: isDesktop ? 0 : 8,
         position: "relative",
         zIndex: 2,
       }}
@@ -4352,7 +4346,7 @@ function DashboardIconRail({
           display: "flex",
           flexDirection: isDesktop ? "column" : "row",
           alignItems: isDesktop ? "stretch" : "center",
-          gap: isDesktop ? 4 : 4,
+          gap: isDesktop ? 4 : 2,
           flex: 1,
           minWidth: 0,
           justifyContent: isDesktop ? undefined : "flex-start",
@@ -4384,7 +4378,8 @@ function DashboardIconRail({
                 aria-current={isActive ? "page" : undefined}
                 style={{
                   width: isDesktop ? "100%" : "auto",
-                  minWidth: isDesktop ? undefined : 64,
+                  minWidth: 0,
+                  flex: isDesktop ? undefined : "1 1 0",
                   minHeight: 44,
                   height: isDesktop ? 44 : "auto",
                   borderRadius: 16,
@@ -4395,10 +4390,10 @@ function DashboardIconRail({
                   flexDirection: isDesktop ? "row" : "column",
                   alignItems: "center",
                   justifyContent: isDesktop ? "flex-start" : "center",
-                  gap: isDesktop ? 10 : 4,
+                  gap: isDesktop ? 10 : 2,
                   cursor: "pointer",
-                  flexShrink: 0,
-                  padding: isDesktop ? "0 10px" : 0,
+                  flexShrink: isDesktop ? 0 : 1,
+                  padding: isDesktop ? "0 10px" : "4px 2px",
                   color: isActive ? SOFT_SLATE.green : SOFT_SLATE.textSecondary,
                   fontFamily: SOFT_SLATE.fontFamily,
                   fontSize: 14,
@@ -4417,7 +4412,7 @@ function DashboardIconRail({
                 >
                   {item.path}
                 </svg>
-                <span style={{ fontSize: isDesktop ? 14 : 11, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: isDesktop ? 14 : 10, lineHeight: 1.1, whiteSpace: "nowrap" }}>
                   {isDesktop ? item.label : railShortLabel(item.label)}
                 </span>
               </button>
@@ -4447,10 +4442,11 @@ function DashboardIconRail({
           aria-label="Log out"
           style={{
             marginTop: 0,
-            marginLeft: isDesktop ? 0 : 2,
-            flexShrink: 0,
+            marginLeft: 0,
+            flexShrink: isDesktop ? 0 : 1,
             width: isDesktop ? "100%" : "auto",
-            minWidth: isDesktop ? undefined : 64,
+            minWidth: 0,
+            flex: isDesktop ? undefined : "1 1 0",
             minHeight: 44,
             height: isDesktop ? 44 : "auto",
             borderRadius: 16,
@@ -4460,10 +4456,10 @@ function DashboardIconRail({
             flexDirection: isDesktop ? "row" : "column",
             alignItems: "center",
             justifyContent: isDesktop ? "flex-start" : "center",
-            gap: isDesktop ? 10 : 4,
+            gap: isDesktop ? 10 : 2,
             cursor: "pointer",
             boxShadow: SOFT_SLATE.raisedSm,
-            padding: isDesktop ? "0 10px" : 0,
+            padding: isDesktop ? "0 10px" : "4px 2px",
             color: SOFT_SLATE.textSecondary,
             fontFamily: SOFT_SLATE.fontFamily,
             fontSize: 14,
@@ -4484,7 +4480,7 @@ function DashboardIconRail({
             <path d="m16 17 5-5-5-5" />
             <path d="M21 12H9" />
           </svg>
-          <span style={{ fontSize: isDesktop ? 14 : 11, lineHeight: 1.2, whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: isDesktop ? 14 : 10, lineHeight: 1.1, whiteSpace: "nowrap" }}>
             {isDesktop ? "Log out" : railShortLabel("Log out")}
           </span>
         </button>
@@ -6053,6 +6049,37 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               </Tooltip>
             </div>
 
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 560, margin: "0 auto" }}>
+              <button
+                type="button"
+                className="scanity-hit"
+                onClick={() => go("ocr")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                  minHeight: 52,
+                  padding: "0 18px",
+                  border: "none",
+                  borderRadius: 16,
+                  background: SOFT_SLATE.green,
+                  color: "#fff",
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 16,
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                  cursor: "pointer",
+                  boxShadow: SOFT_SLATE.raisedBtn,
+                }}
+              >
+                Find product from the package
+              </button>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
+                No barcode? Photograph the product name. Scanity searches that name.
+              </p>
+            </div>
+
             {/* ── Scanner card ─────────────────────────────────────────── */}
             <div
               style={{
@@ -6493,37 +6520,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                   Scan Another Product
                 </button>
               )}
-
-              <button
-                type="button"
-                className="scanity-hit"
-                onClick={() => go("ocr")}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                  width: "100%",
-                  maxWidth: 560,
-                  margin: "22px auto 0",
-                  minHeight: 88,
-                  padding: "16px 18px",
-                  border: "none",
-                  borderRadius: 20,
-                  background: SOFT_SLATE.bg,
-                  boxShadow: SOFT_SLATE.raisedMd,
-                  color: SOFT_SLATE.textPrimary,
-                  fontFamily: SOFT_SLATE.fontFamily,
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-              >
-                <span style={{ fontSize: 18, fontWeight: 800, color: SOFT_SLATE.green, letterSpacing: "-0.02em" }}>
-                  Read the package
-                </span>
-                <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, color: SOFT_SLATE.textSecondary }}>
-                  No barcode? Point the camera at the product name, or upload a photo. Scanity keeps the name and looks it up.
-                </span>
-              </button>
 
               {/* ── Manual barcode entry ──────────────────────────────── */}
               <div style={{ maxWidth: 560, margin: "26px auto 0" }}>
@@ -7197,7 +7193,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       let title = productTitleFromOcr(text)
       try {
         const cleaned = await cleanProductTitle(text)
-        if (cleaned) title = cleaned
+        if (cleaned && titleAgreesWithOcr(cleaned, text)) title = cleaned
       } catch (titleError) {
         console.warn("AI title cleanup unavailable:", titleError)
       }
@@ -7457,13 +7453,13 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
 
   const getStatusDescription = () => {
     switch (scanStatus) {
-      case "scanning": return "Position the nutrition label clearly inside the frame, then tap Capture."
-      case "captured": return "Your nutrition label image has been captured."
+      case "scanning": return "Fill the frame with the product name on the package, then tap Capture."
+      case "captured": return "The package photo is ready."
       case "ocrProcessing": return "Scanity is reading the package and keeping just the product name."
       case "textPreview": return "Confirm the product name, then look it up."
       case "productProcessing": return "Scanity is analyzing the product, nutrition information, and allergies."
       case "error": return errorMessage || "Please try scanning again."
-      default: return "Point the camera at the product name or ingredient list, then capture."
+      default: return "Point the camera at the product name, then capture."
     }
   }
 
@@ -7531,10 +7527,10 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
               <div>
                 <div style={{ fontSize: isDesktop ? 28 : 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.2, color: SOFT_SLATE.textPrimary }}>
-                  Read the package
+                  Find the product
                 </div>
                 <div style={{ fontSize: 16, color: SOFT_SLATE.textSecondary, marginTop: 8, lineHeight: 1.5, maxWidth: "42ch" }}>
-                  Another way to scan when there is no barcode. Scanity reads the product name and ingredients from the label text.
+                  Photograph the name on the package. Scanity keeps that name and searches for the same product.
                 </div>
               </div>
 

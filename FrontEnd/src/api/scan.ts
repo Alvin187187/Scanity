@@ -330,7 +330,51 @@ async function lookupViaOpenFoodFacts(
 const TITLE_NOISE =
   /^(ingredients?|ingredientes?|nutrition|nutritional|contains|allergen|allergens|serving|calories|energy|protein|total|saturated|carbohydrate|sugars?|sodium|fat|dietary|best before|www\.|http|imported|manufactured|net wt|net weight|per 100|may contain|storage|keep|distributed)/i
 
-/** Pick a short product name from noisy package OCR before the AI cleanup runs. */
+const GENERIC_TITLE_WORDS = new Set([
+  "water",
+  "milk",
+  "drink",
+  "original",
+  "natural",
+  "fresh",
+  "pure",
+  "size",
+  "net",
+  "food",
+])
+
+function titleTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !["the", "and", "with", "for"].includes(token))
+}
+
+/** True when the proposed name still uses the words that were read off the package. */
+export function titleAgreesWithOcr(title: string, source: string): boolean {
+  const wanted = titleTokens(title)
+  if (!wanted.length) return false
+  const haystack = titleTokens(source)
+  const hit = (token: string) =>
+    haystack.some((word) => word === token || (token.length > 3 && (word.includes(token) || token.includes(word))))
+  const distinctive = wanted.filter((token) => !GENERIC_TITLE_WORDS.has(token))
+  const required = distinctive.length ? distinctive : wanted
+  const hits = required.filter(hit).length
+  return hits / required.length >= 0.67
+}
+
+function productNameScore(query: string, candidate: string): number {
+  const wanted = titleTokens(query).filter((token) => !GENERIC_TITLE_WORDS.has(token))
+  if (!wanted.length || !titleAgreesWithOcr(query, candidate)) return 0
+  const haystack = titleTokens(candidate)
+  const hits = wanted.filter((token) =>
+    haystack.some((word) => word === token || (token.length > 3 && (word.includes(token) || token.includes(word)))),
+  ).length
+  return hits / wanted.length
+}
+
+/** Pick the product name near the top of the package, not a short generic word. */
 export function productTitleFromOcr(text: string): string {
   const lines: string[] = []
   for (const raw of String(text || "").split(/\r?\n/)) {
@@ -342,13 +386,26 @@ export function productTitleFromOcr(text: string): string {
     lines.push(line)
   }
   if (!lines.length) return ""
-  const ranked = lines.slice(0, 6).sort((a, b) => a.split(/\s+/).length - b.split(/\s+/).length || a.length - b.length)
-  return ranked[0].slice(0, 80)
+  const ranked = lines
+    .map((line, index) => ({ line, index }))
+    .sort((a, b) => {
+      const rank = (line: string, index: number) => {
+        const words = line.split(/\s+/)
+        const genericOnly = words.every((word) => GENERIC_TITLE_WORDS.has(word.toLowerCase()))
+        const singleGeneric = words.length === 1 && genericOnly
+        return [singleGeneric ? 2 : genericOnly ? 1 : 0, index, Math.abs(words.length - 3)] as const
+      }
+      const left = rank(a.line, a.index)
+      const right = rank(b.line, b.index)
+      return left[0] - right[0] || left[1] - right[1] || left[2] - right[2]
+    })
+  return ranked[0].line.slice(0, 80)
 }
 
 export async function searchOffByName(name: string): Promise<{ code: string; product_name: string }[]> {
   const query = name.trim()
-  if (query.length < 2) return []
+  const distinctive = titleTokens(query).filter((token) => !GENERIC_TITLE_WORDS.has(token))
+  if (distinctive.length === 0) return []
   const url =
     "https://world.openfoodfacts.org/cgi/search.pl?" +
     new URLSearchParams({
@@ -356,7 +413,7 @@ export async function searchOffByName(name: string): Promise<{ code: string; pro
       search_simple: "1",
       action: "process",
       json: "1",
-      page_size: "5",
+      page_size: "20",
     }).toString()
   const response = await fetchWithTimeout(
     url,
@@ -377,7 +434,12 @@ export async function searchOffByName(name: string): Promise<{ code: string; pro
       code: String(product?.code || product?._id || "").trim(),
       product_name: String(product?.product_name || product?.product_name_en || "").trim(),
     }))
-    .filter((product: { code: string }) => product.code.length > 0)
+    .filter((product: { code: string; product_name: string }) => product.code && productNameScore(query, product.product_name) >= 0.67)
+    .sort(
+      (a: { product_name: string }, b: { product_name: string }) =>
+        productNameScore(query, b.product_name) - productNameScore(query, a.product_name),
+    )
+    .slice(0, 5)
 }
 
 export async function lookupBarcodeProduct(
