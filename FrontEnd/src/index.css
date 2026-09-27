@@ -323,3 +323,40 @@ button:focus-visible,
   padding: 8px 4px;
   min-height: 44px;
 }
+
+@keyframes scanityFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scanityDialogIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  .scanity-hit {
+    transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease, background-color 160ms ease, filter 160ms ease;
+  }
+
+  button:active:not(:disabled),
+  .scanity-hit:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .scanity-scrim {
+    animation: scanityFade 180ms ease;
+  }
+
+  .scanity-dialog {
+    animation: scanityDialogIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanity-scrim,
+  .scanity-dialog {
+    animation: none;
+  }
+}
