@@ -26,7 +26,7 @@ import {
   requireApiBaseUrl,
 } from "./api/auth"
 import { lookupBarcodeProduct, searchOffByName, titleAgreesWithOcr } from "./api/scan"
-import { canvasLooksBlank, INVALID_PACKAGE_PHOTO, PACKAGE_READ_TIMEOUT_MS, readPackageTitle } from "./api/ocr"
+import { canvasLooksBlank, INVALID_PACKAGE_PHOTO, PACKAGE_READ_TIMEOUT_MS, preparePackageImage, readPackageTitle } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   conditionsForApi,
@@ -6550,11 +6550,14 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                 <input
                   type="file"
                   accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
-                  aria-label="Upload a package photo"
+                  aria-label="Upload a photo of the barcode on the package"
                   onChange={handleGallery}
                   style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                 />
               </label>
+              <p style={{ maxWidth: 560, margin: "8px auto 0", fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+                The photo needs to show the barcode printed on the package.
+              </p>
 
               {/* ── Start camera ──────────────────────────────────────── */}
               {!["scanning", "captured", "processing", "camera-loading", "success"].includes(scanStatus) && (
@@ -7215,30 +7218,12 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   const sourceToBlob = async (source: string | HTMLCanvasElement | File): Promise<Blob> => {
     if (source instanceof File) return source
     if (source instanceof HTMLCanvasElement) {
-      const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.82))
+      const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.92))
       if (blob) return blob
       throw new Error("Unable to capture the package photo.")
     }
     const response = await fetch(source)
     return response.blob()
-  }
-
-  const shrinkSource = async (source: string | HTMLCanvasElement | File) => {
-    if (source instanceof File) return shrinkPhoto(source, 960)
-    if (source instanceof HTMLCanvasElement) {
-      const longest = Math.max(source.width, source.height) || 1
-      if (longest <= 960) return source
-      const scale = 960 / longest
-      const canvas = document.createElement("canvas")
-      canvas.width = Math.max(1, Math.round(source.width * scale))
-      canvas.height = Math.max(1, Math.round(source.height * scale))
-      const context = canvas.getContext("2d")
-      if (!context) return source
-      context.drawImage(source, 0, 0, canvas.width, canvas.height)
-      return canvas
-    }
-    const blob = await (await fetch(source)).blob()
-    return shrinkPhoto(new File([blob], "label.jpg", { type: blob.type || "image/jpeg" }), 960)
   }
 
   const openConfirmedResult = (
@@ -7335,15 +7320,14 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       stopCamera()
       setScanStatus("ocrProcessing")
-      const prepared = await shrinkSource(source)
-      if (prepared instanceof HTMLCanvasElement && canvasLooksBlank(prepared)) {
+      const input = source instanceof File || source instanceof HTMLCanvasElement
+        ? source
+        : await sourceToBlob(source)
+      const prepared = await preparePackageImage(input)
+      if (canvasLooksBlank(prepared)) {
         throw new Error(INVALID_PACKAGE_PHOTO)
       }
-      if (prepared instanceof HTMLCanvasElement) {
-        setGalleryImage(prepared.toDataURL("image/jpeg", 0.82))
-      } else if (!galleryImage && source instanceof File) {
-        setGalleryImage(URL.createObjectURL(source))
-      }
+      setGalleryImage(prepared.toDataURL("image/jpeg", 0.92))
       const controller = new AbortController()
       const timeoutId = window.setTimeout(() => controller.abort(), PACKAGE_READ_TIMEOUT_MS)
       let read
@@ -7523,7 +7507,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   Find the product
                 </div>
                 <div style={{ fontSize: 16, color: SOFT_SLATE.textSecondary, marginTop: 8, lineHeight: 1.5, maxWidth: "42ch" }}>
-                  Use the camera to photograph the product name.
+                  Photograph the product name, or upload a photo of that name. Both are read the same way.
                 </div>
               </div>
 
@@ -7851,16 +7835,19 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   }}
                 >
                   <i className="fa fa-upload" aria-hidden="true" />
-                  Upload a package photo
+                  Upload a product-name photo
                   <input
                     type="file"
                     accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
-                    aria-label="Upload a package photo for text reading"
+                    aria-label="Upload a photo of the product name"
                     disabled={scannerBusy}
                     onChange={handleOcrGallery}
                     style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                   />
                 </label>
+                <p style={{ maxWidth: 560, margin: "8px auto 0", fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+                  Use a clear photo of the product name. It is read the same way as a camera capture.
+                </p>
 
                 {scanStatus === "scanning" && (
                   <button
