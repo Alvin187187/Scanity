@@ -6496,7 +6496,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
               </div>
 
               {/* ── Controls ──────────────────────────────────────────── */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "22px auto 0" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, maxWidth: 560, margin: "22px auto 0" }}>
                 {[
                   { key: "camera", label: "Camera", icon: "fa-camera", onClick: () => startCamera(), disabled: isBusy, active: false },
                   { key: "rotate", label: "Rotate Camera", icon: "fa-refresh", onClick: rotateCamera, disabled: false, active: false },
@@ -6523,30 +6523,6 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                     <div style={{ marginTop: 6, fontWeight: 600, fontSize: 9 }}>{control.label}</div>
                   </button>
                 ))}
-
-                <label
-                  className="scanity-scanner-button"
-                  style={{
-                    border: "none",
-                    background: SOFT_SLATE.bg,
-                    borderRadius: 16,
-                    padding: isDesktop ? "16px 8px" : "13px 5px",
-                    color: SOFT_SLATE.green,
-                    cursor: "pointer",
-                    textAlign: "center",
-                    boxShadow: SOFT_SLATE.raisedSm,
-                  }}
-                >
-                  <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
-                  <div style={{ marginTop: 6, fontWeight: 600, fontSize: 9 }}>Gallery</div>
-                  <input
-                    type="file"
-                    accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
-                    aria-label="Upload a package photo"
-                    onChange={handleGallery}
-                    style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
-                  />
-                </label>
               </div>
 
               <label
@@ -7407,6 +7383,18 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     void processOCR(file, origin)
   }, [])
 
+  const handleOcrGallery = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file || processingRef.current) return
+    if (!isLikelyImageFile(file)) {
+      setErrorMessage("Please select a photo of the product name. JPG and PNG work best.")
+      setScanStatus("error")
+      return
+    }
+    await processOCR(file)
+  }
+
   const handleCapture = async () => {
     if (processingRef.current) return
     if (!streamRef.current) {
@@ -7786,7 +7774,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                 </div>
 
                 {/* Controls - raised neumorphic squares, like the rail icons */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
                   <button
                     type="button"
                     className="scanity-slate-btn"
@@ -7839,28 +7827,6 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                     <i className="fa fa-bolt" style={{ fontSize: 17 }} />
                     <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Flash</div>
                   </button>
-                  <label
-                    className="scanity-slate-btn"
-                    style={{
-                      position: "relative",
-                      border: "none", background: SOFT_SLATE.bg, borderRadius: 16,
-                      padding: isDesktop ? "15px 8px" : "13px 5px",
-                      boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
-                      color: SOFT_SLATE.green, cursor: scannerBusy ? "not-allowed" : "pointer",
-                      opacity: scannerBusy ? 0.55 : 1, textAlign: "center",
-                    }}
-                  >
-                    <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
-                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Gallery</div>
-                    <input
-                      type="file"
-                      accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
-                      aria-label="Upload a package photo for text reading"
-                      disabled={scannerBusy}
-                      onChange={handleOcrGallery}
-                      style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
-                    />
-                  </label>
                 </div>
 
                 <label

@@ -126,26 +126,31 @@ export type PackageReadResult = {
 }
 
 export function canvasLooksBlank(canvas: HTMLCanvasElement): boolean {
-  const context = canvas.getContext("2d", { willReadFrequently: true })
-  if (!context || canvas.width < 8 || canvas.height < 8) return true
-  const stepX = Math.max(1, Math.floor(canvas.width / 24))
-  const stepY = Math.max(1, Math.floor(canvas.height / 24))
-  let count = 0
-  let sum = 0
-  let sumSquares = 0
-  for (let y = 0; y < canvas.height; y += stepY) {
-    for (let x = 0; x < canvas.width; x += stepX) {
-      const pixel = context.getImageData(x, y, 1, 1).data
-      const luminance = 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]
+  try {
+    if (canvas.width < 8 || canvas.height < 8) return true
+    const sample = document.createElement("canvas")
+    sample.width = 24
+    sample.height = 24
+    const context = sample.getContext("2d")
+    if (!context) return false
+    context.drawImage(canvas, 0, 0, 24, 24)
+    const pixels = context.getImageData(0, 0, 24, 24).data
+    let count = 0
+    let sum = 0
+    let sumSquares = 0
+    for (let index = 0; index < pixels.length; index += 16) {
+      const luminance = 0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2]
       sum += luminance
       sumSquares += luminance * luminance
       count += 1
     }
+    if (count < 8) return false
+    const mean = sum / count
+    const variance = sumSquares / count - mean * mean
+    return variance < 12
+  } catch {
+    return false
   }
-  if (count < 8) return true
-  const mean = sum / count
-  const variance = sumSquares / count - mean * mean
-  return variance < 36
 }
 
 export const INVALID_PACKAGE_PHOTO =
