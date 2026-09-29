@@ -7297,7 +7297,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
     })
 
     try {
-      let best: { code: string; product_name: string } | undefined
+      let best: { code: string; product_name: string; brand?: string; image_url?: string } | undefined
       for (const guess of guesses.slice(0, 5)) {
         const matches = await searchOffByName(guess)
         const agreed = matches.find(
@@ -7319,9 +7319,9 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
           storedScanFromAnalysis({
             source: "ocr",
             name: product.product_name || product.name || best.product_name || cleanTitle,
-            brand: product.brand,
+            brand: product.brand || best.brand,
             barcode: best.code,
-            imageUrl: product.image_url,
+            imageUrl: product.image_url || best.image_url,
             ingredients: product.ingredients,
             ingredientsText: product.ingredients_raw_text || cleanTitle,
             verdict: result?.verdict,
