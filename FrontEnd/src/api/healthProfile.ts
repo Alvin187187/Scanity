@@ -1,5 +1,5 @@
 import { requireApiBaseUrl } from "./auth"
-import { getAccessToken } from "./session"
+import { getAccessToken, loadSessionUser } from "./session"
 
 const PROFILE_KEY = "scanityHealthProfile"
 
@@ -31,24 +31,49 @@ function emptyProfile(): HealthProfile {
   return { allergies: [], conditions: [] }
 }
 
-export function loadHealthProfile(): HealthProfile {
+function profileOwner(): string {
+  return loadSessionUser()?.email?.trim().toLowerCase() || "guest"
+}
+
+function profileStorageKey(owner = profileOwner()): string {
+  return owner === "guest" ? `${PROFILE_KEY}:guest` : `${PROFILE_KEY}:${owner}`
+}
+
+function readProfile(key: string): HealthProfile & { owner?: string } {
   try {
-    const raw = window.localStorage.getItem(PROFILE_KEY)
+    const raw = window.localStorage.getItem(key)
     if (!raw) return emptyProfile()
-    const parsed = JSON.parse(raw) as Partial<HealthProfile>
+    const parsed = JSON.parse(raw) as Partial<HealthProfile> & { owner?: string }
     return {
       allergies: Array.isArray(parsed.allergies) ? parsed.allergies : [],
       otherAllergy: parsed.otherAllergy || "",
       conditions: Array.isArray(parsed.conditions) ? parsed.conditions : [],
       otherCondition: parsed.otherCondition || "",
+      owner: parsed.owner,
     }
   } catch {
     return emptyProfile()
   }
 }
 
+export function loadHealthProfile(): HealthProfile {
+  const owner = profileOwner()
+  const stored = readProfile(profileStorageKey(owner))
+  if (stored.owner && stored.owner !== owner) return emptyProfile()
+  return {
+    allergies: stored.allergies,
+    otherAllergy: stored.otherAllergy,
+    conditions: stored.conditions,
+    otherCondition: stored.otherCondition,
+  }
+}
+
 export function saveHealthProfile(profile: HealthProfile) {
-  window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+  const owner = profileOwner()
+  window.localStorage.setItem(
+    profileStorageKey(owner),
+    JSON.stringify({ ...profile, owner }),
+  )
 }
 
 export function splitCustomList(value?: string): string[] {

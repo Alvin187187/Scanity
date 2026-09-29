@@ -84,6 +84,7 @@ def analyze_ingredients(
     *,
     use_hosted_ai: bool = False,
     nutri_score_hint: str | None = None,
+    ingredients_incomplete: bool = False,
 ) -> dict:
     flags = [
         enrich_flag_with_knowledge(item)
@@ -91,6 +92,25 @@ def analyze_ingredients(
     ]
     flags = apply_condition_rules(flags, user_conditions, nutrition)
     flags = [enrich_flag_with_knowledge(item) for item in flags]
+
+    if ingredients_incomplete and not any(item.get("status") == "avoid" for item in flags):
+        flags.append(
+            {
+                "ingredient": "Ingredient list",
+                "status": "caution",
+                "matched_category": None,
+                "matched_kb_entry": None,
+                "identified": False,
+                "reason": (
+                    "The ingredient list is incomplete, so Scanity cannot confirm "
+                    "this product against your saved allergies."
+                ),
+                "plain_explanation": (
+                    "Open Food Facts did not provide a complete ingredient list. "
+                    "A saved allergy could be missing from what Scanity was able to check."
+                ),
+            }
+        )
 
     verdict = overall_verdict(flags)
     safety_score = compute_safety_score(

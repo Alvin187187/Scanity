@@ -1,5 +1,5 @@
 import { requireApiBaseUrl } from "./auth"
-import { candidateProductTitles, productTitleFromOcr } from "./scan"
+import { candidateProductTitles, productTitleFromOcr, titleAgreesWithOcr } from "./scan"
 import { getAccessToken } from "./session"
 
 function authHeaders() {
@@ -125,6 +125,36 @@ export type PackageReadResult = {
   candidates: string[]
 }
 
+export function canvasLooksBlank(canvas: HTMLCanvasElement): boolean {
+  const context = canvas.getContext("2d", { willReadFrequently: true })
+  if (!context || canvas.width < 8 || canvas.height < 8) return true
+  const stepX = Math.max(1, Math.floor(canvas.width / 24))
+  const stepY = Math.max(1, Math.floor(canvas.height / 24))
+  let count = 0
+  let sum = 0
+  let sumSquares = 0
+  for (let y = 0; y < canvas.height; y += stepY) {
+    for (let x = 0; x < canvas.width; x += stepX) {
+      const pixel = context.getImageData(x, y, 1, 1).data
+      const luminance = 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]
+      sum += luminance
+      sumSquares += luminance * luminance
+      count += 1
+    }
+  }
+  if (count < 8) return true
+  const mean = sum / count
+  const variance = sumSquares / count - mean * mean
+  return variance < 36
+}
+
+export const INVALID_PACKAGE_PHOTO =
+  "This photo does not look like a product package. Upload or take a photo of the package instead."
+
+function packageTextIsUsable(text: string): boolean {
+  return text.replace(/[^A-Za-z]/g, "").length >= 3
+}
+
 function fromRawText(raw: string, preferred = ""): PackageReadResult | null {
   const text = String(raw || "").trim()
   const title =
@@ -132,7 +162,7 @@ function fromRawText(raw: string, preferred = ""): PackageReadResult | null {
     productTitleFromOcr(text) ||
     text.split(/\r?\n/).find((line) => line.replace(/[^A-Za-z]/g, "").length >= 3) ||
     ""
-  if (!title.trim()) return null
+  if (!title.trim() || !packageTextIsUsable(title)) return null
   return {
     title: title.trim(),
     raw: text || title.trim(),
@@ -182,16 +212,19 @@ export async function readPackageTitle(
     })
 
   const api = await apiPromise
-  if (api?.title) return api
 
   if (signal?.aborted) {
     throw new Error("Package reading timed out. Hold the name steady and try again.")
   }
 
   const local = await localPromise
+  if (api?.title && (!local?.title || titleAgreesWithOcr(api.title, local.raw) || titleAgreesWithOcr(api.title, api.raw))) {
+    return api
+  }
   if (local?.title) return local
+  if (api?.title) return api
 
-  throw new Error("No product name was detected. Hold the name steady and try again in good light.")
+  throw new Error(INVALID_PACKAGE_PHOTO)
 }
 
 export async function cleanProductTitle(extractedText: string): Promise<string> {

@@ -58,7 +58,7 @@ async def get_product_by_barcode(db, barcode: str) -> dict:
     # block live Open Food Facts lookups.
     cached = _safe_get_local_product(db, barcode)
     if cached:
-        if cached.get("nutrition") is None or not cached.get("image_url"):
+        if _cache_needs_live_product(cached):
             try:
                 raw_product = await fetch_product_by_barcode(barcode)
             except OpenFoodFactsError:
@@ -90,6 +90,17 @@ def _enrich_cached_product(cached: dict, raw_product: dict, barcode: str) -> dic
     return _merge_live_fields(cached, mapped)
 
 
+def _cache_needs_live_product(cached: dict) -> bool:
+    """A stored row can miss the fields the rule engine and Nutri-Score need."""
+    if cached.get("nutrition") is None or not cached.get("image_url"):
+        return True
+    if not cached.get("nutriscore_grade"):
+        return True
+    if not cached.get("ingredients") and not cached.get("ingredients_raw_text"):
+        return True
+    return False
+
+
 def _merge_live_fields(base: dict, mapped: dict) -> dict:
     enriched = dict(base)
     if mapped.get("nutrition") is not None:
@@ -102,6 +113,8 @@ def _merge_live_fields(base: dict, mapped: dict) -> dict:
         enriched["ingredients"] = mapped.get("ingredients")
     if mapped.get("nutriscore_grade"):
         enriched["nutriscore_grade"] = mapped.get("nutriscore_grade")
+    if "ingredients_incomplete" in mapped:
+        enriched["ingredients_incomplete"] = bool(mapped.get("ingredients_incomplete"))
     return enriched
 
 
@@ -117,6 +130,8 @@ def _ephemeral_product(mapped: dict) -> dict:
         "image_url": mapped.get("image_url"),
         "nutrition": mapped.get("nutrition"),
         "ingredients": mapped.get("ingredients") or [],
+        "nutriscore_grade": mapped.get("nutriscore_grade"),
+        "ingredients_incomplete": bool(mapped.get("ingredients_incomplete")),
     }
 
 
@@ -166,6 +181,23 @@ def _get_local_product(db, barcode: str) -> Optional[dict]:
             for ing in product.ingredients
         ],
     }
+
+
+def _ingredients_incomplete(raw: dict, ingredient_count: int, ingredients_raw: str | None) -> bool:
+    tags = raw.get("states_tags") or []
+    if isinstance(tags, str):
+        tags = [tags]
+    blob = " ".join(str(tag) for tag in tags).lower()
+    if any(
+        marker in blob
+        for marker in (
+            "ingredients-incomplete",
+            "ingredients-to-be-completed",
+            "ingredients-missing",
+        )
+    ):
+        return True
+    return ingredient_count == 0 and not (ingredients_raw or "").strip()
 
 
 def _off_nutri_grade(raw: dict) -> str | None:
@@ -221,6 +253,7 @@ def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
         "ingredients_raw_text": ingredients_raw,
         "ingredients": mapped_ingredients,
         "nutriscore_grade": _off_nutri_grade(raw),
+        "ingredients_incomplete": _ingredients_incomplete(raw, len(mapped_ingredients), ingredients_raw),
         "nutrition": {
             "energy_kj": _energy_kj(nutriments),
             "energy_kcal": nutriments.get("energy-kcal_100g"),

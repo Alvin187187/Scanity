@@ -152,6 +152,11 @@ def clean_product_title(text: str) -> tuple[str, str]:
     return title, "gemini"
 
 
+def title_supported_by_text(title: str, source: str) -> bool:
+    """A proposed product name must still use the words read from the photo."""
+    return _title_agrees(title, source)
+
+
 def _title_agrees(title: str, source: str) -> bool:
     """Drop an AI name that does not use the words read from the package."""
     stop = {"the", "and", "with", "for"}

@@ -65,6 +65,20 @@ function estimateNutriScoreGrade(nutrition: Record<string, number | null | undef
   return "e"
 }
 
+function officialNutriGrade(value: unknown): string | null {
+  const letter = String(value || "").trim().toLowerCase().slice(0, 1)
+  return letter === "a" || letter === "b" || letter === "c" || letter === "d" || letter === "e"
+    ? letter
+    : null
+}
+
+function offIngredientsIncomplete(product: any, ingredientNames: string[]): boolean {
+  const tags = product?.states_tags || product?.states || ""
+  const blob = Array.isArray(tags) ? tags.join(" ") : String(tags)
+  if (/ingredients-(incomplete|to-be-completed|missing)/i.test(blob)) return true
+  return ingredientNames.length === 0
+}
+
 function nutritionFromOff(product: any) {
   const n = product?.nutriments || {}
   const energyKcal =
@@ -91,12 +105,52 @@ function nutritionFromOff(product: any) {
   }
 }
 
+const CONFIRMED_ALLERGEN_WORDS: Record<string, string[]> = {
+  peanut: ["peanut", "peanuts", "groundnut", "groundnuts", "arachide"],
+  tree_nuts: ["almond", "cashew", "hazelnut", "walnut", "pecan", "pistachio", "macadamia", "brazil nut"],
+  milk: ["milk", "lactose", "whey", "casein", "caseinate", "cream", "butter", "cheese", "yogurt"],
+  egg: ["egg", "eggs", "albumin", "mayonnaise"],
+  wheat: ["wheat", "gluten", "barley", "rye"],
+  soy: ["soy", "soya", "soybean", "soybeans"],
+  fish: ["fish", "anchovy", "salmon", "tuna", "cod"],
+  shellfish: ["shrimp", "prawn", "crab", "lobster", "shellfish"],
+  sesame: ["sesame"],
+  mustard: ["mustard"],
+  celery: ["celery"],
+  sulphites: ["sulphite", "sulfite", "sulphites", "sulfites"],
+}
+
+const BENIGN_LOCAL = new Set([
+  "sugar",
+  "salt",
+  "water",
+  "vinegar",
+  "citric acid",
+  "black pepper",
+  "pepper",
+])
+
+function allergenSlug(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .trim()
+}
+
+function hasWholeWord(haystack: string, needle: string): boolean {
+  const cleaned = needle.trim().toLowerCase()
+  if (cleaned.length < 3) return false
+  const escaped = cleaned.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, "i").test(haystack)
+}
+
 /** Lightweight client-side match when the Scanity API is asleep or unreachable. */
 function localAllergyAnalysis(
   ingredientNames: string[],
   userAllergies: AllergyList,
   userConditions: AllergyList = [],
   nutrition?: Record<string, number | null | undefined>,
+  ingredientsIncomplete = false,
 ) {
   const allergy_matches: {
     ingredient: string
@@ -137,24 +191,33 @@ function localAllergyAnalysis(
     const lower = name.toLowerCase()
     let matched = false
     for (const allergy of userAllergies) {
-      const needle = String(allergy || "")
-        .toLowerCase()
-        .replace(/_/g, " ")
-        .trim()
-      if (!needle || needle.length < 3) continue
-      if (lower.includes(needle) || lower.includes(needle.replace(/\s+/g, ""))) {
+      const slug = allergenSlug(allergy).replace(/\s+/g, "_")
+      const words = CONFIRMED_ALLERGEN_WORDS[slug] || CONFIRMED_ALLERGEN_WORDS[allergenSlug(allergy).replace(/ /g, "_")] || []
+      const direct = allergenSlug(allergy)
+      const needles = words.length ? words : direct.length >= 4 ? [direct] : []
+      if (needles.some((needle) => hasWholeWord(lower, needle))) {
         allergy_matches.push({
           ingredient: name,
           status: "avoid",
           matched_category: allergy,
           matched_kb_entry: allergy,
-          reason: `This looks like **${needle}**, which you asked Scanity to watch for.`,
+          reason: `This looks like **${direct || allergy}**, which you asked Scanity to watch for.`,
         })
         matched = true
         break
       }
     }
     if (matched) continue
+    if (!BENIGN_LOCAL.has(lower.trim())) {
+      allergy_matches.push({
+        ingredient: name,
+        status: "caution",
+        matched_category: null,
+        matched_kb_entry: null,
+        reason: "Scanity could not confidently identify this ingredient, so it stays under caution.",
+      })
+      continue
+    }
     if (hasLactose && dairyWords.some((word) => lower.includes(word))) {
       allergy_matches.push({
         ingredient: name,
@@ -187,6 +250,16 @@ function localAllergyAnalysis(
     })
   }
 
+  if (ingredientsIncomplete && !allergy_matches.some((item) => item.status === "avoid")) {
+    allergy_matches.push({
+      ingredient: "Ingredient list",
+      status: "caution",
+      matched_category: null,
+      matched_kb_entry: null,
+      reason: "The ingredient list is incomplete, so a saved allergy may not have reached the check.",
+    })
+  }
+
   const allergy_flags = allergy_matches
     .filter((item) => item.status === "avoid")
     .map((item) => item.ingredient)
@@ -212,7 +285,7 @@ function localAllergyAnalysis(
       ? `**Avoid** — ${allergy_flags.slice(0, 3).map((n) => `**${n}**`).join(", ")} lined up with an allergy or dietary restriction you asked Scanity to watch for.`
       : cautionCount
         ? `**Flagged** — ${cautionCount} item(s) need a closer look for your saved dietary restrictions.`
-        : ingredientNames.length
+        : ingredientNames.length && !ingredientsIncomplete
           ? "**Safe** for your saved allergies and dietary restrictions based on this label check."
           : "**Flagged** — product details came through, but the ingredient list looked incomplete.",
     ai_source: "local",
@@ -277,23 +350,15 @@ async function lookupViaOpenFoodFacts(
   const product = data.product
   const ingredientNames = ingredientsFromOff(product)
   const nutrition = nutritionFromOff(product)
-  const offGrade = String(product.nutriscore_grade || product.nutrition_grades || "")
-    .trim()
-    .toLowerCase()
-  const nutriFromOff =
-    offGrade === "a" ||
-    offGrade === "b" ||
-    offGrade === "c" ||
-    offGrade === "d" ||
-    offGrade === "e"
-      ? offGrade
-      : null
+  const nutriFromOff = officialNutriGrade(product.nutriscore_grade || product.nutrition_grades)
+  const incomplete = offIngredientsIncomplete(product, ingredientNames)
 
   let analysis: any = localAllergyAnalysis(
     ingredientNames,
     userAllergies,
     userConditions,
     nutrition,
+    incomplete,
   )
   analysis.nutri_score_grade = nutriFromOff || estimateNutriScoreGrade(nutrition)
 
@@ -314,6 +379,7 @@ async function lookupViaOpenFoodFacts(
       ingredients_raw_text: product.ingredients_text || product.ingredients_text_en || "",
       ingredients: ingredientNames.map((name) => ({ name, is_allergen: false })),
       nutrition,
+      ingredients_incomplete: incomplete,
     },
     allergy_flags: analysis.allergy_flags || [],
     allergy_matches: analysis.allergy_matches || [],
@@ -567,14 +633,7 @@ async function searchViaScanityApi(query: string): Promise<{ code: string; produ
     if (!response.ok) return []
     const data = await response.json().catch(() => null)
     const products = Array.isArray(data?.products) ? data.products : []
-    return products
-      .map((product: any) => ({
-        code: String(product?.code || "").trim(),
-        product_name: String(product?.product_name || "").trim(),
-        brand: String(product?.brand || "").trim() || undefined,
-        image_url: String(product?.image_url || "").trim() || undefined,
-      }))
-      .filter((product: { code: string }) => product.code)
+    return rankOffHits(query, products)
   } catch {
     return []
   }
@@ -671,10 +730,20 @@ export async function lookupBarcodeProduct(
         new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 2500)),
       ])
       if (off?.product) {
+        const apiIngredients = Array.isArray(data.product?.ingredients) ? data.product.ingredients : []
+        const offIngredients = Array.isArray(off.product?.ingredients) ? off.product.ingredients : []
+        const ingredients = apiIngredients.length ? apiIngredients : offIngredients
+        const apiNames = apiIngredients
+          .map((item: { name?: string }) => String(item?.name || "").trim())
+          .filter(Boolean)
+        const shownNames = ingredients
+          .map((item: { name?: string }) => String(item?.name || "").trim())
+          .filter(Boolean)
         data.product = {
           ...off.product,
           ...data.product,
           image_url: data.product?.image_url || off.product.image_url,
+          ingredients,
           nutrition: {
             ...(off.product.nutrition || {}),
             ...(data.product?.nutrition || {}),
@@ -682,9 +751,33 @@ export async function lookupBarcodeProduct(
           ingredients_raw_text:
             data.product?.ingredients_raw_text || off.product.ingredients_raw_text,
         }
-        if (!data.nutri_score_grade) {
-          data.nutri_score_grade =
-            off.nutri_score_grade || estimateNutriScoreGrade(data.product?.nutrition)
+        const official =
+          officialNutriGrade(off.nutri_score_grade) || officialNutriGrade(data.nutri_score_grade)
+        data.nutri_score_grade =
+          official || estimateNutriScoreGrade(data.product?.nutrition)
+        const ingredientsChanged = shownNames.join("\n") !== apiNames.join("\n")
+        if (ingredientsChanged && shownNames.length) {
+          const local = localAllergyAnalysis(
+            shownNames,
+            userAllergies,
+            userConditions,
+            data.product.nutrition,
+            Boolean(off.product.ingredients_incomplete),
+          )
+          data.allergy_flags = local.allergy_flags
+          data.allergy_matches = local.allergy_matches
+          data.verdict = local.verdict
+          data.safety_score = local.safety_score
+          data.explanation = local.explanation
+          data.ai_source = local.ai_source
+        } else if (
+          off.product.ingredients_incomplete &&
+          String(data.verdict || "").toLowerCase() === "safe"
+        ) {
+          data.verdict = "caution"
+          data.safety_score = Math.min(Number(data.safety_score ?? 58), 58)
+          data.explanation =
+            "Flagged — the ingredient list from Open Food Facts is incomplete, so Scanity cannot confirm this product is safe for your saved allergies."
         }
       }
     } catch {

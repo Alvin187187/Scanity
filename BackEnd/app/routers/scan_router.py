@@ -52,6 +52,7 @@ async def scan_barcode(
         request.user_conditions,
         use_hosted_ai=True,
         nutri_score_hint=product.get("nutriscore_grade"),
+        ingredients_incomplete=bool(product.get("ingredients_incomplete")),
     )
 
     nutrition = product.get("nutrition") or {}

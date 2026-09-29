@@ -7,6 +7,7 @@ export type SessionUser = {
   email: string
   joinedAt: string
   accessToken?: string
+  refreshToken?: string
   avatarUrl?: string
 }
 
@@ -42,10 +43,7 @@ function notifyAvatarUpdated() {
 export function loadProfileAvatar(email?: string | null): string | null {
   const owner = avatarOwner(email)
   const direct = readStoredAvatar(owner)
-  if (direct) return direct
-  // Fall back to previous local key if the user later gained an email.
-  if (owner !== "local") return readStoredAvatar("local")
-  return null
+  return direct
 }
 
 export function saveProfileAvatar(avatarUrl: string | null, email?: string | null) {
@@ -82,6 +80,7 @@ function readStoredUser(): SessionUser | null {
       email: parsed.email?.trim() || "",
       joinedAt: parsed.joinedAt || new Date().toISOString(),
       accessToken: parsed.accessToken,
+      refreshToken: parsed.refreshToken,
     }
   } catch {
     return null
@@ -94,15 +93,19 @@ export function loadSessionUser(): SessionUser | null {
 
 export function saveSessionUser(user: SessionUser) {
   const existing = readStoredUser()
+  const sameUser = Boolean(
+    existing?.email &&
+      user.email.trim() &&
+      existing.email.toLowerCase() === user.email.trim().toLowerCase(),
+  )
   const next: SessionUser = {
-    name: user.name.trim() || existing?.name || "",
-    email: user.email.trim() || existing?.email || "",
-    joinedAt:
-      existing?.email &&
-      existing.email.toLowerCase() === user.email.trim().toLowerCase()
-        ? existing.joinedAt
-        : user.joinedAt || existing?.joinedAt || new Date().toISOString(),
-    accessToken: user.accessToken || existing?.accessToken,
+    name: user.name.trim() || (sameUser ? existing?.name : "") || "",
+    email: user.email.trim() || (sameUser ? existing?.email : "") || "",
+    joinedAt: sameUser
+      ? existing?.joinedAt || user.joinedAt || new Date().toISOString()
+      : user.joinedAt || new Date().toISOString(),
+    accessToken: user.accessToken || (sameUser ? existing?.accessToken : undefined),
+    refreshToken: user.refreshToken || (sameUser ? existing?.refreshToken : undefined),
   }
 
   window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(next))
@@ -114,6 +117,18 @@ export function clearSessionUser() {
 
 export function getAccessToken() {
   return readStoredUser()?.accessToken || null
+}
+
+export function getRefreshToken() {
+  return readStoredUser()?.refreshToken || null
+}
+
+export function accessTokenNeedsRefresh(token: string | null, skewSeconds = 60) {
+  if (!token) return true
+  const payload = decodeJwtPayload(token)
+  const exp = payload?.exp
+  if (typeof exp !== "number") return false
+  return exp * 1000 <= Date.now() + skewSeconds * 1000
 }
 
 export function firstName(name: string) {
@@ -173,6 +188,7 @@ export function sessionUserFromRegister(
 export function sessionUserFromLogin(
   accessToken: string | undefined,
   identifier: string,
+  refreshToken?: string,
 ): SessionUser {
   const payload = accessToken ? decodeJwtPayload(accessToken) : null
   const emailFromToken =
@@ -188,5 +204,6 @@ export function sessionUserFromLogin(
         ? iat.toISOString()
         : new Date().toISOString(),
     accessToken,
+    refreshToken,
   }
 }
