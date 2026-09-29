@@ -8,6 +8,11 @@ def test_dairy_synonym_avoids_casein():
     assert overall_verdict(flags) == "avoid"
 
 
+def test_eggplant_is_not_an_egg_avoid():
+    flags = check_allergies(["egg"], ["eggplant"])
+    assert all(item["status"] != "avoid" for item in flags)
+
+
 def test_unmapped_is_caution():
     flags = check_allergies(["milk"], ["zxq-unknown-extract-99"])
     assert overall_verdict(flags) == "caution"

@@ -363,6 +363,24 @@ def enrich_flag_with_knowledge(flag: dict) -> dict:
     if not knowledge and flag.get("matched_kb_entry"):
         knowledge = lookup_ingredient_knowledge(str(flag.get("matched_kb_entry")))
     out = dict(flag)
+    unidentified = (
+        str(out.get("status") or "").lower() == "caution"
+        and not out.get("matched_kb_entry")
+    )
+    if knowledge and unidentified:
+        # A loose knowledge hit must not turn an unidentified ingredient into Avoid.
+        out["knowledge"] = {
+            "title": knowledge["ingredient_name"],
+            "category": knowledge["category"],
+            "what_it_is": knowledge["what_it_is"],
+            "commonly_seen_in": knowledge["commonly_seen_in"],
+            "possible_effects": knowledge["possible_effects"],
+            "affects_allergens": [],
+            "affects_diets": [],
+            "source": knowledge["source"],
+            "aliases": knowledge["aliases"],
+        }
+        return out
     if knowledge:
         out["knowledge"] = {
             "title": knowledge["ingredient_name"],

@@ -323,6 +323,27 @@ def _match_ingredient(ingredient_text, name_lookup, alias_lookup, sorted_names, 
     return None, "unmapped"
 
 
+def _knowledge_is_identity(ingredient: str, knowledge: dict) -> bool:
+    """True only when the label text is that ingredient, not a loose overlap."""
+    normalized = _normalize(ingredient)
+    if not normalized or not knowledge:
+        return False
+    names = [_normalize(str(knowledge.get("ingredient_name") or ""))]
+    names.extend(_normalize(str(alias)) for alias in (knowledge.get("aliases") or []))
+    compact = normalized.replace(" ", "")
+    for name in names:
+        if not name:
+            continue
+        if normalized == name or compact == name.replace(" ", ""):
+            return True
+    e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", normalized)
+    if e_match:
+        code = f"e{e_match.group(1)}"
+        if any(name.replace(" ", "") == code for name in names):
+            return True
+    return False
+
+
 def check_allergies(user_allergies: list, ingredients: list) -> list:
     """
     Args:
@@ -415,10 +436,11 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
             if knowledge:
                 affects_allergens = list(knowledge.get("affects_allergens") or [])
                 affects_diets = list(knowledge.get("affects_diets") or [])
+                identified = _knowledge_is_identity(ingredient, knowledge)
                 hit_allergens = [
                     item for item in affects_allergens
                     if _normalize_allergy_category(item) in user_allergies_normalized
-                ]
+                ] if identified else []
                 if hit_allergens:
                     label = _friendly_allergy_label(hit_allergens[0])
                     flags.append({
@@ -429,12 +451,31 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                         "affects_allergens": affects_allergens,
                         "affects_diets": affects_diets,
                         "possible_effects": knowledge.get("possible_effects") or "",
+                        "identified": True,
                         "reason": (
                             f"This looks like **{label}**, which you asked Scanity to watch for."
                         ),
                         "plain_explanation": knowledge.get("what_it_is")
                         or knowledge.get("possible_effects")
                         or f"**{ingredient}** is listed on this label.",
+                    })
+                    continue
+
+                if not identified:
+                    flags.append({
+                        "ingredient": ingredient,
+                        "status": "caution",
+                        "matched_category": None,
+                        "matched_kb_entry": None,
+                        "affects_allergens": [],
+                        "affects_diets": [],
+                        "possible_effects": "",
+                        "identified": False,
+                        "reason": "Scanity could not fully confirm this ingredient yet — worth a closer look.",
+                        "plain_explanation": (
+                            f"**{ingredient}** showed up on the label, but Scanity could not "
+                            "confidently match it to a known ingredient."
+                        ),
                     })
                     continue
 
@@ -446,6 +487,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                     "affects_allergens": affects_allergens,
                     "affects_diets": affects_diets,
                     "possible_effects": knowledge.get("possible_effects") or "",
+                    "identified": True,
                     "reason": "Recognized on the label — not linked to your saved allergies.",
                     "plain_explanation": knowledge.get("what_it_is")
                     or knowledge.get("possible_effects")
@@ -462,6 +504,7 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "affects_allergens": [],
                 "affects_diets": [],
                 "possible_effects": "",
+                "identified": False,
                 "reason": "Scanity could not fully confirm this ingredient yet — worth a closer look.",
                 "plain_explanation": (
                     f"**{ingredient}** showed up on the label, but Scanity could not fully "

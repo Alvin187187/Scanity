@@ -25,8 +25,8 @@ import {
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
-import { lookupBarcodeProduct, searchOffByName } from "./api/scan"
-import { PACKAGE_READ_TIMEOUT_MS, readPackageTitle } from "./api/ocr"
+import { lookupBarcodeProduct, searchOffByName, titleAgreesWithOcr } from "./api/scan"
+import { canvasLooksBlank, INVALID_PACKAGE_PHOTO, PACKAGE_READ_TIMEOUT_MS, readPackageTitle } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   conditionsForApi,
@@ -1593,7 +1593,7 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
         password,
       })
       saveSessionUser(
-        sessionUserFromLogin(result?.access_token, email.trim()),
+        sessionUserFromLogin(result?.access_token, email.trim(), result?.refresh_token),
       )
       try {
         const remote = await syncHealthProfileFromServer()
@@ -5901,6 +5901,11 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
       return
     }
     if (galleryObjectUrlRef.current) URL.revokeObjectURL(galleryObjectUrlRef.current)
+    if (canvasLooksBlank(canvas)) {
+      setErrorMessage(INVALID_PACKAGE_PHOTO)
+      setScanStatus("invalid")
+      return
+    }
     const preview = canvas.toDataURL("image/jpeg", 0.82)
     setGalleryImage(preview)
     const code = (await barcodeFromCanvas(canvas)) || (await barcodeFromCanvas(cropCenter(canvas, 0.7)))
@@ -6534,9 +6539,46 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                 >
                   <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
                   <div style={{ marginTop: 6, fontWeight: 600, fontSize: 9 }}>Gallery</div>
-                  <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif" onChange={handleGallery} style={{ display: "none" }} />
+                  <input
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
+                    aria-label="Upload a package photo"
+                    onChange={handleGallery}
+                    style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+                  />
                 </label>
               </div>
+
+              <label
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  width: "100%",
+                  maxWidth: 560,
+                  margin: "14px auto 0",
+                  minHeight: 48,
+                  borderRadius: 16,
+                  background: SOFT_SLATE.bg,
+                  boxShadow: SOFT_SLATE.raisedSm,
+                  color: SOFT_SLATE.green,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                <i className="fa fa-upload" aria-hidden="true" />
+                Upload a package photo
+                <input
+                  type="file"
+                  accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
+                  aria-label="Upload a package photo"
+                  onChange={handleGallery}
+                  style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+                />
+              </label>
 
               {/* ── Start camera ──────────────────────────────────────── */}
               {!["scanning", "captured", "processing", "camera-loading", "success"].includes(scanStatus) && (
@@ -7258,8 +7300,11 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       let best: { code: string; product_name: string } | undefined
       for (const guess of guesses.slice(0, 5)) {
         const matches = await searchOffByName(guess)
-        if (matches[0]?.code) {
-          best = matches[0]
+        const agreed = matches.find(
+          (item) => item.code && titleAgreesWithOcr(item.product_name, cleanTitle),
+        )
+        if (agreed?.code) {
+          best = agreed
           break
         }
       }
@@ -7315,6 +7360,14 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       stopCamera()
       setScanStatus("ocrProcessing")
       const prepared = await shrinkSource(source)
+      if (prepared instanceof HTMLCanvasElement && canvasLooksBlank(prepared)) {
+        throw new Error(INVALID_PACKAGE_PHOTO)
+      }
+      if (prepared instanceof HTMLCanvasElement) {
+        setGalleryImage(prepared.toDataURL("image/jpeg", 0.82))
+      } else if (!galleryImage && source instanceof File) {
+        setGalleryImage(URL.createObjectURL(source))
+      }
       const controller = new AbortController()
       const timeoutId = window.setTimeout(() => controller.abort(), PACKAGE_READ_TIMEOUT_MS)
       let read
@@ -7733,7 +7786,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                 </div>
 
                 {/* Controls - raised neumorphic squares, like the rail icons */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 560, margin: "20px auto 0" }}>
                   <button
                     type="button"
                     className="scanity-slate-btn"
@@ -7786,7 +7839,62 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                     <i className="fa fa-bolt" style={{ fontSize: 17 }} />
                     <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Flash</div>
                   </button>
+                  <label
+                    className="scanity-slate-btn"
+                    style={{
+                      position: "relative",
+                      border: "none", background: SOFT_SLATE.bg, borderRadius: 16,
+                      padding: isDesktop ? "15px 8px" : "13px 5px",
+                      boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                      color: SOFT_SLATE.green, cursor: scannerBusy ? "not-allowed" : "pointer",
+                      opacity: scannerBusy ? 0.55 : 1, textAlign: "center",
+                    }}
+                  >
+                    <i className="fa fa-picture-o" style={{ fontSize: 17 }} />
+                    <div style={{ marginTop: 6, fontWeight: 700, fontSize: 9.5 }}>Gallery</div>
+                    <input
+                      type="file"
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
+                      aria-label="Upload a package photo for text reading"
+                      disabled={scannerBusy}
+                      onChange={handleOcrGallery}
+                      style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+                    />
+                  </label>
                 </div>
+
+                <label
+                  style={{
+                    position: "relative",
+                  display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    width: "100%",
+                    maxWidth: 560,
+                    margin: "14px auto 0",
+                    minHeight: 48,
+                    borderRadius: 16,
+                    background: SOFT_SLATE.bg,
+                    boxShadow: scannerBusy ? SOFT_SLATE.insetSm : SOFT_SLATE.raisedSm,
+                    color: SOFT_SLATE.green,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: scannerBusy ? "not-allowed" : "pointer",
+                    opacity: scannerBusy ? 0.55 : 1,
+                  }}
+                >
+                  <i className="fa fa-upload" aria-hidden="true" />
+                  Upload a package photo
+                  <input
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
+                    aria-label="Upload a package photo for text reading"
+                    disabled={scannerBusy}
+                    onChange={handleOcrGallery}
+                    style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+                  />
+                </label>
 
                 {scanStatus === "scanning" && (
                   <button

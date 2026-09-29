@@ -1,4 +1,10 @@
-import { getAccessToken } from "./session"
+import {
+  accessTokenNeedsRefresh,
+  getAccessToken,
+  getRefreshToken,
+  loadSessionUser,
+  saveSessionUser,
+} from "./session"
 
 export type LoginCredentials = {
   identifier: string
@@ -38,6 +44,39 @@ const API_BASE_URL = trimTrailingSlash(
 )
 
 const AUTH_FETCH_TIMEOUT_MS = 45_000
+
+export async function ensureAccessToken() {
+  const current = getAccessToken()
+  if (current && !accessTokenNeedsRefresh(current)) return current
+
+  const refreshToken = getRefreshToken()
+  const session = loadSessionUser()
+  if (!refreshToken || !session) {
+    if (current) return current
+    throw new Error("Please sign in again to use the AI assistant.")
+  }
+
+  const response = await fetch(`${requireApiBaseUrl()}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  })
+  const result = await response.json().catch(() => null)
+  const nextToken = String(result?.access_token || "")
+  if (!response.ok || !nextToken) {
+    if (current && response.status !== 401) return current
+    throw new Error("Please sign in again to use the AI assistant.")
+  }
+  saveSessionUser({
+    ...session,
+    accessToken: nextToken,
+    refreshToken: String(result?.refresh_token || refreshToken),
+  })
+  return nextToken
+}
 
 export function requireApiBaseUrl() {
   if (!API_BASE_URL) {

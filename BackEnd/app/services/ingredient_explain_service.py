@@ -21,6 +21,7 @@ Rules:
 - possible_effects: what can happen if intake is high / not controlled — keep gentle and concrete.
 - source: a human label like "Scanity ingredient guide" (never a filename).
 - Keep each string under 160 characters.
+- If the label text is not English, answer in clear English and say what the original word means.
 """
 
 
@@ -123,7 +124,8 @@ def _cached_gemini_explain(name: str, product_name: str, conditions: str) -> str
         f"Ingredient label text: {name}\n"
         f"Product context: {product_name or 'unknown packaged food'}\n"
         f"Shopper conditions (context only): {conditions or 'none saved'}\n\n"
-        "Research what this ingredient/additive typically is on food labels. Be brief."
+        "Research what this ingredient/additive typically is on food labels. Be brief. "
+        "If the label text is not English, explain it in clear English."
     )
     # Tiny local context only — avoid large RAG prompt bloat.
     docs = retrieve_local(name, limit=2)

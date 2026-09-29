@@ -1,6 +1,6 @@
-import { requireApiBaseUrl } from "./auth"
+import { ensureAccessToken, requireApiBaseUrl } from "./auth"
 import { loadHealthProfile } from "./healthProfile"
-import { getAccessToken } from "./session"
+import { loadSessionUser } from "./session"
 import type { AllergySignal, StoredScan } from "./scanHistory"
 
 export type AiChatMessage = {
@@ -8,10 +8,14 @@ export type AiChatMessage = {
   content: string
 }
 
-function authHeaders() {
-  const token = getAccessToken()
+async function authHeaders() {
+  const token = await ensureAccessToken()
   if (!token) {
-    throw new Error("Please sign in again to use the AI assistant.")
+    throw new Error(
+      loadSessionUser()
+        ? "The assistant could not use this session. Try the question again."
+        : "Please sign in again to use the AI assistant.",
+    )
   }
   return {
     Accept: "application/json",
@@ -79,7 +83,7 @@ export async function askAiAboutProduct(input: {
 }) {
   const response = await fetch(`${requireApiBaseUrl()}/scan/ai/chat`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body: JSON.stringify({
       message: input.message,
       product: productPayload(input.scan),
@@ -106,7 +110,7 @@ export async function requestSafetyReport(input: {
 }) {
   const response = await fetch(`${requireApiBaseUrl()}/scan/ai/safety-report`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body: JSON.stringify({
       product: productPayload(input.scan),
       profile: profilePayload(),
@@ -131,7 +135,7 @@ export async function explainIngredientWithAi(input: {
 }) {
   const response = await fetch(`${requireApiBaseUrl()}/scan/ai/ingredient-explain`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: await authHeaders(),
     body: JSON.stringify({
       ingredient: input.ingredient,
       product_name: input.productName || null,
@@ -178,7 +182,7 @@ export type KnowledgeHit = {
 export async function searchKnowledge(query: string): Promise<KnowledgeHit[]> {
   const response = await fetch(
     `${requireApiBaseUrl()}/knowledge/search?q=${encodeURIComponent(query)}&limit=8`,
-    { headers: authHeaders() },
+    { headers: await authHeaders() },
   )
   const data = await response.json().catch(() => null)
   if (response.status === 401) {

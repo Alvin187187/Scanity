@@ -1,4 +1,8 @@
-from app.services.barcode_lookup_service import _enrich_cached_product, _merge_live_fields
+from app.services.barcode_lookup_service import (
+    _enrich_cached_product,
+    _ephemeral_product,
+    _merge_live_fields,
+)
 
 
 def test_merge_live_fields_prefers_off_nutrition_and_image():
@@ -57,3 +61,17 @@ def test_enrich_cached_product_maps_openfoodfacts_payload():
     assert enriched["nutrition"]["sugars_g"] == 56.3
     assert enriched["image_url"] == "https://example.com/nutella.jpg"
     assert "sugar" in (enriched.get("ingredients_raw_text") or "")
+
+
+def test_ephemeral_product_keeps_official_nutri_score():
+    product = _ephemeral_product(
+        {
+            "barcode": "12345678",
+            "product_name": "Sample",
+            "nutriscore_grade": "c",
+            "ingredients": [{"name": "milk", "is_allergen": True}],
+            "ingredients_incomplete": False,
+        }
+    )
+    assert product["nutriscore_grade"] == "c"
+    assert product["ingredients"][0]["name"] == "milk"

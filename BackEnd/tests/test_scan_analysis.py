@@ -26,6 +26,23 @@ def test_sugar_and_e100_use_knowledge_not_flagged():
     assert "e100" in titles
 
 
+def test_incomplete_ingredient_list_stays_caution_without_hiding_an_avoid():
+    incomplete = analyze_ingredients(
+        ["sugar", "salt"],
+        user_allergies=["milk"],
+        ingredients_incomplete=True,
+    )
+    assert incomplete["verdict"] == "caution"
+    assert incomplete["allergy_flags"] == []
+
+    still_avoid = analyze_ingredients(
+        ["sugar", "milk"],
+        user_allergies=["milk"],
+        ingredients_incomplete=True,
+    )
+    assert still_avoid["verdict"] == "avoid"
+
+
 def test_unmapped_ingredient_is_caution_not_safe():
     result = analyze_ingredients(["zxq999qqx"], user_allergies=["milk"])
     assert result["verdict"] == "caution"

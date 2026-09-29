@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 from functools import lru_cache
 
 logger = logging.getLogger(__name__)
@@ -153,6 +154,38 @@ def _texts_from_result(result) -> list[str]:
     return []
 
 
+def _reject_unusable_package_photo(image_bytes: bytes) -> None:
+    """Stop blank files and non-photos before they are treated as a product."""
+    try:
+        from PIL import Image, ImageOps, ImageStat
+    except ImportError:
+        return
+
+    try:
+        image = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes)))
+        image = image.convert("RGB")
+    except Exception as exc:
+        raise InvalidLabelImageError(
+            "This file is not a usable product photo. Upload a clear package photo instead."
+        ) from exc
+
+    width, height = image.size
+    if width < 32 or height < 32:
+        raise InvalidLabelImageError(
+            "This photo is too small to read a product. Try another image."
+        )
+    stddev = ImageStat.Stat(image.convert("L")).stddev
+    spread = float(stddev[0]) if stddev else 0.0
+    if spread < 6:
+        raise InvalidLabelImageError(
+            "This photo does not look like a product package. Upload a photo of the package instead."
+        )
+
+
+def _has_package_letters(text: str) -> bool:
+    return len(re.sub(r"[^A-Za-z]", "", text or "")) >= 3
+
+
 def extract_text_from_image(image_bytes: bytes, content_type: str | None = None) -> str:
     """Read a package photo and return the product name (or label text)."""
     if not image_bytes:
@@ -162,6 +195,7 @@ def extract_text_from_image(image_bytes: bytes, content_type: str | None = None)
     if content_type and content_type.lower() not in ALLOWED_CONTENT_TYPES:
         raise InvalidLabelImageError("Please upload a JPEG, PNG, or WebP photo of the package.")
 
+    _reject_unusable_package_photo(image_bytes)
     prepared = _prepare_image_bytes(image_bytes)
     mime = (content_type or "image/jpeg").lower()
     if mime not in {"image/jpeg", "image/jpg", "image/png", "image/webp"}:
@@ -169,21 +203,35 @@ def extract_text_from_image(image_bytes: bytes, content_type: str | None = None)
     if mime == "image/jpg":
         mime = "image/jpeg"
 
+    text = _rapidocr_text(prepared)
+    if not _has_package_letters(text):
+        raise InvalidLabelImageError(
+            "No product name was detected. Hold the package name steady, or upload a clearer photo."
+        )
+
     try:
-        from app.services.product_title_service import title_from_package_photo
+        from app.services.product_title_service import (
+            heuristic_product_title,
+            title_from_package_photo,
+            title_supported_by_text,
+        )
 
         title = title_from_package_photo(prepared, mime)
-        if title:
+        if title and title_supported_by_text(title, text):
             return title
+        heuristic = heuristic_product_title(text)
+        if heuristic:
+            return heuristic
+    except InvalidLabelImageError:
+        raise
     except Exception:
         logger.warning("Hosted package reading was unavailable.")
 
-    text = _rapidocr_text(prepared)
-    if not text:
-        raise InvalidLabelImageError(
-            "No product name was detected. Hold the name steady and try again in good light."
-        )
-    return text
+    if text.strip():
+        return text.strip()
+    raise InvalidLabelImageError(
+        "No product name was detected. Hold the name steady and try again in good light."
+    )
 
 
 def _rapidocr_text(prepared: bytes) -> str:

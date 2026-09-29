@@ -23,6 +23,12 @@ def test_foreign_ingredient_uses_english_open_food_facts_id():
     assert translated is True
 
 
+def test_french_milk_reaches_the_rule_engine_in_english():
+    name, translated = prefer_english_ingredient({"id": "", "text": "lait"})
+    assert translated is True
+    assert name == "milk"
+
+
 def test_english_ingredient_text_is_left_alone():
     name, translated = prefer_english_ingredient(
         {"id": "en:sugar", "text": "Sugar"}
