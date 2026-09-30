@@ -558,11 +558,13 @@ function Tooltip({
   label,
   children,
   side = "bottom",
+  align = "center",
   wrapperStyle,
 }: {
   label: string
   children: ReactNode
   side?: "top" | "bottom"
+  align?: "start" | "center" | "end"
   wrapperStyle?: CSSProperties
 }) {
   const [show, setShow] = useState(false)
@@ -591,8 +593,9 @@ function Tooltip({
               ? { top: "calc(100% + 8px)" }
               : { bottom: "calc(100% + 8px)" }),
 
-            left: "50%",
-            transform: "translateX(-50%)",
+            left: align === "end" ? "auto" : align === "start" ? 0 : "50%",
+            right: align === "end" ? 0 : "auto",
+            transform: align === "center" ? "translateX(-50%)" : "none",
 
             padding: "5px 10px",
 
@@ -17109,8 +17112,8 @@ function ChangePasswordScreen({
           </div>
         )}
 
-        <div style={{ padding: isDesktop ? "22px 40px 8px 0" : "18px 14px 0" }}>
-          <Tooltip label="Back to Settings">
+        <div style={{ padding: isDesktop ? "22px 40px 8px 8px" : "18px 14px 0", position: "relative", zIndex: 6 }}>
+          <Tooltip label="Back to Settings" align="start">
             <button
               type="button"
               onClick={() => go("settings")}
@@ -17251,7 +17254,41 @@ function DeleteAccountScreen({
 }) {
   const isDesktop = useIsDesktop()
   const [showDeleteLoading, setShowDeleteLoading] = useState(false)
+  const [showFinalWarning, setShowFinalWarning] = useState(false)
   const [deleteError, setDeleteError] = useState("")
+  const accountEmail = loadSessionUser()?.email || "this account"
+
+  const confirmDelete = () => {
+    setDeleteError("")
+    setShowFinalWarning(false)
+    setShowDeleteLoading(true)
+    void deleteAccount()
+      .then(() => {
+        const email = loadSessionUser()?.email?.trim().toLowerCase() || ""
+        clearSessionUser()
+        try {
+          window.localStorage.removeItem("scanityHealthProfile")
+          window.localStorage.removeItem("scanityScanHistory")
+          window.localStorage.removeItem("scanityProductResult")
+          window.localStorage.removeItem("scanityAvatar:local")
+          if (email) {
+            window.localStorage.removeItem(`scanityHealthProfile:${email}`)
+            window.localStorage.removeItem(`scanityScanHistory:${email}`)
+            window.localStorage.removeItem(`scanityProductResult:${email}`)
+            window.localStorage.removeItem(`scanityAvatar:${email}`)
+            window.localStorage.removeItem(`scanityDisplayName:${email}`)
+            window.localStorage.removeItem(`scanityDisplayName:dirty:${email}`)
+          }
+        } catch {
+          // ignore
+        }
+        go("splash")
+      })
+      .catch((error) => {
+        setDeleteError(error instanceof Error ? error.message : "Account could not be deleted.")
+      })
+      .finally(() => setShowDeleteLoading(false))
+  }
 
   return (
     <div
@@ -17393,21 +17430,7 @@ function DeleteAccountScreen({
               disabled={showDeleteLoading}
               onClick={() => {
                 setDeleteError("")
-                setShowDeleteLoading(true)
-                void deleteAccount()
-                  .then(() => {
-                    clearSessionUser()
-                    try {
-                      window.localStorage.removeItem("scanityHealthProfile")
-                    } catch {
-                      // ignore
-                    }
-                    go("splash")
-                  })
-                  .catch((error) => {
-                    setDeleteError(error instanceof Error ? error.message : "Account could not be deleted.")
-                  })
-                  .finally(() => setShowDeleteLoading(false))
+                setShowFinalWarning(true)
               }}
               style={{
                 width: "100%",
@@ -17455,6 +17478,87 @@ function DeleteAccountScreen({
           </div>
         </div>
       </div>
+
+      {showFinalWarning && !showDeleteLoading && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            background: "rgba(36,41,47,0.55)",
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-labelledby="delete-final-title"
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              background: SOFT_SLATE.bg,
+              borderRadius: 28,
+              padding: "28px 24px 22px",
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+              textAlign: "center",
+            }}
+          >
+            <div id="delete-final-title" style={{ fontSize: 18, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+              Delete this account permanently?
+            </div>
+            <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>
+              This is a second warning. {accountEmail} will be removed, along with allergies, scan history, and the password. You will not be able to sign in again.
+            </p>
+            {deleteError ? (
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: SOFT_SLATE.unsafe }}>{deleteError}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={confirmDelete}
+              style={{
+                width: "100%",
+                marginTop: 18,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.unsafe,
+                color: "#ffffff",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxSizing: "border-box",
+              }}
+            >
+              Yes, delete my account
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFinalWarning(false)}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.textMuted,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: SOFT_SLATE.raisedSm,
+                cursor: "pointer",
+                boxSizing: "border-box",
+              }}
+            >
+              Keep my account
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Delete loading overlay */}
       {showDeleteLoading && (
@@ -17567,351 +17671,142 @@ function ForgotPasswordScreen({
   goBack: () => void
 }) {
   const [email, setEmail] = useState(() => loadSessionUser()?.email || "")
-  const [pressed, setPressed] = useState(false)
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState("")
   const isDesktop = useIsDesktop()
 
+  const sendReset = () => {
+    const trimmed = email.trim()
+    if (!trimmed || sending) return
+    setSendError("")
+    setSending(true)
+    void requestPasswordReset(trimmed)
+      .then(() => setSent(true))
+      .catch((error) => {
+        setSendError(error instanceof Error ? error.message : "Could not send the reset email.")
+      })
+      .finally(() => setSending(false))
+  }
+
   return (
     <div
       style={{
         flex: 1,
-        minHeight: "100%",
-        position: "relative",
-        overflow: "hidden",
+        minHeight: "100dvh",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
         background: SOFT_SLATE.bg,
         fontFamily: SOFT_SLATE.fontFamily,
         color: SOFT_SLATE.textPrimary,
+        boxSizing: "border-box",
+        padding: isDesktop ? "44px 28px" : "32px 24px",
       }}
     >
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          background: SOFT_SLATE.bg,
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          width: 180,
-          height: 180,
-          borderRadius: "50%",
-          background: "rgba(224,167,46,0.10)",
-          filter: "blur(35px)",
-          top: -60,
-          right: -50,
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          width: 160,
-          height: 160,
-          borderRadius: "50%",
-          background: "rgba(23,107,58,0.08)",
-          filter: "blur(30px)",
-          bottom: -50,
-          left: -50,
-        }}
-      />
-
-      {/* Back Button */}
-      <Tooltip
-        label="Back"
-        wrapperStyle={{
-          position: "absolute",
-          top: isDesktop ? 32 : `calc(${SAFE_TOP} + 10px)`,
-          left: isDesktop ? 32 : 16,
-          zIndex: 3,
-        }}
-      >
-        <button
-          type="button"
-          onClick={goBack}
-          aria-label="Back"
-          style={{
-            width: isDesktop ? 42 : 38,
-            height: isDesktop ? 42 : 38,
-            borderRadius: isDesktop ? 12 : 10,
-            border: "1px solid rgba(224,167,46,0.30)",
-            background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
-            color: PALETTE.textDark,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            transition: "background 0.15s ease, transform 0.15s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.14)"
-            e.currentTarget.style.transform = "translateX(-2px)"
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.08)"
-            e.currentTarget.style.transform = "translateX(0)"
-          }}
-        >
-          <i
-            className="fa fa-angle-left"
-            style={{ fontSize: 24 }}
-          />
-        </button>
-      </Tooltip>
-
-      {/* Main Content */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          minHeight: "100%",
+          width: "100%",
+          maxWidth: isDesktop ? 420 : 360,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: isDesktop ? "60px 24px" : "80px 18px 24px",
-          boxSizing: "border-box",
+          flexDirection: "column",
         }}
       >
-        <Center
-          maxWidth={isDesktop ? 480 : 360}
+        <div style={{ display: "flex", justifyContent: "flex-start" }}>
+          <button type="button" className="scanity-auth-link" onClick={goBack}>
+            Back
+          </button>
+        </div>
+
+        <div
           style={{
-            width: "100%",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding: isDesktop ? "48px 44px" : "0",
-            boxSizing: "border-box",
-            ...(isDesktop
-              ? {
-                  background: PALETTE.greenLight,
-                  border: "1px solid rgba(224,167,46,0.20)",
-                  borderRadius: 28,
-                  boxShadow:
-                    "0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgb(from var(--ss-text-primary) r g b / 0.06)",
-                  backdropFilter: "blur(24px)",
-                  WebkitBackdropFilter: "blur(24px)",
-                }
-              : {}),
+            marginBottom: 22,
           }}
         >
-          {/* Icon */}
-          <div
-            style={{
-              width: isDesktop ? 96 : 88,
-              height: isDesktop ? 96 : 88,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(224,167,46,0.12)",
-              border: "1.5px solid rgba(224,167,46,0.45)",
-              boxShadow:
-                "0 0 30px rgba(224,167,46,0.10), inset 0 1px rgb(from var(--ss-text-primary) r g b / 0.08)",
-              marginBottom: 22,
-              flexShrink: 0,
-            }}
-          >
-            <i
-              className="fa fa-unlock-alt"
-              style={{
-                fontSize: isDesktop ? 41 : 38,
-                color: C.greenLight,
-              }}
-            />
-          </div>
-
-          {/* Heading */}
-          <h1
-            style={{
-              margin: "0 0 10px",
-              fontSize: isDesktop ? 28 : 21,
-              fontWeight: 800,
-              color: PALETTE.textDark,
-              textAlign: "center",
-              fontFamily: FONT_HEAD,
-            }}
-          >
-            Forgot Password?
+          <img
+            src={logoImg}
+            alt=""
+            width={48}
+            height={48}
+            style={{ width: 48, height: 48, objectFit: "contain", marginBottom: 16 }}
+          />
+          <h1 style={{ margin: 0, fontSize: isDesktop ? 32 : 28, fontWeight: 700, letterSpacing: "-0.03em", textAlign: "center", color: SOFT_SLATE.textPrimary }}>
+            Forgot password
           </h1>
-
-          <p
-            style={{
-              margin: "0 0 24px",
-              maxWidth: 340,
-              fontSize: 16,
-              lineHeight: 1.5,
-              color: "rgb(from var(--ss-text-primary) r g b / 0.72)",
-              textAlign: "center",
-            }}
-          >
-            Enter your email and we will send a reset link.
-            Open that link on this device to choose a new password.
+          <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Enter your email and we will send a reset link. Open that link on this device to choose a new password.
           </p>
+        </div>
 
-          {/* Email */}
+        <label htmlFor="forgot-email" className="scanity-auth-label">
+          Email
+        </label>
+        <div className="scanity-auth-field">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <path d="m22 6-10 7L2 6" />
+          </svg>
+          <input
+            id="forgot-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              if (sendError) setSendError("")
+              if (sent) setSent(false)
+            }}
+            placeholder="name@email.com"
+            className="scanity-auth-input"
+          />
+        </div>
+
+        {sendError ? (
           <div
+            role="alert"
             style={{
-              width: "100%",
-              maxWidth: isDesktop ? 380 : 300,
-              marginBottom: 10,
-            }}
-          >
-            <label
-              htmlFor="forgot-email"
-              style={{
-                display: "block",
-                marginBottom: 8,
-                fontSize: 16,
-                fontWeight: 600,
-                color: PALETTE.textDark,
-              }}
-            >
-              Email
-            </label>
-
-            <div
-              style={{
-                height: isDesktop ? 54 : 48,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "0 16px",
-                boxSizing: "border-box",
-                borderRadius: 14,
-                background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
-                border: email
-                  ? "1px solid rgba(224,167,46,0.75)"
-                  : "1px solid rgb(from var(--ss-text-primary) r g b / 0.14)",
-                boxShadow: email
-                  ? "0 0 15px rgba(224,167,46,0.08)"
-                  : "none",
-              }}
-            >
-              <i
-                className="fa fa-envelope-o"
-                style={{
-                  fontSize: isDesktop ? 16 : 15,
-                  color: C.greenLight,
-                  flexShrink: 0,
-                }}
-              />
-
-              <input
-                id="forgot-email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@email.com"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  color: PALETTE.textDark,
-                  fontFamily: FONT_BODY,
-                  fontSize: 16,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Continue */}
-          <button
-            type="button"
-            onMouseDown={() => setPressed(true)}
-            onMouseUp={() => setPressed(false)}
-            onMouseLeave={() => setPressed(false)}
-            onTouchStart={() => setPressed(true)}
-            onTouchEnd={() => setPressed(false)}
-            onClick={() => {
-              const trimmed = email.trim()
-              if (!trimmed || sending) return
-              setSendError("")
-              setSending(true)
-              void requestPasswordReset(trimmed)
-                .then(() => setSent(true))
-                .catch((error) => {
-                  setSendError(error instanceof Error ? error.message : "Could not send the reset email.")
-                })
-                .finally(() => setSending(false))
-            }}
-            style={{
-              width: "100%",
-              maxWidth: isDesktop ? 380 : 300,
-              height: isDesktop ? 54 : 48,
-              marginTop: 14,
-              border: "1px solid rgba(224,167,46,0.55)",
+              margin: "16px 0 0",
+              padding: "12px 14px",
               borderRadius: 14,
-              background: pressed
-                ? C.mochaLight
-                : "linear-gradient(135deg, #E0A72E 0%, #C98A1F 100%)",
-              color: C.onAccent,
-              fontFamily: FONT_HEAD,
-              fontSize: isDesktop ? 15 : 16,
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: pressed
-                ? "0 3px 10px rgba(0,0,0,0.25)"
-                : "0 6px 20px rgba(224,167,46,0.22)",
-              transform: pressed ? "scale(0.98)" : "scale(1)",
-              transition: "all 0.12s ease",
-            }}
-          >
-            {sending ? "Sending…" : sent ? "Reset link sent" : "Send reset link"}
-          </button>
-          {sent ? (
-            <p style={{ margin: "14px 0 0", maxWidth: 360, textAlign: "center", fontSize: 16, lineHeight: 1.5, color: PALETTE.textDark }}>
-              Check {email.trim()} and open the newest link. It should open scanity-eta.vercel.app so you can set a new password. If Gmail still opens localhost and the page will not load, that link was built from an old Supabase site address. Send a new email after the site address is updated, and ignore the older messages.
-            </p>
-          ) : null}
-          {sendError ? (
-            <p role="alert" style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.45, color: C.statusDanger }}>{sendError}</p>
-          ) : null}
-
-          {/* Login */}
-          <button
-            type="button"
-            onClick={() => go("login")}
-            style={{
-              marginTop: 22,
-              border: "none",
-              background: "transparent",
-              color: "rgb(from var(--ss-text-primary) r g b / 0.55)",
+              background: "var(--ss-status-avoid-bg)",
+              color: "var(--scanity-danger-text)",
               fontFamily: FONT_BODY,
-              fontSize: 16,
-              cursor: "pointer",
-            }}
-          >
-            Remember your password?{" "}
-            <span
-              style={{
-                color: C.greenLight,
-                fontWeight: 700,
-              }}
-            >
-              Sign in
-            </span>
-          </button>
-
-          {/* Footer */}
-          <p
-            style={{
-              margin: isDesktop ? "32px 0 0" : "24px 0 0",
-              textAlign: "center",
               fontSize: 14,
-              color: "rgb(from var(--ss-text-primary) r g b / 0.45)",
+              fontWeight: 500,
+              lineHeight: 1.45,
             }}
           >
-            Scanity • See It. Know It. Eat It.
+            {sendError}
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          className="scanity-auth-primary"
+          onClick={sendReset}
+          disabled={sending}
+          style={{ marginTop: 16 }}
+        >
+          {sending ? "Sending…" : "Send reset link"}
+        </button>
+
+        {sent ? (
+          <p style={{ margin: "16px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Check {email.trim()} and open the newest link on this device to set a new password.
           </p>
-        </Center>
+        ) : null}
+
+        <p style={{ textAlign: "center", margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary }}>
+          Remember your password?{" "}
+          <button type="button" className="scanity-auth-link" onClick={() => go("login")}>
+            Sign in
+          </button>
+        </p>
       </div>
     </div>
   )

@@ -307,7 +307,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function deleteAccount() {
-  const token = getAccessToken()
+  let token = getAccessToken()
+  try {
+    token = await ensureAccessToken()
+  } catch {
+    if (!token) throw new Error("Please sign in again.")
+  }
   if (!token) throw new Error("Please sign in again.")
   const response = await fetch(`${requireApiBaseUrl()}/auth/account`, {
     method: "DELETE",
@@ -317,6 +322,7 @@ export async function deleteAccount() {
     },
   })
   if (response.status === 204) return
+  if (response.status === 401) throw new Error("Please sign in again, then delete the account.")
   const result = await response.json().catch(() => null)
   throw new Error(errorMessageFromBody(result, "Account could not be deleted."))
 }
