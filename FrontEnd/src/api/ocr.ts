@@ -99,6 +99,8 @@ export async function extractOcrImage(
   return data
 }
 
+const PACKAGE_OCR_MAX_SIDE = 1800
+
 async function getLocalReader() {
   if (!localReader) {
     localReader = (async () => {
@@ -106,6 +108,7 @@ async function getLocalReader() {
       const worker = await createWorker("eng", 1)
       await worker.setParameters({
         tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+        preserve_interword_spaces: "1",
       })
       return worker
     })()
@@ -113,10 +116,126 @@ async function getLocalReader() {
   return localReader
 }
 
+type OcrWord = {
+  text?: string
+  confidence?: number
+  bbox?: { x0?: number; y0?: number }
+}
+
+function readingFromWords(words: OcrWord[], minConfidence: number): { text: string; mean: number } {
+  const kept = words.filter((word) => (word.confidence ?? 0) >= minConfidence && String(word.text || "").trim())
+  if (!kept.length) return { text: "", mean: 0 }
+  const mean = kept.reduce((sum, word) => sum + (word.confidence ?? 0), 0) / kept.length
+  const lines: { y: number; parts: { x: number; text: string }[] }[] = []
+  for (const word of kept) {
+    const y = word.bbox?.y0 ?? 0
+    const x = word.bbox?.x0 ?? 0
+    const text = String(word.text || "").trim()
+    const line = lines.find((item) => Math.abs(item.y - y) < 14)
+    if (line) line.parts.push({ x, text })
+    else lines.push({ y, parts: [{ x, text }] })
+  }
+  const text = lines
+    .sort((left, right) => left.y - right.y)
+    .map((line) => line.parts.sort((left, right) => left.x - right.x).map((part) => part.text).join(" "))
+    .join("\n")
+    .trim()
+  return { text, mean }
+}
+
+function preferReading(current: { text: string; mean: number }, next: { text: string; mean: number }) {
+  const currentLetters = current.text.replace(/[^A-Za-z]/g, "").length
+  const nextLetters = next.text.replace(/[^A-Za-z]/g, "").length
+  if (nextLetters < 3) return current
+  if (currentLetters < 3) return next
+  if (next.mean >= 80 && current.mean < 80) return next
+  if (current.mean >= 80 && next.mean < 80) return current
+  return next.mean > current.mean ? next : current
+}
+
+/** Same preparation for a camera frame and an uploaded package photo. */
+export async function preparePackageImage(source: Blob | HTMLCanvasElement): Promise<HTMLCanvasElement> {
+  const bitmap = source instanceof HTMLCanvasElement ? null : await createImageBitmap(source)
+  try {
+    const width = bitmap?.width || (source instanceof HTMLCanvasElement ? source.width : 0)
+    const height = bitmap?.height || (source instanceof HTMLCanvasElement ? source.height : 0)
+    const longest = Math.max(width, height) || 1
+    const scale = Math.min(1, PACKAGE_OCR_MAX_SIDE / longest)
+    const canvas = document.createElement("canvas")
+    canvas.width = Math.max(1, Math.round(width * scale))
+    canvas.height = Math.max(1, Math.round(height * scale))
+    const context = canvas.getContext("2d", { willReadFrequently: true })
+    if (!context) throw new Error("Could not read this photo.")
+    if (bitmap) context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    else context.drawImage(source, 0, 0, canvas.width, canvas.height)
+    sharpenPackageCanvas(context, canvas.width, canvas.height)
+    return canvas
+  } finally {
+    bitmap?.close()
+  }
+}
+
+function sharpenPackageCanvas(context: CanvasRenderingContext2D, width: number, height: number) {
+  const image = context.getImageData(0, 0, width, height)
+  const source = image.data
+  const gray = new Float32Array(width * height)
+  for (let pixel = 0, index = 0; index < source.length; index += 4, pixel += 1) {
+    let value = 0.299 * source[index] + 0.587 * source[index + 1] + 0.114 * source[index + 2]
+    value = (value - 128) * 1.4 + 128
+    gray[pixel] = Math.max(0, Math.min(255, value))
+  }
+  const output = new Uint8ClampedArray(source.length)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const pixel = y * width + x
+      const here = gray[pixel]
+      const blur =
+        x > 0 && y > 0 && x < width - 1 && y < height - 1
+          ? (gray[pixel - width - 1] +
+              gray[pixel - width] +
+              gray[pixel - width + 1] +
+              gray[pixel - 1] +
+              here +
+              gray[pixel + 1] +
+              gray[pixel + width - 1] +
+              gray[pixel + width] +
+              gray[pixel + width + 1]) /
+            9
+          : here
+      const sharp = Math.max(0, Math.min(255, here + 0.85 * (here - blur)))
+      const offset = pixel * 4
+      output[offset] = sharp
+      output[offset + 1] = sharp
+      output[offset + 2] = sharp
+      output[offset + 3] = 255
+    }
+  }
+  image.data.set(output)
+  context.putImageData(image, 0, 0)
+}
+
 export async function recognizePackageText(file: Blob | HTMLCanvasElement): Promise<string> {
   const worker = await getLocalReader()
-  const result = await worker.recognize(file)
-  return String(result?.data?.text || "").trim()
+  const { PSM } = await import("tesseract.js")
+  const modes = [PSM.SINGLE_BLOCK, PSM.AUTO]
+  let best = { text: "", mean: 0 }
+  for (const mode of modes) {
+    await worker.setParameters({ tessedit_pageseg_mode: mode })
+    const result = await worker.recognize(file)
+    const words = (result?.data?.words || []) as OcrWord[]
+    const confident = readingFromWords(words, 80)
+    const usable = confident.text.replace(/[^A-Za-z]/g, "").length >= 3
+      ? confident
+      : readingFromWords(words, 55)
+    const fallback = {
+      text: String(result?.data?.text || "").trim(),
+      mean: usable.mean,
+    }
+    best = preferReading(best, usable.text ? usable : fallback)
+    if (best.mean >= 80 && best.text.replace(/[^A-Za-z]/g, "").length >= 3) break
+  }
+  await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK })
+  return best.text.trim()
 }
 
 export type PackageReadResult = {

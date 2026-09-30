@@ -22,11 +22,12 @@ import {
   loginUser,
   registerUser,
   requestPasswordReset,
+  syncSessionDisplayName,
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
 import { lookupBarcodeProduct, searchOffByName, titleAgreesWithOcr } from "./api/scan"
-import { canvasLooksBlank, INVALID_PACKAGE_PHOTO, PACKAGE_READ_TIMEOUT_MS, readPackageTitle } from "./api/ocr"
+import { canvasLooksBlank, INVALID_PACKAGE_PHOTO, PACKAGE_READ_TIMEOUT_MS, preparePackageImage, readPackageTitle } from "./api/ocr"
 import {
   allergyCategoriesForApi,
   conditionsForApi,
@@ -60,6 +61,7 @@ import {
   getAccessToken,
   loadProfileAvatar,
   loadSessionUser,
+  rememberDisplayName,
   saveProfileAvatar,
   saveSessionUser,
   sessionUserFromLogin,
@@ -1598,6 +1600,11 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
       saveSessionUser(
         sessionUserFromLogin(result?.access_token, email.trim(), result?.refresh_token),
       )
+      try {
+        await syncSessionDisplayName()
+      } catch {
+        // Sign-in already succeeded. The saved name is applied when the profile loads.
+      }
       try {
         const remote = await syncHealthProfileFromServer()
         const hasRemote =
@@ -4666,9 +4673,15 @@ function useThemeMode() {
 }
 
 function useProfileAvatarUrl() {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => loadProfileAvatar())
+  const email = loadSessionUser()?.email || ""
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
+    email ? loadProfileAvatar(email) : null,
+  )
   useEffect(() => {
-    const refresh = () => setAvatarUrl(loadProfileAvatar())
+    const refresh = () => {
+      const current = loadSessionUser()?.email || ""
+      setAvatarUrl(current ? loadProfileAvatar(current) : null)
+    }
     refresh()
     window.addEventListener("focus", refresh)
     window.addEventListener("storage", refresh)
@@ -4678,7 +4691,7 @@ function useProfileAvatarUrl() {
       window.removeEventListener("storage", refresh)
       window.removeEventListener("scanity-avatar-updated", refresh)
     }
-  }, [])
+  }, [email])
   return avatarUrl
 }
 
@@ -6553,11 +6566,14 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
                 <input
                   type="file"
                   accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
-                  aria-label="Upload a package photo"
+                  aria-label="Upload a photo of the barcode on the package"
                   onChange={handleGallery}
                   style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                 />
               </label>
+              <p style={{ maxWidth: 560, margin: "8px auto 0", fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+                The photo needs to show the barcode printed on the package.
+              </p>
 
               {/* ── Start camera ──────────────────────────────────────── */}
               {!["scanning", "captured", "processing", "camera-loading", "success"].includes(scanStatus) && (
@@ -7218,30 +7234,12 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
   const sourceToBlob = async (source: string | HTMLCanvasElement | File): Promise<Blob> => {
     if (source instanceof File) return source
     if (source instanceof HTMLCanvasElement) {
-      const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.82))
+      const blob = await new Promise<Blob | null>((resolve) => source.toBlob(resolve, "image/jpeg", 0.92))
       if (blob) return blob
       throw new Error("Unable to capture the package photo.")
     }
     const response = await fetch(source)
     return response.blob()
-  }
-
-  const shrinkSource = async (source: string | HTMLCanvasElement | File) => {
-    if (source instanceof File) return shrinkPhoto(source, 960)
-    if (source instanceof HTMLCanvasElement) {
-      const longest = Math.max(source.width, source.height) || 1
-      if (longest <= 960) return source
-      const scale = 960 / longest
-      const canvas = document.createElement("canvas")
-      canvas.width = Math.max(1, Math.round(source.width * scale))
-      canvas.height = Math.max(1, Math.round(source.height * scale))
-      const context = canvas.getContext("2d")
-      if (!context) return source
-      context.drawImage(source, 0, 0, canvas.width, canvas.height)
-      return canvas
-    }
-    const blob = await (await fetch(source)).blob()
-    return shrinkPhoto(new File([blob], "label.jpg", { type: blob.type || "image/jpeg" }), 960)
   }
 
   const openConfirmedResult = (
@@ -7338,15 +7336,14 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
       setErrorMessage("")
       stopCamera()
       setScanStatus("ocrProcessing")
-      const prepared = await shrinkSource(source)
-      if (prepared instanceof HTMLCanvasElement && canvasLooksBlank(prepared)) {
+      const input = source instanceof File || source instanceof HTMLCanvasElement
+        ? source
+        : await sourceToBlob(source)
+      const prepared = await preparePackageImage(input)
+      if (canvasLooksBlank(prepared)) {
         throw new Error(INVALID_PACKAGE_PHOTO)
       }
-      if (prepared instanceof HTMLCanvasElement) {
-        setGalleryImage(prepared.toDataURL("image/jpeg", 0.82))
-      } else if (!galleryImage && source instanceof File) {
-        setGalleryImage(URL.createObjectURL(source))
-      }
+      setGalleryImage(prepared.toDataURL("image/jpeg", 0.92))
       const controller = new AbortController()
       const timeoutId = window.setTimeout(() => controller.abort(), PACKAGE_READ_TIMEOUT_MS)
       let read
@@ -7526,7 +7523,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   Find the product
                 </div>
                 <div style={{ fontSize: 16, color: SOFT_SLATE.textSecondary, marginTop: 8, lineHeight: 1.5, maxWidth: "42ch" }}>
-                  Use the camera to photograph the product name.
+                  Photograph the product name, or upload a photo of that name. Both are read the same way.
                 </div>
               </div>
 
@@ -7854,16 +7851,19 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
                   }}
                 >
                   <i className="fa fa-upload" aria-hidden="true" />
-                  Upload a package photo
+                  Upload a product-name photo
                   <input
                     type="file"
                     accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.gif"
-                    aria-label="Upload a package photo for text reading"
+                    aria-label="Upload a photo of the product name"
                     disabled={scannerBusy}
                     onChange={handleOcrGallery}
                     style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
                   />
                 </label>
+                <p style={{ maxWidth: 560, margin: "8px auto 0", fontSize: 14, lineHeight: 1.45, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+                  Use a clear photo of the product name. It is read the same way as a camera capture.
+                </p>
 
                 {scanStatus === "scanning" && (
                   <button
@@ -13361,18 +13361,6 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   )
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-
-  if (parts.length === 0) return "?"
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase()
-  }
-
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
-
 function PreferenceChip({
   active,
   iconSrc,
@@ -13692,12 +13680,14 @@ function SoftSlateOtherChip({
   value,
   onToggle,
   onChangeText,
+  onRemove,
   placeholder,
 }: {
   active: boolean
   value: string
   onToggle: () => void
   onChangeText: (v: string) => void
+  onRemove?: () => void
   placeholder: string
 }) {
   return (
@@ -13753,6 +13743,10 @@ function SoftSlateOtherChip({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
+              if (onRemove) {
+                onRemove()
+                return
+              }
               onChangeText("")
               onToggle()
             }}
@@ -14201,7 +14195,10 @@ function ProfileScreen({
   const [otherAllergy, setOtherAllergy] =
     useState(loadHealthProfile().otherAllergy || "")
   const [allergyOtherOpen, setAllergyOtherOpen] = useState(false)
+  const [allergyExtraOpen, setAllergyExtraOpen] = useState<number | null>(null)
   const [healthOtherOpen, setHealthOtherOpen] = useState(false)
+  const [healthExtraOpen, setHealthExtraOpen] = useState<number | null>(null)
+  const [identityError, setIdentityError] = useState("")
   const chipGuardUntil = useRef(Date.now() + 800)
   const chipPressAllowed = () => Date.now() >= chipGuardUntil.current
 
@@ -14562,15 +14559,19 @@ function ProfileScreen({
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />
                         ) : (
-                          <span
-                            style={{
-                              fontSize: isDesktop ? 28 : 23,
-                              fontWeight: 700,
-                              color: SOFT_SLATE.textPrimary,
-                            }}
+                          <svg
+                            width={isDesktop ? 34 : 28}
+                            height={isDesktop ? 34 : 28}
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke={SOFT_SLATE.green}
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            aria-hidden="true"
                           >
-                            {initials(name)}
-                          </span>
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M6 21v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
+                          </svg>
                         )}
                       </button>
                     </Tooltip>
@@ -14646,6 +14647,11 @@ function ProfileScreen({
                       <h2 style={{ margin: 0, fontSize: isDesktop ? 24 : 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
                         {name || "Your name"}
                       </h2>
+                      {identityError ? (
+                        <p style={{ margin: "8px 0 0", fontSize: 12, color: SOFT_SLATE.caution, lineHeight: 1.4 }}>
+                          {identityError}
+                        </p>
+                      ) : null}
                     </div>
                   ) : (
                     <div style={{ marginTop: 18, width: "100%", maxWidth: 360, textAlign: "left" }}>
@@ -14680,41 +14686,39 @@ function ProfileScreen({
                         <button
                           type="button"
                           onClick={() => {
-                            const nextName =
-                              draftName.trim() || name
-
+                            const nextName = draftName.trim() || name
+                            if (!nextName.trim()) return
                             setName(nextName)
+                            setIdentityError("")
+                            rememberDisplayName(email, nextName, true)
                             saveSessionUser({
                               name: nextName,
                               email,
-                              joinedAt:
-                                storedUser?.joinedAt ||
-                                new Date().toISOString(),
+                              joinedAt: storedUser?.joinedAt || new Date().toISOString(),
+                              accessToken: storedUser?.accessToken,
+                              refreshToken: storedUser?.refreshToken,
                             })
-                            const profile = loadHealthProfile()
-                            void persistHealthProfile({
-                              ...profile,
-                            }).catch(() => {})
-                            // Push display name to /users/me when signed in.
-                            void (async () => {
-                              try {
-                                const token = (await import("./api/session")).getAccessToken()
-                                if (!token) return
-                                const { requireApiBaseUrl } = await import("./api/auth")
-                                await fetch(`${requireApiBaseUrl()}/users/me`, {
-                                  method: "PUT",
-                                  headers: {
-                                    Accept: "application/json",
-                                    Authorization: `Bearer ${token}`,
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({ full_name: nextName }),
-                                })
-                              } catch {
-                                // Local session still updated.
-                              }
-                            })()
                             setEditingIdentity(false)
+                            const token = getAccessToken()
+                            if (!token) return
+                            void fetch(`${requireApiBaseUrl()}/users/me`, {
+                              method: "PUT",
+                              headers: {
+                                Accept: "application/json",
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ full_name: nextName }),
+                            })
+                              .then((response) => {
+                                if (!response.ok) {
+                                  throw new Error("Name saved on this device. It will sync the next time you sign in.")
+                                }
+                                rememberDisplayName(email, nextName, false)
+                              })
+                              .catch(() => {
+                                setIdentityError("Name saved on this device. It will sync the next time you sign in.")
+                              })
                           }}
                           style={{
                             padding: "10px 20px",
@@ -14751,6 +14755,11 @@ function ProfileScreen({
                           Cancel
                         </button>
                       </div>
+                      {identityError ? (
+                        <p style={{ margin: "10px 0 0", fontSize: 12, color: SOFT_SLATE.caution, lineHeight: 1.4 }}>
+                          {identityError}
+                        </p>
+                      ) : null}
                     </div>
                   )}
                   {!editingIdentity && (
@@ -14916,24 +14925,46 @@ function ProfileScreen({
                     {otherAllergy.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`allergy-extra-${index}`}
-                        active={false}
+                        active={allergyExtraOpen === index}
                         value={item}
                         placeholder="Add another allergy"
                         onToggle={() => {
-                          const lines = otherAllergy.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
-                          setOtherAllergy(lines.join("\n"))
+                          if (!chipPressAllowed() && allergyExtraOpen !== index) return
+                          setAllergyOtherOpen(false)
+                          setAllergyExtraOpen(allergyExtraOpen === index ? null : index)
                         }}
                         onChangeText={(text) => {
                           const lines = otherAllergy.split("\n")
                           lines[index + 1] = text
                           setOtherAllergy(lines.join("\n"))
                         }}
+                        onRemove={() => {
+                          const lines = otherAllergy.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
+                          setOtherAllergy(lines.join("\n"))
+                          setAllergyExtraOpen(null)
+                        }}
                       />
                     ))}
                     {(allergies.has("other") || otherAllergy.trim()) && (
                       <button
                         type="button"
-                        onClick={() => setOtherAllergy(otherAllergy.trim() ? `${otherAllergy}\n` : otherAllergy)}
+                        onClick={() => {
+                          const lines = otherAllergy.split("\n")
+                          const extras = lines.slice(1)
+                          const blank = extras.findIndex((item) => !item.trim())
+                          setAllergyOtherOpen(false)
+                          if (!lines[0]?.trim() && blank < 0) {
+                            setAllergyExtraOpen(null)
+                            setAllergyOtherOpen(true)
+                            return
+                          }
+                          if (blank >= 0) {
+                            setAllergyExtraOpen(blank)
+                            return
+                          }
+                          setOtherAllergy(`${lines.join("\n")}\n`)
+                          setAllergyExtraOpen(extras.length)
+                        }}
                         style={{
                           border: "none",
                           borderRadius: 999,
@@ -15000,24 +15031,46 @@ function ProfileScreen({
                     {otherHealth.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`health-extra-${index}`}
-                        active={false}
+                        active={healthExtraOpen === index}
                         value={item}
                         placeholder="Add another condition"
                         onToggle={() => {
-                          const lines = otherHealth.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
-                          setOtherHealth(lines.join("\n"))
+                          if (!chipPressAllowed() && healthExtraOpen !== index) return
+                          setHealthOtherOpen(false)
+                          setHealthExtraOpen(healthExtraOpen === index ? null : index)
                         }}
                         onChangeText={(text) => {
                           const lines = otherHealth.split("\n")
                           lines[index + 1] = text
                           setOtherHealth(lines.join("\n"))
                         }}
+                        onRemove={() => {
+                          const lines = otherHealth.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
+                          setOtherHealth(lines.join("\n"))
+                          setHealthExtraOpen(null)
+                        }}
                       />
                     ))}
                     {(health.has("other") || otherHealth.trim()) && (
                       <button
                         type="button"
-                        onClick={() => setOtherHealth(otherHealth.trim() ? `${otherHealth}\n` : otherHealth)}
+                        onClick={() => {
+                          const lines = otherHealth.split("\n")
+                          const extras = lines.slice(1)
+                          const blank = extras.findIndex((item) => !item.trim())
+                          setHealthOtherOpen(false)
+                          if (!lines[0]?.trim() && blank < 0) {
+                            setHealthExtraOpen(null)
+                            setHealthOtherOpen(true)
+                            return
+                          }
+                          if (blank >= 0) {
+                            setHealthExtraOpen(blank)
+                            return
+                          }
+                          setOtherHealth(`${lines.join("\n")}\n`)
+                          setHealthExtraOpen(extras.length)
+                        }}
                         style={{
                           border: "none",
                           borderRadius: 999,

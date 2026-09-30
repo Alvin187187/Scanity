@@ -1,5 +1,6 @@
 const USER_STORAGE_KEY = "scanityUser"
 const AVATAR_STORAGE_PREFIX = "scanityAvatar:"
+const DISPLAY_NAME_PREFIX = "scanityDisplayName:"
 const AVATAR_UPDATED_EVENT = "scanity-avatar-updated"
 
 export type SessionUser = {
@@ -15,11 +16,47 @@ function avatarStorageKey(owner: string) {
   return `${AVATAR_STORAGE_PREFIX}${owner}`
 }
 
-function avatarOwner(email?: string | null): string {
+function accountEmail(email?: string | null): string {
   const session = readStoredUser()
-  const target = (email || session?.email || "").trim().toLowerCase()
-  // Always persist somewhere — empty email used to silently drop photos.
-  return target || "local"
+  return (email || session?.email || "").trim().toLowerCase()
+}
+
+function displayNameKey(email: string) {
+  return `${DISPLAY_NAME_PREFIX}${email}`
+}
+
+function displayNameDirtyKey(email: string) {
+  return `${DISPLAY_NAME_PREFIX}dirty:${email}`
+}
+
+/** Name last chosen on this device for this account. Survives logout. */
+export function rememberedDisplayName(email?: string | null): string {
+  const owner = (email || "").trim().toLowerCase()
+  if (!owner) return ""
+  try {
+    return window.localStorage.getItem(displayNameKey(owner))?.trim() || ""
+  } catch {
+    return ""
+  }
+}
+
+export function displayNameNeedsSync(email?: string | null): boolean {
+  const owner = (email || "").trim().toLowerCase()
+  if (!owner) return false
+  try {
+    return window.localStorage.getItem(displayNameDirtyKey(owner)) === "1"
+  } catch {
+    return false
+  }
+}
+
+export function rememberDisplayName(email: string, name: string, dirty = false) {
+  const owner = email.trim().toLowerCase()
+  const trimmed = name.trim()
+  if (!owner || !trimmed) return
+  window.localStorage.setItem(displayNameKey(owner), trimmed)
+  if (dirty) window.localStorage.setItem(displayNameDirtyKey(owner), "1")
+  else window.localStorage.removeItem(displayNameDirtyKey(owner))
 }
 
 function readStoredAvatar(owner: string): string | null {
@@ -41,28 +78,26 @@ function notifyAvatarUpdated() {
 }
 
 export function loadProfileAvatar(email?: string | null): string | null {
-  const owner = avatarOwner(email)
-  const direct = readStoredAvatar(owner)
-  return direct
+  const owner = accountEmail(email)
+  if (!owner) return null
+  return readStoredAvatar(owner)
 }
 
 export function saveProfileAvatar(avatarUrl: string | null, email?: string | null) {
-  const owner = avatarOwner(email)
+  const owner = accountEmail(email)
+  if (!owner) {
+    throw new Error("Sign in before saving a profile picture.")
+  }
   try {
     if (!avatarUrl) {
       window.localStorage.removeItem(avatarStorageKey(owner))
       notifyAvatarUpdated()
       return
     }
-    // Keep avatars reasonably small for localStorage.
     if (avatarUrl.length > 1_800_000) {
       throw new Error("Profile picture is too large to save on this device.")
     }
     window.localStorage.setItem(avatarStorageKey(owner), avatarUrl)
-    // Keep a local mirror so dashboard still finds it after email edits.
-    if (owner !== "local") {
-      window.localStorage.setItem(avatarStorageKey("local"), avatarUrl)
-    }
     notifyAvatarUpdated()
   } catch (error) {
     throw error instanceof Error ? error : new Error("Could not save profile picture.")
@@ -193,12 +228,14 @@ export function sessionUserFromLogin(
   const payload = accessToken ? decodeJwtPayload(accessToken) : null
   const emailFromToken =
     typeof payload?.email === "string" ? payload.email.trim() : ""
+  const email = emailFromToken || identifier.trim()
   const iat =
     typeof payload?.iat === "number" ? new Date(payload.iat * 1000) : null
+  const remembered = rememberedDisplayName(email)
 
   return {
-    name: nameFromMetadata(payload) || fallbackName(identifier),
-    email: emailFromToken || identifier.trim(),
+    name: remembered || nameFromMetadata(payload) || fallbackName(identifier),
+    email,
     joinedAt:
       iat && !Number.isNaN(iat.getTime())
         ? iat.toISOString()
