@@ -1,5 +1,35 @@
+import { loadSessionUser } from "./session"
+
 const HISTORY_KEY = "scanityScanHistory"
 const ACTIVE_RESULT_KEY = "scanityProductResult"
+
+function accountScope(): string {
+  return loadSessionUser()?.email?.trim().toLowerCase() || "guest"
+}
+
+function scopedKey(base: string): string {
+  return `${base}:${accountScope()}`
+}
+
+/** Read this account's value. A shared legacy key is claimed once, then removed. */
+function scopedGet(base: string): string | null {
+  const key = scopedKey(base)
+  const own = window.localStorage.getItem(key)
+  if (own !== null) return own
+  const legacy = window.localStorage.getItem(base)
+  if (legacy === null) return null
+  window.localStorage.setItem(key, legacy)
+  window.localStorage.removeItem(base)
+  return legacy
+}
+
+function scopedSet(base: string, value: string) {
+  window.localStorage.setItem(scopedKey(base), value)
+}
+
+function scopedRemove(base: string) {
+  window.localStorage.removeItem(scopedKey(base))
+}
 
 export type ScanMethod = "Barcode" | "OCR"
 
@@ -65,7 +95,7 @@ export type StoredScan = {
 
 function readList(): StoredScan[] {
   try {
-    const raw = window.localStorage.getItem(HISTORY_KEY)
+    const raw = scopedGet(HISTORY_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
@@ -79,16 +109,16 @@ export function loadScanHistory(): StoredScan[] {
 }
 
 export function saveActiveScan(scan: StoredScan) {
-  window.localStorage.setItem(ACTIVE_RESULT_KEY, JSON.stringify(scan))
+  scopedSet(ACTIVE_RESULT_KEY, JSON.stringify(scan))
 }
 
 export function clearActiveScan() {
-  window.localStorage.removeItem(ACTIVE_RESULT_KEY)
+  scopedRemove(ACTIVE_RESULT_KEY)
 }
 
 export function loadActiveScan(): StoredScan | null {
   try {
-    const raw = window.localStorage.getItem(ACTIVE_RESULT_KEY)
+    const raw = scopedGet(ACTIVE_RESULT_KEY)
     if (!raw) return null
     return JSON.parse(raw) as StoredScan
   } catch {
@@ -98,14 +128,14 @@ export function loadActiveScan(): StoredScan | null {
 
 export function appendScanHistory(scan: StoredScan) {
   const next = [scan, ...readList().filter((item) => item.id !== scan.id)].slice(0, 50)
-  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+  scopedSet(HISTORY_KEY, JSON.stringify(next))
   saveActiveScan(scan)
   notifyHistoryUpdated()
 }
 
 export function markScanFavorite(id: string, favorite = true) {
   const next = readList().map((item) => (item.id === id ? { ...item, favorite } : item))
-  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+  scopedSet(HISTORY_KEY, JSON.stringify(next))
   const active = loadActiveScan()
   if (active?.id === id) saveActiveScan({ ...active, favorite })
   notifyHistoryUpdated()
@@ -123,15 +153,10 @@ export function removeScanFromHistory(id: string): StoredScan | null {
   const list = readList()
   const removed = list.find((item) => item.id === id) || null
   if (!removed) return null
-  window.localStorage.setItem(
-    HISTORY_KEY,
-    JSON.stringify(list.filter((item) => item.id !== id)),
-  )
+  scopedSet(HISTORY_KEY, JSON.stringify(list.filter((item) => item.id !== id)))
   try {
     const active = loadActiveScan()
-    if (active?.id === id) {
-      window.localStorage.removeItem(ACTIVE_RESULT_KEY)
-    }
+    if (active?.id === id) scopedRemove(ACTIVE_RESULT_KEY)
   } catch {
     // ignore
   }
@@ -144,7 +169,7 @@ export function restoreScanToHistory(scan: StoredScan, index = 0) {
   const next = [...list]
   const insertAt = Math.max(0, Math.min(index, next.length))
   next.splice(insertAt, 0, scan)
-  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next.slice(0, 50)))
+  scopedSet(HISTORY_KEY, JSON.stringify(next.slice(0, 50)))
   notifyHistoryUpdated()
 }
 

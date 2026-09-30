@@ -1,3 +1,4 @@
+import json
 import urllib.error
 import urllib.request
 import uuid
@@ -325,6 +326,35 @@ def change_password(email: str, current_password: str, new_password: str) -> dic
         "refresh_token": next_session.refresh_token,
         "expires_in": next_session.expires_in,
     }
+
+
+def sync_auth_display_name(access_token: str | None, full_name: str) -> None:
+    """Best-effort: write the profile name into Supabase user metadata.
+
+    Sign-in rebuilds the session from that metadata, so a Profile rename has
+    to land there or the next login shows the signup name again.
+    """
+    token = (access_token or "").strip()
+    name = (full_name or "").strip()
+    if not token or not name:
+        return
+    url = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user"
+    body = json.dumps({"data": {"full_name": name, "name": name}}).encode()
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="PUT",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "apikey": settings.SUPABASE_KEY,
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            response.read()
+    except Exception:
+        return
 
 
 def delete_auth_user(access_token: str) -> None:

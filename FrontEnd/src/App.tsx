@@ -22,6 +22,7 @@ import {
   loginUser,
   registerUser,
   requestPasswordReset,
+  syncSessionDisplayName,
   wakeApi,
   requireApiBaseUrl,
 } from "./api/auth"
@@ -60,6 +61,7 @@ import {
   getAccessToken,
   loadProfileAvatar,
   loadSessionUser,
+  rememberDisplayName,
   saveProfileAvatar,
   saveSessionUser,
   sessionUserFromLogin,
@@ -1595,6 +1597,11 @@ function LoginScreen({ go }: { go: (s: Screen) => void }) {
       saveSessionUser(
         sessionUserFromLogin(result?.access_token, email.trim(), result?.refresh_token),
       )
+      try {
+        await syncSessionDisplayName()
+      } catch {
+        // Sign-in already succeeded. The saved name is applied when the profile loads.
+      }
       try {
         const remote = await syncHealthProfileFromServer()
         const hasRemote =
@@ -4663,9 +4670,15 @@ function useThemeMode() {
 }
 
 function useProfileAvatarUrl() {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => loadProfileAvatar())
+  const email = loadSessionUser()?.email || ""
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
+    email ? loadProfileAvatar(email) : null,
+  )
   useEffect(() => {
-    const refresh = () => setAvatarUrl(loadProfileAvatar())
+    const refresh = () => {
+      const current = loadSessionUser()?.email || ""
+      setAvatarUrl(current ? loadProfileAvatar(current) : null)
+    }
     refresh()
     window.addEventListener("focus", refresh)
     window.addEventListener("storage", refresh)
@@ -4675,7 +4688,7 @@ function useProfileAvatarUrl() {
       window.removeEventListener("storage", refresh)
       window.removeEventListener("scanity-avatar-updated", refresh)
     }
-  }, [])
+  }, [email])
   return avatarUrl
 }
 
@@ -13345,18 +13358,6 @@ function ScanHistoryScreen({ go }: { go: (s: Screen) => void }) {
   )
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-
-  if (parts.length === 0) return "?"
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase()
-  }
-
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
-
 function PreferenceChip({
   active,
   iconSrc,
@@ -13676,12 +13677,14 @@ function SoftSlateOtherChip({
   value,
   onToggle,
   onChangeText,
+  onRemove,
   placeholder,
 }: {
   active: boolean
   value: string
   onToggle: () => void
   onChangeText: (v: string) => void
+  onRemove?: () => void
   placeholder: string
 }) {
   return (
@@ -13737,6 +13740,10 @@ function SoftSlateOtherChip({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
+              if (onRemove) {
+                onRemove()
+                return
+              }
               onChangeText("")
               onToggle()
             }}
@@ -14185,7 +14192,10 @@ function ProfileScreen({
   const [otherAllergy, setOtherAllergy] =
     useState(loadHealthProfile().otherAllergy || "")
   const [allergyOtherOpen, setAllergyOtherOpen] = useState(false)
+  const [allergyExtraOpen, setAllergyExtraOpen] = useState<number | null>(null)
   const [healthOtherOpen, setHealthOtherOpen] = useState(false)
+  const [healthExtraOpen, setHealthExtraOpen] = useState<number | null>(null)
+  const [identityError, setIdentityError] = useState("")
   const chipGuardUntil = useRef(Date.now() + 800)
   const chipPressAllowed = () => Date.now() >= chipGuardUntil.current
 
@@ -14546,15 +14556,19 @@ function ProfileScreen({
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />
                         ) : (
-                          <span
-                            style={{
-                              fontSize: isDesktop ? 28 : 23,
-                              fontWeight: 700,
-                              color: SOFT_SLATE.textPrimary,
-                            }}
+                          <svg
+                            width={isDesktop ? 34 : 28}
+                            height={isDesktop ? 34 : 28}
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke={SOFT_SLATE.green}
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            aria-hidden="true"
                           >
-                            {initials(name)}
-                          </span>
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M6 21v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
+                          </svg>
                         )}
                       </button>
                     </Tooltip>
@@ -14630,6 +14644,11 @@ function ProfileScreen({
                       <h2 style={{ margin: 0, fontSize: isDesktop ? 24 : 22, fontWeight: 700, lineHeight: 1.3, color: SOFT_SLATE.textPrimary }}>
                         {name || "Your name"}
                       </h2>
+                      {identityError ? (
+                        <p style={{ margin: "8px 0 0", fontSize: 12, color: SOFT_SLATE.caution, lineHeight: 1.4 }}>
+                          {identityError}
+                        </p>
+                      ) : null}
                     </div>
                   ) : (
                     <div style={{ marginTop: 18, width: "100%", maxWidth: 360, textAlign: "left" }}>
@@ -14664,41 +14683,39 @@ function ProfileScreen({
                         <button
                           type="button"
                           onClick={() => {
-                            const nextName =
-                              draftName.trim() || name
-
+                            const nextName = draftName.trim() || name
+                            if (!nextName.trim()) return
                             setName(nextName)
+                            setIdentityError("")
+                            rememberDisplayName(email, nextName, true)
                             saveSessionUser({
                               name: nextName,
                               email,
-                              joinedAt:
-                                storedUser?.joinedAt ||
-                                new Date().toISOString(),
+                              joinedAt: storedUser?.joinedAt || new Date().toISOString(),
+                              accessToken: storedUser?.accessToken,
+                              refreshToken: storedUser?.refreshToken,
                             })
-                            const profile = loadHealthProfile()
-                            void persistHealthProfile({
-                              ...profile,
-                            }).catch(() => {})
-                            // Push display name to /users/me when signed in.
-                            void (async () => {
-                              try {
-                                const token = (await import("./api/session")).getAccessToken()
-                                if (!token) return
-                                const { requireApiBaseUrl } = await import("./api/auth")
-                                await fetch(`${requireApiBaseUrl()}/users/me`, {
-                                  method: "PUT",
-                                  headers: {
-                                    Accept: "application/json",
-                                    Authorization: `Bearer ${token}`,
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({ full_name: nextName }),
-                                })
-                              } catch {
-                                // Local session still updated.
-                              }
-                            })()
                             setEditingIdentity(false)
+                            const token = getAccessToken()
+                            if (!token) return
+                            void fetch(`${requireApiBaseUrl()}/users/me`, {
+                              method: "PUT",
+                              headers: {
+                                Accept: "application/json",
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ full_name: nextName }),
+                            })
+                              .then((response) => {
+                                if (!response.ok) {
+                                  throw new Error("Name saved on this device. It will sync the next time you sign in.")
+                                }
+                                rememberDisplayName(email, nextName, false)
+                              })
+                              .catch(() => {
+                                setIdentityError("Name saved on this device. It will sync the next time you sign in.")
+                              })
                           }}
                           style={{
                             padding: "10px 20px",
@@ -14735,6 +14752,11 @@ function ProfileScreen({
                           Cancel
                         </button>
                       </div>
+                      {identityError ? (
+                        <p style={{ margin: "10px 0 0", fontSize: 12, color: SOFT_SLATE.caution, lineHeight: 1.4 }}>
+                          {identityError}
+                        </p>
+                      ) : null}
                     </div>
                   )}
                   {!editingIdentity && (
@@ -14900,24 +14922,46 @@ function ProfileScreen({
                     {otherAllergy.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`allergy-extra-${index}`}
-                        active={false}
+                        active={allergyExtraOpen === index}
                         value={item}
                         placeholder="Add another allergy"
                         onToggle={() => {
-                          const lines = otherAllergy.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
-                          setOtherAllergy(lines.join("\n"))
+                          if (!chipPressAllowed() && allergyExtraOpen !== index) return
+                          setAllergyOtherOpen(false)
+                          setAllergyExtraOpen(allergyExtraOpen === index ? null : index)
                         }}
                         onChangeText={(text) => {
                           const lines = otherAllergy.split("\n")
                           lines[index + 1] = text
                           setOtherAllergy(lines.join("\n"))
                         }}
+                        onRemove={() => {
+                          const lines = otherAllergy.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
+                          setOtherAllergy(lines.join("\n"))
+                          setAllergyExtraOpen(null)
+                        }}
                       />
                     ))}
                     {(allergies.has("other") || otherAllergy.trim()) && (
                       <button
                         type="button"
-                        onClick={() => setOtherAllergy(otherAllergy.trim() ? `${otherAllergy}\n` : otherAllergy)}
+                        onClick={() => {
+                          const lines = otherAllergy.split("\n")
+                          const extras = lines.slice(1)
+                          const blank = extras.findIndex((item) => !item.trim())
+                          setAllergyOtherOpen(false)
+                          if (!lines[0]?.trim() && blank < 0) {
+                            setAllergyExtraOpen(null)
+                            setAllergyOtherOpen(true)
+                            return
+                          }
+                          if (blank >= 0) {
+                            setAllergyExtraOpen(blank)
+                            return
+                          }
+                          setOtherAllergy(`${lines.join("\n")}\n`)
+                          setAllergyExtraOpen(extras.length)
+                        }}
                         style={{
                           border: "none",
                           borderRadius: 999,
@@ -14984,24 +15028,46 @@ function ProfileScreen({
                     {otherHealth.split("\n").slice(1).map((item, index) => (
                       <SoftSlateOtherChip
                         key={`health-extra-${index}`}
-                        active={false}
+                        active={healthExtraOpen === index}
                         value={item}
                         placeholder="Add another condition"
                         onToggle={() => {
-                          const lines = otherHealth.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
-                          setOtherHealth(lines.join("\n"))
+                          if (!chipPressAllowed() && healthExtraOpen !== index) return
+                          setHealthOtherOpen(false)
+                          setHealthExtraOpen(healthExtraOpen === index ? null : index)
                         }}
                         onChangeText={(text) => {
                           const lines = otherHealth.split("\n")
                           lines[index + 1] = text
                           setOtherHealth(lines.join("\n"))
                         }}
+                        onRemove={() => {
+                          const lines = otherHealth.split("\n").filter((_, lineIndex) => lineIndex !== index + 1)
+                          setOtherHealth(lines.join("\n"))
+                          setHealthExtraOpen(null)
+                        }}
                       />
                     ))}
                     {(health.has("other") || otherHealth.trim()) && (
                       <button
                         type="button"
-                        onClick={() => setOtherHealth(otherHealth.trim() ? `${otherHealth}\n` : otherHealth)}
+                        onClick={() => {
+                          const lines = otherHealth.split("\n")
+                          const extras = lines.slice(1)
+                          const blank = extras.findIndex((item) => !item.trim())
+                          setHealthOtherOpen(false)
+                          if (!lines[0]?.trim() && blank < 0) {
+                            setHealthExtraOpen(null)
+                            setHealthOtherOpen(true)
+                            return
+                          }
+                          if (blank >= 0) {
+                            setHealthExtraOpen(blank)
+                            return
+                          }
+                          setOtherHealth(`${lines.join("\n")}\n`)
+                          setHealthExtraOpen(extras.length)
+                        }}
                         style={{
                           border: "none",
                           borderRadius: 999,
@@ -17554,351 +17620,142 @@ function ForgotPasswordScreen({
   goBack: () => void
 }) {
   const [email, setEmail] = useState(() => loadSessionUser()?.email || "")
-  const [pressed, setPressed] = useState(false)
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState("")
   const isDesktop = useIsDesktop()
 
+  const sendReset = () => {
+    const trimmed = email.trim()
+    if (!trimmed || sending) return
+    setSendError("")
+    setSending(true)
+    void requestPasswordReset(trimmed)
+      .then(() => setSent(true))
+      .catch((error) => {
+        setSendError(error instanceof Error ? error.message : "Could not send the reset email.")
+      })
+      .finally(() => setSending(false))
+  }
+
   return (
     <div
       style={{
         flex: 1,
-        minHeight: "100%",
-        position: "relative",
-        overflow: "hidden",
+        minHeight: "100dvh",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
         background: SOFT_SLATE.bg,
         fontFamily: SOFT_SLATE.fontFamily,
         color: SOFT_SLATE.textPrimary,
+        boxSizing: "border-box",
+        padding: isDesktop ? "44px 28px" : "32px 24px",
       }}
     >
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          background: SOFT_SLATE.bg,
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          width: 180,
-          height: 180,
-          borderRadius: "50%",
-          background: "rgba(224,167,46,0.10)",
-          filter: "blur(35px)",
-          top: -60,
-          right: -50,
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          width: 160,
-          height: 160,
-          borderRadius: "50%",
-          background: "rgba(23,107,58,0.08)",
-          filter: "blur(30px)",
-          bottom: -50,
-          left: -50,
-        }}
-      />
-
-      {/* Back Button */}
-      <Tooltip
-        label="Back"
-        wrapperStyle={{
-          position: "absolute",
-          top: isDesktop ? 32 : `calc(${SAFE_TOP} + 10px)`,
-          left: isDesktop ? 32 : 16,
-          zIndex: 3,
-        }}
-      >
-        <button
-          type="button"
-          onClick={goBack}
-          aria-label="Back"
-          style={{
-            width: isDesktop ? 42 : 38,
-            height: isDesktop ? 42 : 38,
-            borderRadius: isDesktop ? 12 : 10,
-            border: "1px solid rgba(224,167,46,0.30)",
-            background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
-            color: PALETTE.textDark,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            transition: "background 0.15s ease, transform 0.15s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.14)"
-            e.currentTarget.style.transform = "translateX(-2px)"
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgb(from var(--ss-text-primary) r g b / 0.08)"
-            e.currentTarget.style.transform = "translateX(0)"
-          }}
-        >
-          <i
-            className="fa fa-angle-left"
-            style={{ fontSize: 24 }}
-          />
-        </button>
-      </Tooltip>
-
-      {/* Main Content */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          minHeight: "100%",
+          width: "100%",
+          maxWidth: isDesktop ? 420 : 360,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: isDesktop ? "60px 24px" : "80px 18px 24px",
-          boxSizing: "border-box",
+          flexDirection: "column",
         }}
       >
-        <Center
-          maxWidth={isDesktop ? 480 : 360}
+        <div style={{ display: "flex", justifyContent: "flex-start" }}>
+          <button type="button" className="scanity-auth-link" onClick={goBack}>
+            Back
+          </button>
+        </div>
+
+        <div
           style={{
-            width: "100%",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding: isDesktop ? "48px 44px" : "0",
-            boxSizing: "border-box",
-            ...(isDesktop
-              ? {
-                  background: PALETTE.greenLight,
-                  border: "1px solid rgba(224,167,46,0.20)",
-                  borderRadius: 28,
-                  boxShadow:
-                    "0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgb(from var(--ss-text-primary) r g b / 0.06)",
-                  backdropFilter: "blur(24px)",
-                  WebkitBackdropFilter: "blur(24px)",
-                }
-              : {}),
+            marginBottom: 22,
           }}
         >
-          {/* Icon */}
-          <div
-            style={{
-              width: isDesktop ? 96 : 88,
-              height: isDesktop ? 96 : 88,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(224,167,46,0.12)",
-              border: "1.5px solid rgba(224,167,46,0.45)",
-              boxShadow:
-                "0 0 30px rgba(224,167,46,0.10), inset 0 1px rgb(from var(--ss-text-primary) r g b / 0.08)",
-              marginBottom: 22,
-              flexShrink: 0,
-            }}
-          >
-            <i
-              className="fa fa-unlock-alt"
-              style={{
-                fontSize: isDesktop ? 41 : 38,
-                color: C.greenLight,
-              }}
-            />
-          </div>
-
-          {/* Heading */}
-          <h1
-            style={{
-              margin: "0 0 10px",
-              fontSize: isDesktop ? 28 : 21,
-              fontWeight: 800,
-              color: PALETTE.textDark,
-              textAlign: "center",
-              fontFamily: FONT_HEAD,
-            }}
-          >
-            Forgot Password?
+          <img
+            src={logoImg}
+            alt=""
+            width={48}
+            height={48}
+            style={{ width: 48, height: 48, objectFit: "contain", marginBottom: 16 }}
+          />
+          <h1 style={{ margin: 0, fontSize: isDesktop ? 32 : 28, fontWeight: 700, letterSpacing: "-0.03em", textAlign: "center", color: SOFT_SLATE.textPrimary }}>
+            Forgot password
           </h1>
-
-          <p
-            style={{
-              margin: "0 0 24px",
-              maxWidth: 340,
-              fontSize: 16,
-              lineHeight: 1.5,
-              color: "rgb(from var(--ss-text-primary) r g b / 0.72)",
-              textAlign: "center",
-            }}
-          >
-            Enter your email and we will send a reset link.
-            Open that link on this device to choose a new password.
+          <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Enter your email and we will send a reset link. Open that link on this device to choose a new password.
           </p>
+        </div>
 
-          {/* Email */}
+        <label htmlFor="forgot-email" className="scanity-auth-label">
+          Email
+        </label>
+        <div className="scanity-auth-field">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={SOFT_SLATE.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <path d="m22 6-10 7L2 6" />
+          </svg>
+          <input
+            id="forgot-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              if (sendError) setSendError("")
+              if (sent) setSent(false)
+            }}
+            placeholder="name@email.com"
+            className="scanity-auth-input"
+          />
+        </div>
+
+        {sendError ? (
           <div
+            role="alert"
             style={{
-              width: "100%",
-              maxWidth: isDesktop ? 380 : 300,
-              marginBottom: 10,
-            }}
-          >
-            <label
-              htmlFor="forgot-email"
-              style={{
-                display: "block",
-                marginBottom: 8,
-                fontSize: 16,
-                fontWeight: 600,
-                color: PALETTE.textDark,
-              }}
-            >
-              Email
-            </label>
-
-            <div
-              style={{
-                height: isDesktop ? 54 : 48,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "0 16px",
-                boxSizing: "border-box",
-                borderRadius: 14,
-                background: "rgb(from var(--ss-text-primary) r g b / 0.08)",
-                border: email
-                  ? "1px solid rgba(224,167,46,0.75)"
-                  : "1px solid rgb(from var(--ss-text-primary) r g b / 0.14)",
-                boxShadow: email
-                  ? "0 0 15px rgba(224,167,46,0.08)"
-                  : "none",
-              }}
-            >
-              <i
-                className="fa fa-envelope-o"
-                style={{
-                  fontSize: isDesktop ? 16 : 15,
-                  color: C.greenLight,
-                  flexShrink: 0,
-                }}
-              />
-
-              <input
-                id="forgot-email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@email.com"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  color: PALETTE.textDark,
-                  fontFamily: FONT_BODY,
-                  fontSize: 16,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Continue */}
-          <button
-            type="button"
-            onMouseDown={() => setPressed(true)}
-            onMouseUp={() => setPressed(false)}
-            onMouseLeave={() => setPressed(false)}
-            onTouchStart={() => setPressed(true)}
-            onTouchEnd={() => setPressed(false)}
-            onClick={() => {
-              const trimmed = email.trim()
-              if (!trimmed || sending) return
-              setSendError("")
-              setSending(true)
-              void requestPasswordReset(trimmed)
-                .then(() => setSent(true))
-                .catch((error) => {
-                  setSendError(error instanceof Error ? error.message : "Could not send the reset email.")
-                })
-                .finally(() => setSending(false))
-            }}
-            style={{
-              width: "100%",
-              maxWidth: isDesktop ? 380 : 300,
-              height: isDesktop ? 54 : 48,
-              marginTop: 14,
-              border: "1px solid rgba(224,167,46,0.55)",
+              margin: "16px 0 0",
+              padding: "12px 14px",
               borderRadius: 14,
-              background: pressed
-                ? C.mochaLight
-                : "linear-gradient(135deg, #E0A72E 0%, #C98A1F 100%)",
-              color: C.onAccent,
-              fontFamily: FONT_HEAD,
-              fontSize: isDesktop ? 15 : 16,
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: pressed
-                ? "0 3px 10px rgba(0,0,0,0.25)"
-                : "0 6px 20px rgba(224,167,46,0.22)",
-              transform: pressed ? "scale(0.98)" : "scale(1)",
-              transition: "all 0.12s ease",
-            }}
-          >
-            {sending ? "Sending…" : sent ? "Reset link sent" : "Send reset link"}
-          </button>
-          {sent ? (
-            <p style={{ margin: "14px 0 0", maxWidth: 360, textAlign: "center", fontSize: 16, lineHeight: 1.5, color: PALETTE.textDark }}>
-              Check {email.trim()} and open the newest link. It should open scanity-eta.vercel.app so you can set a new password. If Gmail still opens localhost and the page will not load, that link was built from an old Supabase site address. Send a new email after the site address is updated, and ignore the older messages.
-            </p>
-          ) : null}
-          {sendError ? (
-            <p role="alert" style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.45, color: C.statusDanger }}>{sendError}</p>
-          ) : null}
-
-          {/* Login */}
-          <button
-            type="button"
-            onClick={() => go("login")}
-            style={{
-              marginTop: 22,
-              border: "none",
-              background: "transparent",
-              color: "rgb(from var(--ss-text-primary) r g b / 0.55)",
+              background: "var(--ss-status-avoid-bg)",
+              color: "var(--scanity-danger-text)",
               fontFamily: FONT_BODY,
-              fontSize: 16,
-              cursor: "pointer",
-            }}
-          >
-            Remember your password?{" "}
-            <span
-              style={{
-                color: C.greenLight,
-                fontWeight: 700,
-              }}
-            >
-              Sign in
-            </span>
-          </button>
-
-          {/* Footer */}
-          <p
-            style={{
-              margin: isDesktop ? "32px 0 0" : "24px 0 0",
-              textAlign: "center",
               fontSize: 14,
-              color: "rgb(from var(--ss-text-primary) r g b / 0.45)",
+              fontWeight: 500,
+              lineHeight: 1.45,
             }}
           >
-            Scanity • See It. Know It. Eat It.
+            {sendError}
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          className="scanity-auth-primary"
+          onClick={sendReset}
+          disabled={sending}
+          style={{ marginTop: 16 }}
+        >
+          {sending ? "Sending…" : "Send reset link"}
+        </button>
+
+        {sent ? (
+          <p style={{ margin: "16px 0 0", fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textSecondary, textAlign: "center" }}>
+            Check {email.trim()} and open the newest link on this device to set a new password.
           </p>
-        </Center>
+        ) : null}
+
+        <p style={{ textAlign: "center", margin: "8px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary }}>
+          Remember your password?{" "}
+          <button type="button" className="scanity-auth-link" onClick={() => go("login")}>
+            Sign in
+          </button>
+        </p>
       </div>
     </div>
   )

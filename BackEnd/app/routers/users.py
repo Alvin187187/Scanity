@@ -325,4 +325,8 @@ async def update_profile(
 
     db.commit()
     db.refresh(user)
+    if request.full_name is not None and current_user.get("access_token"):
+        from app.services.auth_service import sync_auth_display_name
+
+        sync_auth_display_name(current_user.get("access_token"), user.full_name or "")
     return _profile_response(db, user)

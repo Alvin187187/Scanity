@@ -1,8 +1,11 @@
 import {
   accessTokenNeedsRefresh,
+  displayNameNeedsSync,
   getAccessToken,
   getRefreshToken,
   loadSessionUser,
+  rememberDisplayName,
+  rememberedDisplayName,
   saveSessionUser,
 } from "./session"
 
@@ -237,6 +240,59 @@ export async function loginUser(credentials: LoginCredentials) {
   } catch (error) {
     console.error("Login request failed:", error)
     throw toAuthError(error)
+  }
+}
+
+/** Keep the name edited in Profile across logout. The sign-in token still carries the signup name. */
+export async function syncSessionDisplayName() {
+  const session = loadSessionUser()
+  const token = session?.accessToken
+  if (!session?.email || !token) return
+
+  const remembered = rememberedDisplayName(session.email)
+  const dirty = displayNameNeedsSync(session.email)
+  let serverName = ""
+  try {
+    const response = await fetch(`${requireApiBaseUrl()}/users/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (response.ok) {
+      const data = await response.json().catch(() => null)
+      serverName = String(data?.full_name || "").trim()
+    }
+  } catch {
+    serverName = ""
+  }
+
+  if (dirty && remembered) {
+    try {
+      const response = await fetch(`${requireApiBaseUrl()}/users/me`, {
+        method: "PUT",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ full_name: remembered }),
+      })
+      if (response.ok) rememberDisplayName(session.email, remembered, false)
+    } catch {
+      // Keep the name saved on this device until the next sign-in.
+    }
+    if (session.name !== remembered) {
+      saveSessionUser({ ...session, name: remembered })
+    }
+    return
+  }
+
+  if (!serverName) return
+  rememberDisplayName(session.email, serverName, false)
+  if (session.name !== serverName) {
+    saveSessionUser({ ...session, name: serverName })
   }
 }
 
