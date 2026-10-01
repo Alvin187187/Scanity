@@ -560,11 +560,13 @@ function Tooltip({
   label,
   children,
   side = "bottom",
+  align = "center",
   wrapperStyle,
 }: {
   label: string
   children: ReactNode
   side?: "top" | "bottom"
+  align?: "start" | "center" | "end"
   wrapperStyle?: CSSProperties
 }) {
   const [show, setShow] = useState(false)
@@ -593,8 +595,9 @@ function Tooltip({
               ? { top: "calc(100% + 8px)" }
               : { bottom: "calc(100% + 8px)" }),
 
-            left: "50%",
-            transform: "translateX(-50%)",
+            left: align === "end" ? "auto" : align === "start" ? 0 : "50%",
+            right: align === "end" ? 0 : "auto",
+            transform: align === "center" ? "translateX(-50%)" : "none",
 
             padding: "5px 10px",
 
@@ -17162,8 +17165,8 @@ function ChangePasswordScreen({
           </div>
         )}
 
-        <div style={{ padding: isDesktop ? "22px 40px 8px 0" : "18px 14px 0" }}>
-          <Tooltip label="Back to Settings">
+        <div style={{ padding: isDesktop ? "22px 40px 8px 8px" : "18px 14px 0", position: "relative", zIndex: 6 }}>
+          <Tooltip label="Back to Settings" align="start">
             <button
               type="button"
               onClick={() => go("settings")}
@@ -17304,7 +17307,41 @@ function DeleteAccountScreen({
 }) {
   const isDesktop = useIsDesktop()
   const [showDeleteLoading, setShowDeleteLoading] = useState(false)
+  const [showFinalWarning, setShowFinalWarning] = useState(false)
   const [deleteError, setDeleteError] = useState("")
+  const accountEmail = loadSessionUser()?.email || "this account"
+
+  const confirmDelete = () => {
+    setDeleteError("")
+    setShowFinalWarning(false)
+    setShowDeleteLoading(true)
+    void deleteAccount()
+      .then(() => {
+        const email = loadSessionUser()?.email?.trim().toLowerCase() || ""
+        clearSessionUser()
+        try {
+          window.localStorage.removeItem("scanityHealthProfile")
+          window.localStorage.removeItem("scanityScanHistory")
+          window.localStorage.removeItem("scanityProductResult")
+          window.localStorage.removeItem("scanityAvatar:local")
+          if (email) {
+            window.localStorage.removeItem(`scanityHealthProfile:${email}`)
+            window.localStorage.removeItem(`scanityScanHistory:${email}`)
+            window.localStorage.removeItem(`scanityProductResult:${email}`)
+            window.localStorage.removeItem(`scanityAvatar:${email}`)
+            window.localStorage.removeItem(`scanityDisplayName:${email}`)
+            window.localStorage.removeItem(`scanityDisplayName:dirty:${email}`)
+          }
+        } catch {
+          // ignore
+        }
+        go("splash")
+      })
+      .catch((error) => {
+        setDeleteError(error instanceof Error ? error.message : "Account could not be deleted.")
+      })
+      .finally(() => setShowDeleteLoading(false))
+  }
 
   return (
     <div
@@ -17446,21 +17483,7 @@ function DeleteAccountScreen({
               disabled={showDeleteLoading}
               onClick={() => {
                 setDeleteError("")
-                setShowDeleteLoading(true)
-                void deleteAccount()
-                  .then(() => {
-                    clearSessionUser()
-                    try {
-                      window.localStorage.removeItem("scanityHealthProfile")
-                    } catch {
-                      // ignore
-                    }
-                    go("splash")
-                  })
-                  .catch((error) => {
-                    setDeleteError(error instanceof Error ? error.message : "Account could not be deleted.")
-                  })
-                  .finally(() => setShowDeleteLoading(false))
+                setShowFinalWarning(true)
               }}
               style={{
                 width: "100%",
@@ -17508,6 +17531,87 @@ function DeleteAccountScreen({
           </div>
         </div>
       </div>
+
+      {showFinalWarning && !showDeleteLoading && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            background: "rgba(36,41,47,0.55)",
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-labelledby="delete-final-title"
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              background: SOFT_SLATE.bg,
+              borderRadius: 28,
+              padding: "28px 24px 22px",
+              boxShadow: SOFT_SLATE.raisedLg,
+              boxSizing: "border-box",
+              textAlign: "center",
+            }}
+          >
+            <div id="delete-final-title" style={{ fontSize: 18, fontWeight: 800, color: SOFT_SLATE.textPrimary }}>
+              Delete this account permanently?
+            </div>
+            <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.55, color: SOFT_SLATE.textSecondary }}>
+              This is a second warning. {accountEmail} will be removed, along with allergies, scan history, and the password. You will not be able to sign in again.
+            </p>
+            {deleteError ? (
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: SOFT_SLATE.unsafe }}>{deleteError}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={confirmDelete}
+              style={{
+                width: "100%",
+                marginTop: 18,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.unsafe,
+                color: "#ffffff",
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxSizing: "border-box",
+              }}
+            >
+              Yes, delete my account
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFinalWarning(false)}
+              style={{
+                width: "100%",
+                marginTop: 10,
+                padding: 15,
+                border: "none",
+                borderRadius: 16,
+                background: SOFT_SLATE.bg,
+                color: SOFT_SLATE.textMuted,
+                fontFamily: SOFT_SLATE.fontFamily,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: SOFT_SLATE.raisedSm,
+                cursor: "pointer",
+                boxSizing: "border-box",
+              }}
+            >
+              Keep my account
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Delete loading overlay */}
       {showDeleteLoading && (

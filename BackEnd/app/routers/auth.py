@@ -100,10 +100,11 @@ async def delete_account(
     current_user: dict = Depends(get_current_user),
 ):
     try:
-        delete_auth_user(current_user["access_token"])
-        delete_local_user(db, current_user["user_id"])
+        delete_auth_user(current_user["access_token"], str(current_user["user_id"]))
     except AuthError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    try:
+        delete_local_user(db, current_user["user_id"])
     except Exception:
-        raise HTTPException(status_code=400, detail="Account could not be deleted")
+        db.rollback()
     return None

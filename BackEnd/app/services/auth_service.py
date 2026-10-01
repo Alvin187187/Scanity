@@ -357,14 +357,14 @@ def sync_auth_display_name(access_token: str | None, full_name: str) -> None:
         return
 
 
-def delete_auth_user(access_token: str) -> None:
-    url = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user"
+def _request_auth_delete(url: str, api_key: str, bearer: str | None = None) -> None:
     request = urllib.request.Request(
         url,
         method="DELETE",
         headers={
-            "Authorization": f"Bearer {access_token}",
-            "apikey": settings.SUPABASE_KEY,
+            "Authorization": f"Bearer {bearer or api_key}",
+            "apikey": api_key,
+            "Content-Type": "application/json",
         },
     )
     try:
@@ -372,13 +372,44 @@ def delete_auth_user(access_token: str) -> None:
             if response.status not in (200, 204):
                 raise AuthError("Account could not be deleted")
     except urllib.error.HTTPError as exc:
-        if exc.code not in (200, 204):
-            detail = exc.read().decode("utf-8", errors="replace")[:180]
-            raise AuthError(detail or "Account could not be deleted")
+        if exc.code == 404:
+            return
+        detail = exc.read().decode("utf-8", errors="replace")[:180]
+        lowered = detail.lower()
+        if "not found" in lowered or "user_not_found" in lowered:
+            return
+        raise AuthError(detail or "Account could not be deleted")
     except AuthError:
         raise
     except Exception:
         raise AuthError("Account could not be deleted")
+
+
+def delete_auth_user(access_token: str, user_id: str | None = None) -> None:
+    """Remove the Supabase auth user. Prefer the service-role admin API.
+
+    Deleting with only the signed-in token often fails, which left the
+    account in place after the app said it could not be deleted.
+    """
+    service_key = (settings.SUPABASE_SERVICE_ROLE_KEY or "").strip()
+    admin_error: AuthError | None = None
+    if service_key and user_id:
+        try:
+            _request_auth_delete(
+                f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/admin/users/{user_id}",
+                service_key,
+            )
+            return
+        except AuthError as exc:
+            admin_error = exc
+    try:
+        _request_auth_delete(
+            f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
+            settings.SUPABASE_KEY,
+            bearer=access_token,
+        )
+    except AuthError as exc:
+        raise admin_error or exc
 
 
 def delete_local_user(db, user_id: str) -> None:
