@@ -8928,6 +8928,14 @@ function AllergySignalsCard({
   )
 }
 
+function leadSentence(text: string, max = 160): string {
+  const clean = text.replace(/\s+/g, " ").replace(/\s*Formula:.*$/i, "").trim()
+  if (!clean) return ""
+  const first = clean.split(/(?<=[.!?])\s+/)[0] || clean
+  if (first.length <= max) return first
+  return `${first.slice(0, max - 1).trim()}…`
+}
+
 function whySafetyScore(
   score: number,
   verdict: CompareVerdict,
@@ -8935,7 +8943,7 @@ function whySafetyScore(
   allergens: string[],
   breakdown?: { summary?: string } | null,
 ) {
-  if (breakdown?.summary) return breakdown.summary
+  if (breakdown?.summary) return leadSentence(breakdown.summary, 180)
   const avoid = signals.filter((item) => String(item.status).toLowerCase() === "avoid").map((item) => item.name)
   const flagged = signals
     .filter((item) => {
@@ -8975,9 +8983,9 @@ function whyNutritionGrade(
     typeof sat === "number" && sat >= 5 ? "saturated fat is high per 100 g" : "",
     typeof sodium === "number" && sodium >= 400 ? "sodium is high per 100 g" : "",
   ].filter(Boolean)
-  const letter = grade ? meaning[grade] : "This product has no Nutri-Score letter on file."
-  const driverText = drivers.length ? ` On this label, ${drivers.join(", ")}.` : ""
-  return `${letter}${driverText} This letter describes the product. It does not use your allergies.`
+  const letter = grade ? meaning[grade] : "No Nutri-Score on this product."
+  const driverText = drivers.length ? ` ${drivers[0][0].toUpperCase()}${drivers[0].slice(1)}.` : ""
+  return `${letter}${driverText}`
 }
 
 function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
@@ -8986,11 +8994,12 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const [saved, setSaved] = useState(Boolean(scan?.favorite))
   const [saveNotice, setSaveNotice] = useState(Boolean(scan?.favorite) ? "This product has been saved in your profile" : "")
   const [chatOpen, setChatOpen] = useState(false)
+  const [meaningOpen, setMeaningOpen] = useState(false)
+  const [scoreDetailOpen, setScoreDetailOpen] = useState(false)
   const [chatInput, setChatInput] = useState("")
   const [chatBusy, setChatBusy] = useState(false)
   const [chatError, setChatError] = useState("")
   const [messages, setMessages] = useState<AiChatMessage[]>([])
-  const [reportText, setReportText] = useState("")
   const [reportBusy, setReportBusy] = useState(false)
   const [ingredientSheet, setIngredientSheet] = useState<IngredientSheetPayload | null>(null)
   const [confirmOcr, setConfirmOcr] = useState(() => {
@@ -9048,9 +9057,9 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   }, [messages, chatOpen])
 
   const quickPrompts = [
-    "Why was this flagged for me?",
-    "Explain the top risk in simple words",
-    "Anything I should double-check on the label?",
+    { label: "Why flagged?", message: "Why was this flagged for me? One sentence." },
+    { label: "Top risk", message: "What is the top risk, in one sentence?" },
+    { label: "Check the label", message: "What should I double-check on the package?" },
   ]
 
   const sendChat = async (raw: string) => {
@@ -9079,7 +9088,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           role: "assistant",
           content:
             activeScan
-              ? `${activeScan.verdict ? activeScan.verdict[0].toUpperCase() + activeScan.verdict.slice(1) : "Caution"} for ${fallbackName}.${fallbackFlags ? ` Flagged on this scan: ${fallbackFlags}.` : ""} I could not reach the live coach just now. Use the safety score and allergy signals on this page, and confirm the package.`
+              ? `${activeScan.verdict ? activeScan.verdict[0].toUpperCase() + activeScan.verdict.slice(1) : "Caution"} for ${fallbackName}.${fallbackFlags ? ` Watch for ${fallbackFlags}.` : ""} The coach is offline. Use the score on this page.`
               : "Scan a product first, then ask about that specific label.",
         },
       ])
@@ -9094,7 +9103,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     setChatError("")
     try {
       const report = await requestSafetyReport({ scan: loadActiveScan(), focus })
-      setReportText(report)
       setChatOpen(true)
       setMessages((prev) => [
         ...prev,
@@ -9103,8 +9111,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     } catch (error) {
       const fallback =
         scan?.explanation ||
-        "Could not build a live safety report. Use the allergy signals and safety score above, and confirm ingredients on the package."
-      setReportText(fallback)
+        "The coach is offline. Use the score on this page."
       setChatOpen(true)
       setMessages((prev) => [...prev, { role: "assistant", content: fallback }])
       setChatError(error instanceof Error ? error.message : "Safety report unavailable.")
@@ -9223,7 +9230,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.3 }}>What this means</h3>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.3 }}>In short</h3>
                 <span
                   style={{
                     fontSize: 12,
@@ -9237,7 +9244,33 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                   {aiLive ? "Gemini live" : "Offline summary"}
                 </span>
               </div>
-              {renderCoachMarkdown(scan.explanation)}
+              {meaningOpen ? (
+                renderCoachMarkdown(scan.explanation)
+              ) : (
+                <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: SOFT_SLATE.textPrimary }}>
+                  {leadSentence(shopperPlainText(scan.explanation), 180)}
+                </p>
+              )}
+              {shopperPlainText(scan.explanation).length > 190 && (
+                <button
+                  type="button"
+                  onClick={() => setMeaningOpen((open) => !open)}
+                  style={{
+                    marginTop: 12,
+                    minHeight: 44,
+                    padding: 0,
+                    border: "none",
+                    background: "none",
+                    color: SOFT_SLATE.green,
+                    fontFamily: SOFT_SLATE.fontFamily,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {meaningOpen ? "Show less" : "Read more"}
+                </button>
+              )}
             </div>
           ) : null}
 
@@ -9259,8 +9292,29 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             <p style={{ margin: "12px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
               {whySafetyScore(safetyScore, verdict, allergySignals, allergens, scan?.scoreBreakdown)}
             </p>
-            {scoreLines.length > 0 && (
-              <ul style={{ margin: "10px 0 0", paddingLeft: 18, color: SOFT_SLATE.textSecondary, fontSize: 15, lineHeight: 1.45 }}>
+            {(scoreLines.length > 0 || scoreFormula) && (
+              <button
+                type="button"
+                onClick={() => setScoreDetailOpen((open) => !open)}
+                aria-expanded={scoreDetailOpen}
+                style={{
+                  marginTop: 8,
+                  minHeight: 44,
+                  padding: 0,
+                  border: "none",
+                  background: "none",
+                  color: SOFT_SLATE.green,
+                  fontFamily: SOFT_SLATE.fontFamily,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {scoreDetailOpen ? "Hide the count" : "How this score was counted"}
+              </button>
+            )}
+            {scoreDetailOpen && scoreLines.length > 0 && (
+              <ul style={{ margin: "8px 0 0", paddingLeft: 18, color: SOFT_SLATE.textSecondary, fontSize: 15, lineHeight: 1.45 }}>
                 {scoreLines.map((line) => (
                   <li key={`${line.code}-${line.detail}`} style={{ marginBottom: 6 }}>
                     {line.detail}
@@ -9268,7 +9322,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                 ))}
               </ul>
             )}
-            {scoreFormula ? (
+            {scoreDetailOpen && scoreFormula ? (
               <p style={{ margin: "8px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>
                 {scoreFormula}
               </p>
@@ -9316,25 +9370,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           />
 
           <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 14, marginBottom: 18 }}>
-            <button
-              type="button"
-              onClick={() => setChatOpen(true)}
-              style={{
-                flex: 1,
-                minHeight: 54,
-                border: "none",
-                borderRadius: 16,
-                background: SOFT_SLATE.bg,
-                color: SOFT_SLATE.textPrimary,
-                fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: SOFT_SLATE.raisedBtn,
-              }}
-            >
-              Ask AI chat
-            </button>
             <button
               type="button"
               onClick={() => {
@@ -9420,11 +9455,6 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             </div>
           )}
 
-          {reportText && !chatOpen && (
-            <div style={{ marginBottom: 20, padding: 16, borderRadius: 18, boxShadow: SOFT_SLATE.insetSm, fontSize: 13.5, color: SOFT_SLATE.textPrimary }}>
-              {renderCoachMarkdown(reportText)}
-            </div>
-          )}
         </Center>
       </div>
 
@@ -9483,9 +9513,9 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
         >
           <div style={{ padding: "16px 16px 12px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 800 }}>AI Assistant</div>
-              <div style={{ marginTop: 3, fontSize: 11.5, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>
-                Friendly coach · explains only · does not change Safe/Caution/Avoid
+              <div style={{ fontSize: 16, fontWeight: 800 }}>Ask about this scan</div>
+              <div style={{ marginTop: 3, fontSize: 14, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>
+                Short answers. The score on this page stays the same.
               </div>
             </div>
             <button
@@ -9507,54 +9537,39 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             </button>
           </div>
 
+          {messages.length === 0 && (
           <div style={{ padding: "0 16px 10px", display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <button
-              type="button"
-              disabled={reportBusy}
-              onClick={() => void runSafetyReport("full safety overview for my allergies and health conditions")}
-              style={{
-                border: "none",
-                borderRadius: 999,
-                padding: "8px 12px",
-                background: SOFT_SLATE.bg,
-                boxShadow: SOFT_SLATE.raisedSm,
-                fontSize: 11.5,
-                fontWeight: 700,
-                color: SOFT_SLATE.green,
-                cursor: "pointer",
-              }}
-            >
-              Safety report
-            </button>
             {quickPrompts.map((prompt) => (
               <button
-                key={prompt}
+                key={prompt.label}
                 type="button"
                 disabled={chatBusy}
-                onClick={() => void sendChat(prompt)}
+                onClick={() => void sendChat(prompt.message)}
                 style={{
                   border: "none",
-                  borderRadius: 999,
+                  borderRadius: 8,
+                  minHeight: 44,
                   padding: "8px 12px",
                   background: SOFT_SLATE.bg,
                   boxShadow: SOFT_SLATE.raisedSm,
-                  fontSize: 11.5,
+                  fontSize: 14,
                   fontWeight: 600,
-                  color: SOFT_SLATE.textSecondary,
+                  color: SOFT_SLATE.textPrimary,
                   cursor: "pointer",
                 }}
               >
-                {prompt}
+                {prompt.label}
               </button>
             ))}
           </div>
+          )}
 
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
             {messages.length === 0 && (
               <div style={{ padding: 14, borderRadius: 12, boxShadow: SOFT_SLATE.insetSm, fontSize: 14, lineHeight: 1.5, color: SOFT_SLATE.textSecondary }}>
                 {scan
-                  ? `Ask about ${scan.name}. Answers use this scan, your allergies, and the ingredients on this label.`
-                  : "Scan a product first, then ask about ingredients and allergy flags."}
+                  ? `Ask one question about ${scan.name}.`
+                  : "Scan a product first."}
               </div>
             )}
             {messages.map((item, index) => (
@@ -9568,7 +9583,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
                   background: item.role === "user" ? SOFT_SLATE.green : SOFT_SLATE.bg,
                   color: item.role === "user" ? "#fff" : SOFT_SLATE.textPrimary,
                   boxShadow: item.role === "user" ? "none" : SOFT_SLATE.insetSm,
-                  fontSize: 13,
+                  fontSize: 16,
                   lineHeight: 1.5,
                 }}
               >
@@ -9598,18 +9613,19 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             <input
               value={chatInput}
               onChange={(event) => setChatInput(event.target.value)}
-              placeholder="Ask about ingredients, risks..."
-              aria-label="Ask the AI assistant"
+              placeholder="Ask one question"
+              aria-label="Message"
               disabled={chatBusy}
               style={{
                 flex: 1,
                 border: "none",
                 borderRadius: 14,
+                minHeight: 44,
                 padding: "12px 14px",
                 background: SOFT_SLATE.bg,
                 boxShadow: SOFT_SLATE.insetSm,
                 fontFamily: SOFT_SLATE.fontFamily,
-                fontSize: 13,
+                fontSize: 16,
                 color: SOFT_SLATE.textPrimary,
                 outline: "none",
               }}
@@ -14024,7 +14040,6 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
                         <span style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>{row.ingredient_name}</span>
                         <span style={{ fontSize: 14, lineHeight: 1.4, color: SOFT_SLATE.textSecondary }}>
                           {row.display_category}
-                          {row.what_it_is ? ` · ${row.what_it_is}` : ""}
                         </span>
                       </button>
                     ))}
@@ -14077,13 +14092,13 @@ function KnowledgeSearchScreen({ go }: { go: (s: Screen) => void }) {
             {active && status === "ready" && (
               <article className="scanity-motion-fade" style={{ marginTop: 24, padding: "20px 16px", borderRadius: 16, background: SOFT_SLATE.bg, boxShadow: SOFT_SLATE.raisedSm, maxWidth: 640 }}>
                 <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.3 }}>{active.ingredient_name}</h2>
-                <KnowledgeFact label="What is it?">{active.what_it_is || "A food-related term in the Scanity guide."}</KnowledgeFact>
+                <KnowledgeFact label="What is it?">{leadSentence(active.what_it_is || "A term in the ingredient guide.", showMore ? 500 : 180)}</KnowledgeFact>
                 {active.aliases.length > 0 ? (
                   <KnowledgeFact label="On a label, also look for">{active.aliases.slice(0, 6).join(", ")}</KnowledgeFact>
                 ) : null}
                 <KnowledgeFact label="Category">{active.display_category}</KnowledgeFact>
                 <KnowledgeFact label={active.display_category === "Allergen" ? "Why does it matter?" : "Why is it used?"}>
-                  {active.possible_effects || "Scanity uses this as a plain-language note, not a medical diagnosis."}
+                  {leadSentence(active.possible_effects || "A plain-language note for reading the label.", showMore ? 500 : 160)}
                 </KnowledgeFact>
                 {active.commonly_seen_in ? (
                   <KnowledgeFact label="Where is it commonly found?">{active.commonly_seen_in}</KnowledgeFact>

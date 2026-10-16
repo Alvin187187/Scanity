@@ -365,6 +365,13 @@ def _display_category(row: dict) -> str:
     return "Food term"
 
 
+def _term_in_key(key: str, term: str) -> bool:
+    """Match a whole word. 'rice' must not hit inside 'licorice'."""
+    if not key or not term:
+        return False
+    return bool(re.search(rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])", key))
+
+
 def search_ingredient_knowledge(query: str, limit: int = 8) -> list[dict]:
     """Rank ingredient, additive, and allergen rows for a shopper search."""
     normalized = _normalize(query)
@@ -386,9 +393,9 @@ def search_ingredient_knowledge(query: str, limit: int = 8) -> list[dict]:
                 best = max(best, 100)
             elif key.startswith(normalized) or normalized.startswith(key):
                 best = max(best, 80)
-            elif normalized in key:
+            elif _term_in_key(key, normalized):
                 best = max(best, 60)
-            elif query_tokens and all(token in key for token in query_tokens):
+            elif query_tokens and all(_term_in_key(key, token) for token in query_tokens):
                 best = max(best, 40)
         if best:
             scored.append((best, len(name), name.lower(), row))
