@@ -26,16 +26,16 @@ function ingredientsFromOff(product: any): string[] {
   const names = list
     .map((item: any) => cleanIngredientLabel(String(item?.text || item?.id || "")))
     .filter((item: string) => item.length > 1)
-  if (names.length) return [...new Set(names)].slice(0, 40)
+  if (names.length) return Array.from(new Set(names)).slice(0, 40)
 
   const raw = String(product?.ingredients_text || product?.ingredients_text_en || "")
   if (!raw.trim()) return []
-  return [...new Set(
+  return Array.from(new Set(
     raw
       .split(/[,;\n]+/)
       .map((item) => cleanIngredientLabel(item))
       .filter((item) => item.length > 1 && item.length < 80),
-  )].slice(0, 40)
+  )).slice(0, 40)
 }
 
 const OFF_ALLERGENS: Record<string, { category: string; name: string }> = {
