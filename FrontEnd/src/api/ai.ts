@@ -59,6 +59,7 @@ function productPayload(scan: StoredScan | null) {
     allergy_flags: scan.allergens || [],
     allergy_matches: scan.allergySignals || [],
     nutrition: scan.nutrition || {},
+    score_breakdown: scan.scoreBreakdown || null,
   }
 }
 

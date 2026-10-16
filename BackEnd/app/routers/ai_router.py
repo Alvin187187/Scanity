@@ -32,6 +32,8 @@ class ProductContextIn(BaseModel):
     ingredients_text: str | None = None
     allergy_flags: list[str] = Field(default_factory=list)
     allergy_matches: list[dict] = Field(default_factory=list)
+    nutrition: dict = Field(default_factory=dict)
+    score_breakdown: dict | None = None
 
 
 class ProfileContextIn(BaseModel):

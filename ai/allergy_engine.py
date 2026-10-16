@@ -471,10 +471,9 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                         "affects_diets": [],
                         "possible_effects": "",
                         "identified": False,
-                        "reason": "Scanity could not fully confirm this ingredient yet — worth a closer look.",
+                        "reason": f"{ingredient} is listed on this product. It did not match a known allergen.",
                         "plain_explanation": (
-                            f"**{ingredient}** showed up on the label, but Scanity could not "
-                            "confidently match it to a known ingredient."
+                            f"{ingredient} is listed on this product. It did not match a known allergen."
                         ),
                     })
                     continue
@@ -505,10 +504,9 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
                 "affects_diets": [],
                 "possible_effects": "",
                 "identified": False,
-                "reason": "Scanity could not fully confirm this ingredient yet — worth a closer look.",
+                "reason": f"{ingredient} is listed on this product. It did not match a known allergen.",
                 "plain_explanation": (
-                    f"**{ingredient}** showed up on the label, but Scanity could not fully "
-                    "match it to your saved allergies yet."
+                    f"{ingredient} is listed on this product. It did not match a known allergen."
                 ),
             })
             continue
@@ -556,6 +554,68 @@ def check_allergies(user_allergies: list, ingredients: list) -> list:
     return flags
 
 
+def apply_declared_allergens(flags: list, declared: list | None, user_allergies: list | None) -> list:
+    """Add allergens the product label actually declares, without inventing extras."""
+    if not declared:
+        return flags
+    out = [dict(item) for item in (flags or [])]
+    user = {_normalize_allergy_category(item) for item in (user_allergies or [])}
+    covered: set[str] = set()
+    for item in out:
+        category = item.get("matched_category")
+        if category:
+            covered.add(_normalize_allergy_category(category))
+        for extra in item.get("affects_allergens") or []:
+            covered.add(_normalize_allergy_category(extra))
+    for entry in declared:
+        if not isinstance(entry, dict):
+            continue
+        category = _normalize_allergy_category(entry.get("category") or entry.get("name"))
+        if not category or category in covered:
+            continue
+        label = str(entry.get("name") or _friendly_allergy_label(category)).strip() or _friendly_allergy_label(category)
+        trace = bool(entry.get("trace"))
+        hit = category in user
+        if hit and not trace:
+            status = "avoid"
+            reason = (
+                f"This product declares {label.lower()} as an allergen, "
+                "which you asked Scanity to watch for."
+            )
+            plain = f"The product label declares {label.lower()} as an allergen."
+        elif hit and trace:
+            status = "caution"
+            reason = (
+                f"The label says this product may contain {label.lower()}, "
+                "which you asked Scanity to watch for."
+            )
+            plain = f"The product label says it may contain {label.lower()}."
+        else:
+            status = "safe"
+            reason = f"Declared on the label as {label.lower()}. It is not in your saved allergies."
+            plain = (
+                f"The product label says it may contain {label.lower()}."
+                if trace
+                else f"The product label declares {label.lower()} as an allergen."
+            )
+        out.append(
+            {
+                "ingredient": label,
+                "status": status,
+                "matched_category": category,
+                "matched_kb_entry": label,
+                "affects_allergens": [category],
+                "affects_diets": [],
+                "identified": True,
+                "declaration": "trace" if trace else "contains",
+                "reason": reason,
+                "plain_explanation": plain,
+            }
+        )
+        covered.add(category)
+    return out
+
+
 def overall_verdict(flags: list) -> str:
     """
     Precedence: avoid > caution > safe.
@@ -577,7 +637,7 @@ def overall_verdict(flags: list) -> str:
 
 def compute_safety_score(flags: list, conditions: list | None = None, nutrition: dict | None = None) -> int:
     """
-    Personalized 0-100 score. Prefers condition + nutrition aware scoring.
+    Personalized 0-100 evidence index. See ai/safety_score.py for the anchors.
     """
     from ai.condition_engine import compute_personalized_score
 

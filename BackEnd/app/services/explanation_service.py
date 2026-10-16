@@ -59,6 +59,10 @@ def _template_explanation(allergy_result: dict, nutrition_result: dict | None, v
     else:
         lines.append("- Some ingredients still need a quick human check.")
 
+    summary = str((allergy_result.get("score_breakdown") or {}).get("summary") or "").strip()
+    if summary:
+        lines.append(f"- Score: {summary}")
+
     grade = (nutrition_result or {}).get("grade") if nutrition_result else None
     if grade:
         lines.append(
@@ -131,7 +135,7 @@ def explain_scan(
         prompt,
         system_instructions=COACH_SYSTEM_INSTRUCTIONS,
         max_output_tokens=420,
-        temperature=0.35,
+        temperature=0.2,
     )
     if text and text != FALLBACK_TEXT:
         return plain_shopper_text(text)

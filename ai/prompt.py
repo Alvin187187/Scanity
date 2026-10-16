@@ -20,6 +20,7 @@ SYSTEM_INSTRUCTIONS = """You are the Scanity AI Explainer for everyday shoppers.
 - Sound human and calm — like a careful friend in a grocery aisle.
 - Easy words. If you use a technical term (e.g. casein), explain it once in plain language.
 - Never invent ingredients. Never diagnose or prescribe.
+- The safety score is already computed. Repeat that number. Explain it only from the score breakdown. Do not invent a different number or a nutrient that is not listed there.
 - Never mention CSV files, databases, offline mode, profiles-as-jargon, or internal tooling.
 - Do not say “matches your milk profile” or “confirm on packages” as a stock phrase.
 - Prefer: “This looks like dairy, which you asked Scanity to watch for.”
@@ -38,6 +39,7 @@ COACH_SYSTEM_INSTRUCTIONS = """You are Scanity's friendly AI coach for shoppers 
 - Never mention CSV, databases, offline mode, or internal tooling.
 - Never decide Safe / Caution / Avoid yourself. Repeat the scan result already given when it matters.
 - Ground claims in the product facts provided. Do not invent ingredients.
+- When you mention the safety score, repeat the number already given and use only the score breakdown lines. Do not invent a different score or a reason that is not in those lines.
 - Nutri-Score is nutrition quality only, never allergy safety.
 - No treatment, medication, or dosages. For emergency allergic symptoms, tell them to seek emergency help.
 - Skip "not medical advice" unless they ask about treatment or a diagnosis.
@@ -87,7 +89,9 @@ def build_explainer_prompt(
         "verdict:\n"
         f"{verdict}\n\n"
         "Write a friendly shopper explanation now. "
-        "Use everyday words. Lead with the verdict, then bullets naming specific ingredients."
+        "Use everyday words. Lead with the verdict, then bullets naming specific ingredients. "
+        "If safety_score or score_breakdown is present, repeat that score and use only those lines to say why. "
+        "Do not invent a different score."
     )
 
 
@@ -105,6 +109,15 @@ def _scan_facts(product: dict, profile: dict) -> str:
     verdict = str(product.get("verdict") or "caution").strip() or "caution"
     score = product.get("safety_score")
     score_text = f"{score}/100" if score is not None else "not scored"
+    breakdown = product.get("score_breakdown") if isinstance(product.get("score_breakdown"), dict) else {}
+    breakdown_summary = str(breakdown.get("summary") or "").strip() or "not supplied"
+    breakdown_lines = []
+    for line in breakdown.get("lines") or []:
+        if isinstance(line, dict):
+            detail = str(line.get("detail") or line.get("label") or "").strip()
+            if detail:
+                breakdown_lines.append(detail)
+    breakdown_text = "; ".join(breakdown_lines) if breakdown_lines else "not supplied"
     grade = str(product.get("nutri_score_grade") or "").strip().upper() or "not available"
     matches = product.get("allergy_matches") or []
     avoid = [
@@ -128,7 +141,9 @@ def _scan_facts(product: dict, profile: dict) -> str:
         f"- Brand: {brand}\n"
         f"- Barcode: {barcode}\n"
         f"- Allergy verdict: {verdict}\n"
-        f"- Safety score: {score_text} (allergies/conditions only; 70+ is Safe)\n"
+        f"- Safety score: {score_text} (rule engine; 0-39 Avoid, 40-69 Caution, 70-100 Safe)\n"
+        f"- Why this score (quote this; do not invent another reason): {breakdown_summary}\n"
+        f"- Score lines: {breakdown_text}\n"
         f"- Nutri-Score: {grade} (nutrition quality, not allergy safety)\n"
         f"- Avoid flags: {_clip_list(flags)}\n"
         f"- Caution flags: {_clip_list(caution)}\n"
@@ -174,6 +189,7 @@ def build_safety_report_prompt(
         f"{focus_line}\n\n"
         "Write a short personalized safety report for this product only. "
         "Start with the existing verdict. Use plain words and bullets. "
+        "If you mention the safety score, repeat the given number and the score lines only. "
         "No jargon like 'profile match' or CSV/offline language."
     )
 

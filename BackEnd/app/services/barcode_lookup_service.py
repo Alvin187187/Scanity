@@ -115,6 +115,8 @@ def _merge_live_fields(base: dict, mapped: dict) -> dict:
         enriched["nutriscore_grade"] = mapped.get("nutriscore_grade")
     if "ingredients_incomplete" in mapped:
         enriched["ingredients_incomplete"] = bool(mapped.get("ingredients_incomplete"))
+    if mapped.get("declared_allergens"):
+        enriched["declared_allergens"] = mapped["declared_allergens"]
     return enriched
 
 
@@ -132,6 +134,7 @@ def _ephemeral_product(mapped: dict) -> dict:
         "ingredients": mapped.get("ingredients") or [],
         "nutriscore_grade": mapped.get("nutriscore_grade"),
         "ingredients_incomplete": bool(mapped.get("ingredients_incomplete")),
+        "declared_allergens": mapped.get("declared_allergens") or [],
     }
 
 
@@ -254,6 +257,7 @@ def _map_openfoodfacts_to_product_schema(raw: dict, barcode: str) -> dict:
         "ingredients": mapped_ingredients,
         "nutriscore_grade": _off_nutri_grade(raw),
         "ingredients_incomplete": _ingredients_incomplete(raw, len(mapped_ingredients), ingredients_raw),
+        "declared_allergens": _declared_allergens(raw),
         "nutrition": {
             "energy_kj": _energy_kj(nutriments),
             "energy_kcal": nutriments.get("energy-kcal_100g"),
@@ -285,6 +289,49 @@ def _map_ingredients(raw_ingredients: list) -> list[dict]:
             }
         )
     return mapped
+
+
+_OFF_ALLERGENS = {
+    "en:milk": ("milk", "Milk"),
+    "en:gluten": ("wheat", "Gluten"),
+    "en:soybeans": ("soy", "Soy"),
+    "en:soy": ("soy", "Soy"),
+    "en:nuts": ("tree_nuts", "Tree nuts"),
+    "en:peanuts": ("peanut", "Peanuts"),
+    "en:eggs": ("egg", "Eggs"),
+    "en:egg": ("egg", "Eggs"),
+    "en:fish": ("fish", "Fish"),
+    "en:crustaceans": ("shellfish", "Shellfish"),
+    "en:molluscs": ("shellfish", "Shellfish"),
+    "en:celery": ("celery", "Celery"),
+    "en:mustard": ("mustard", "Mustard"),
+    "en:sesame-seeds": ("sesame", "Sesame"),
+    "en:sulphur-dioxide-and-sulphites": ("sulphites", "Sulphites"),
+    "en:lupin": ("lupin", "Lupin"),
+}
+
+
+def _declared_allergens(raw: dict) -> list[dict]:
+    """Allergens Open Food Facts says are on the label. Unknown tags are ignored."""
+    found: list[dict] = []
+    seen: set[str] = set()
+
+    def take(tags, trace: bool) -> None:
+        values = tags if isinstance(tags, list) else str(tags or "").split(",")
+        for tag in values:
+            mapped = _OFF_ALLERGENS.get(str(tag).strip().lower())
+            if not mapped:
+                continue
+            category, label = mapped
+            key = f"{category}:{int(trace)}"
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append({"name": label, "category": category, "trace": trace})
+
+    take(raw.get("allergens_tags"), False)
+    take(raw.get("traces_tags"), True)
+    return found
 
 
 def _check_known_allergen(ingredient_name: str) -> bool:

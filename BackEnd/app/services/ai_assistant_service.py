@@ -132,6 +132,10 @@ def _template_report(product: dict, profile: dict) -> str:
     ]
     if score is not None:
         lines.append(f"- Safety score: {score}/100.")
+    breakdown = product.get("score_breakdown") if isinstance(product.get("score_breakdown"), dict) else {}
+    summary = str(breakdown.get("summary") or "").strip()
+    if summary:
+        lines.append(f"- Where the score comes from: {summary}")
     if flags:
         lines.append("- Watch-outs: " + ", ".join(str(item) for item in flags[:5]) + ".")
     else:

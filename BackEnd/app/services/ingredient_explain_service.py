@@ -1,49 +1,35 @@
-"""Fast ingredient explain: local knowledge first; Gemini never blocks chips."""
+"""Ingredient chip copy from the label and the ingredient guide.
+
+A hosted model is not used here. It was renaming ingredients and inventing allergens.
+"""
 
 from __future__ import annotations
 
-import json
-import re
-from functools import lru_cache
-
-from ai.gemini_client import CHIP_TIMEOUT_SECONDS, FALLBACK_TEXT, call_hosted_ai
-from ai.rag_layer import retrieve_local
-from seed.ingredient_knowledge_loader import lookup_ingredient_knowledge, shopper_source
-
-EXPLAIN_SYSTEM = """You are Scanity's ingredient research helper for everyday shoppers.
-Return ONLY a compact JSON object (no markdown fences) with keys:
-title, category, what_it_is, commonly_seen_in, possible_effects,
-affects_allergens (array of strings), affects_diets (array of strings), source
-Rules:
-- Plain words. Short. Friendly. No diagnosis or treatment advice.
-- Never mention CSV, offline mode, databases, or internal tooling.
-- what_it_is: 1–2 short sentences OR bullet-style clauses separated by " • ".
-- possible_effects: what can happen if intake is high / not controlled — keep gentle and concrete.
-- source: a human label like "Scanity ingredient guide" (never a filename).
-- Keep each string under 160 characters.
-- If the label text is not English, answer in clear English and say what the original word means.
-"""
-
-
-def _as_flag_list(value) -> list[str]:
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    if isinstance(value, str) and value.strip():
-        return [part.strip() for part in value.replace(",", "|").split("|") if part.strip()]
-    return []
+from seed.ingredient_knowledge_loader import (
+    _row_names_this_ingredient,
+    chip_title,
+    is_placeholder_copy,
+    lookup_ingredient_knowledge,
+    shopper_definition,
+    shopper_source,
+)
 
 
 def _from_knowledge(ingredient: str) -> dict | None:
     knowledge = lookup_ingredient_knowledge(ingredient)
-    if not knowledge:
+    if not knowledge or not _row_names_this_ingredient(ingredient, knowledge):
         return None
+    definition = shopper_definition(ingredient, knowledge)
+    effects = str(knowledge.get("possible_effects") or "").strip()
+    if is_placeholder_copy(effects):
+        effects = ""
     return {
         "ingredient": ingredient,
-        "title": knowledge["ingredient_name"],
+        "title": chip_title(ingredient, knowledge),
         "category": knowledge.get("category") or "",
-        "what_it_is": knowledge.get("what_it_is") or "",
+        "what_it_is": definition,
         "commonly_seen_in": knowledge.get("commonly_seen_in") or "",
-        "possible_effects": knowledge.get("possible_effects") or "",
+        "possible_effects": effects,
         "affects_allergens": knowledge.get("affects_allergens") or [],
         "affects_diets": knowledge.get("affects_diets") or [],
         "source": shopper_source(knowledge.get("source") or "Scanity ingredient knowledge"),
@@ -53,93 +39,24 @@ def _from_knowledge(ingredient: str) -> dict | None:
 
 
 def _instant_local(ingredient: str) -> dict:
-    """Useful shopper note without waiting on Gemini."""
-    docs = retrieve_local(ingredient, limit=2)
-    if docs:
-        best = docs[0]
-        text = (best.get("text") or "").strip()
-        # Prefer the first sentence-ish chunk for "what it is".
-        what = text
-        for sep in (". ", " — ", " - "):
-            if sep in text:
-                what = text.split(sep, 1)[0].strip()
-                if not what.endswith("."):
-                    what += "."
-                break
-        return {
-            "ingredient": ingredient,
-            "title": best.get("title") or ingredient,
-            "category": best.get("category") or "label ingredient",
-            "what_it_is": (what[:220] if what else f"**{ingredient}** appears on this product label."),
-            "commonly_seen_in": "Packaged foods (exact uses vary by brand)",
-            "possible_effects": "If you are sensitive, higher amounts may bother you — check how you usually react.",
-            "affects_allergens": [],
-            "affects_diets": [],
-            "source": shopper_source(best.get("source") or "Scanity knowledge"),
-            "aliases": [],
-            "ai_source": "local",
-        }
+    """Accurate shopper note from the label text. A model must not rename the ingredient."""
+    knowledge = lookup_ingredient_knowledge(ingredient)
+    if knowledge and not _row_names_this_ingredient(ingredient, knowledge):
+        knowledge = None
+    definition = shopper_definition(ingredient, knowledge)
     return {
         "ingredient": ingredient,
-        "title": ingredient,
-        "category": "label ingredient",
-        "what_it_is": (
-            f"**{ingredient}** is listed on this product. "
-            "It is a label ingredient Scanity could not fully detail yet."
-        ),
-        "commonly_seen_in": "Packaged foods (exact uses vary by brand)",
-        "possible_effects": "Effects depend on the exact ingredient and your sensitivities.",
+        "title": chip_title(ingredient, knowledge),
+        "category": "Ingredient",
+        "what_it_is": definition,
+        "commonly_seen_in": "",
+        "possible_effects": "",
         "affects_allergens": [],
         "affects_diets": [],
         "source": "Scanity label note",
         "aliases": [],
-        "ai_source": "instant",
+        "ai_source": "label",
     }
-
-
-def _parse_json_object(text: str) -> dict | None:
-    raw = (text or "").strip()
-    if not raw:
-        return None
-    if raw.startswith("```"):
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-    try:
-        data = json.loads(raw)
-        return data if isinstance(data, dict) else None
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if not match:
-            return None
-        try:
-            data = json.loads(match.group(0))
-            return data if isinstance(data, dict) else None
-        except json.JSONDecodeError:
-            return None
-
-
-@lru_cache(maxsize=256)
-def _cached_gemini_explain(name: str, product_name: str, conditions: str) -> str:
-    prompt = (
-        f"Ingredient label text: {name}\n"
-        f"Product context: {product_name or 'unknown packaged food'}\n"
-        f"Shopper conditions (context only): {conditions or 'none saved'}\n\n"
-        "Research what this ingredient/additive typically is on food labels. Be brief. "
-        "If the label text is not English, explain it in clear English."
-    )
-    # Tiny local context only — avoid large RAG prompt bloat.
-    docs = retrieve_local(name, limit=2)
-    if docs:
-        prompt += "\nHints:\n" + "\n".join(
-            f"- {doc.get('title')}: {(doc.get('text') or '')[:160]}" for doc in docs
-        )
-    return call_hosted_ai(
-        prompt,
-        system_instructions=EXPLAIN_SYSTEM,
-        max_output_tokens=220,
-        temperature=0.15,
-        timeout_seconds=CHIP_TIMEOUT_SECONDS,
-    )
 
 
 def explain_ingredient(
@@ -149,11 +66,8 @@ def explain_ingredient(
     profile_conditions: list[str] | None = None,
     allow_hosted_ai: bool = False,
 ) -> dict:
-    """Local knowledge / instant note first.
-
-    Gemini is opt-in (`allow_hosted_ai=True`) so chip taps stay fast.
-    Hosted model latency (often 2–8s+) must never block the default path.
-    """
+    """Definition from the ingredient guide. Hosted models do not write chip copy."""
+    del product_name, profile_conditions, allow_hosted_ai
     name = (ingredient or "").strip()
     if not name:
         return {
@@ -171,33 +85,15 @@ def explain_ingredient(
         }
 
     cached = _from_knowledge(name)
-    if cached:
+    if cached and not is_placeholder_copy(cached.get("what_it_is") or ""):
         return cached
 
+    # Chip copy stays on the label and the ingredient guide. A hosted model
+    # was renaming ingredients and inventing allergens.
     instant = _instant_local(name)
-    if not allow_hosted_ai:
-        return instant
-
-    conditions = ", ".join(profile_conditions or [])
-    text = _cached_gemini_explain(name, product_name or "", conditions)
-    parsed = None if (not text or text == FALLBACK_TEXT) else _parse_json_object(text)
-    if parsed:
-        return {
-            "ingredient": name,
-            "title": str(parsed.get("title") or name).strip() or name,
-            "category": str(parsed.get("category") or "").strip(),
-            "what_it_is": str(parsed.get("what_it_is") or "").strip() or instant["what_it_is"],
-            "commonly_seen_in": str(parsed.get("commonly_seen_in") or "").strip()
-            or instant["commonly_seen_in"],
-            "possible_effects": str(parsed.get("possible_effects") or "").strip()
-            or instant["possible_effects"],
-            "affects_allergens": _as_flag_list(parsed.get("affects_allergens")),
-            "affects_diets": _as_flag_list(parsed.get("affects_diets")),
-            "source": shopper_source(
-                str(parsed.get("source") or "Scanity ingredient guide")
-            ),
-            "aliases": [],
-            "ai_source": "gemini",
-        }
-
+    if cached:
+        instant["category"] = cached.get("category") or instant["category"]
+        instant["affects_allergens"] = cached.get("affects_allergens") or []
+        instant["affects_diets"] = cached.get("affects_diets") or []
+        instant["source"] = cached.get("source") or instant["source"]
     return instant
