@@ -122,26 +122,12 @@ def _template_report(product: dict, profile: dict) -> str:
     name = _friendly_name(product)
     verdict = _verdict_label(product)
     score = product.get("safety_score")
-    allergies = ", ".join(str(item) for item in (profile.get("allergies") or [])[:4]) or "no saved allergies"
-    conditions = ", ".join(str(item) for item in (profile.get("conditions") or [])[:4]) or "none saved"
     flags = [str(item) for item in (product.get("allergy_flags") or []) if str(item).strip()]
-    lines = [
-        f"{verdict} for {name}.",
-        f"- Checked with your notes: {allergies}"
-        + (f"; health notes: {conditions}." if conditions != "none saved" else "."),
-    ]
-    if score is not None:
-        lines.append(f"- Safety score: {score}/100.")
-    breakdown = product.get("score_breakdown") if isinstance(product.get("score_breakdown"), dict) else {}
-    summary = str(breakdown.get("summary") or "").strip()
-    if summary:
-        lines.append(f"- Where the score comes from: {summary}")
+    lines = [f"{verdict} for {name}."]
     if flags:
-        lines.append("- Watch-outs: " + ", ".join(str(item) for item in flags[:5]) + ".")
-    else:
-        lines.append("- No avoid-level allergy flags on this scan.")
-    lines.append("- Nutri-Score is about nutrition quality, not allergy safety.")
-    lines.append("- Consumer summary only — not medical advice.")
+        lines.append("- Watch for " + ", ".join(flags[:2]) + ".")
+    elif score is not None:
+        lines.append(f"- Score {score}/100.")
     return "\n".join(lines)
 
 

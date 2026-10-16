@@ -7,6 +7,12 @@ def test_shopper_source_hides_codex_label():
     assert "USDA" in shopper_source("Codex / general nutrition references")
 
 
+def test_search_does_not_match_inside_another_word():
+    rows = search_ingredient_knowledge("rice", limit=8)
+    names = [row["ingredient_name"].lower() for row in rows]
+    assert all("licorice" not in name for name in names)
+
+
 def test_search_finds_additive_and_related_terms():
     malt = search_ingredient_knowledge("maltodextrin", limit=5)
     assert malt
