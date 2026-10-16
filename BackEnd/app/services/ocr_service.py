@@ -94,6 +94,13 @@ def _clean_one_ingredient(chunk: str) -> str | None:
     cleaned = cleaned.strip(" .•*-–—:|()[]{}")
     cleaned = re.sub(r"^\d+\s*%\s*", "", cleaned).strip()
     cleaned = re.sub(r"^\d+[.)]\s*", "", cleaned).strip()
+    cleaned = re.sub(
+        r"\([^)]*\d[^)]*\)|\b\d+(?:[.,]\d+)?\s*(?:g|mg|kg|mcg|µg|ug|kcal|kj|%|ml|oz)\b",
+        " ",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,;:-/")
     # Drop pure numbers / nutrition table leftovers.
     if re.fullmatch(r"[\d.,%\s]+", cleaned or ""):
         return None

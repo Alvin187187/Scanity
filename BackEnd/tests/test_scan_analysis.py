@@ -43,6 +43,42 @@ def test_incomplete_ingredient_list_stays_caution_without_hiding_an_avoid():
     assert still_avoid["verdict"] == "avoid"
 
 
+def test_nutrition_amount_is_not_the_chip_name():
+    result = analyze_ingredients(
+        ["water"],
+        user_conditions=["diabetes"],
+        nutrition={"sugars_g": 17.45},
+    )
+    names = [item["ingredient"] for item in result["allergy_matches"]]
+    assert "Sugars" in names
+    assert all("17.45" not in name for name in names)
+    sugars = next(item for item in result["label_insights"] if item["title"] == "Sugars")
+    assert "17.45" in sugars["what_it_is"]
+    assert "check the ai" not in sugars["what_it_is"].lower()
+    assert "tap ai" not in sugars["what_it_is"].lower()
+
+
+def test_placeholder_chip_still_has_a_definition():
+    result = analyze_ingredients(["pepperoni"], user_allergies=["milk"])
+    insight = next(item for item in result["label_insights"] if "pepperoni" in item["title"].lower())
+    blob = f"{insight['title']} {insight['what_it_is']}".lower()
+    assert "pepperoni" in blob
+    assert "tap ai" not in blob
+    assert "check the ai" not in blob
+
+
+def test_declared_milk_allergen_is_avoid_for_dairy():
+    result = analyze_ingredients(
+        ["water", "sugar"],
+        user_allergies=["dairy"],
+        declared_allergens=[{"name": "Milk", "category": "milk", "trace": False}],
+    )
+    assert result["verdict"] == "avoid"
+    milk = next(item for item in result["label_insights"] if item["title"].lower() == "milk")
+    assert "milk" in milk["what_it_is"].lower()
+    assert "check the ai" not in milk["what_it_is"].lower()
+
+
 def test_unmapped_ingredient_is_caution_not_safe():
     result = analyze_ingredients(["zxq999qqx"], user_allergies=["milk"])
     assert result["verdict"] == "caution"

@@ -59,10 +59,10 @@ def test_safety_score_bands():
 
     caution_flags = check_allergies(["milk"], ["zxq-mystery-extract-99"])
     score = compute_safety_score(caution_flags)
-    # Unmapped ingredients alone land in the Caution band ceiling.
-    assert 40 <= score <= 69
+    # One unidentified ingredient uses the Caution anchor, not a confirmed hit.
+    assert score == 64
 
-    assert 40 <= compute_safety_score([]) <= 69
+    assert compute_safety_score(avoid_flags) == 32
     assert compute_safety_score([]) == 58
 
 
@@ -79,5 +79,6 @@ def test_many_unmapped_ingredients_do_not_crash_to_fifty():
         ],
     )
     score = compute_safety_score(flags)
-    assert 40 <= score <= 69
+    # 64 − 3 × 5 = 49. Unknown items stay in Caution.
+    assert score == 49
     assert overall_verdict(flags) == "caution"

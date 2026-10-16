@@ -14,7 +14,7 @@ import orangeJuiceImg from "@/imports/orange_juice_scanity.jpeg"
 import aboutHeroImg from "@/imports/bgs.png"
 import aboutLabelImg from "@/imports/bgss.png"
 
-import { askAiAboutProduct, explainIngredientWithAi, requestSafetyReport, searchKnowledge, type AiChatMessage, type KnowledgeHit } from "./api/ai"
+import { askAiAboutProduct, requestSafetyReport, searchKnowledge, type AiChatMessage, type KnowledgeHit } from "./api/ai"
 import {
   changePassword,
   confirmPasswordReset,
@@ -5679,6 +5679,7 @@ function BarcodeScannerScreen({ go }: { go: (s: Screen) => void }) {
             ),
           ) as Record<string, number | undefined>,
           safetyScore: result?.safety_score,
+          scoreBreakdown: result?.score_breakdown,
         })
         appendScanHistory(stored)
         const compareSlot = window.sessionStorage.getItem("scanity_compare_slot")
@@ -7309,6 +7310,7 @@ function OCRScannerScreen({ go }: { go: (s: Screen) => void }) {
             labelInsights: result?.label_insights,
             aiSource: result?.ai_source,
             safetyScore: result?.safety_score,
+            scoreBreakdown: result?.score_breakdown,
           }),
           origin,
         )
@@ -8401,66 +8403,25 @@ function IngredientExplainSheet({
       setLoading(false)
       return
     }
-    const existing = item.knowledge
-    const hasFullKnowledge = Boolean(existing?.what_it_is && existing?.possible_effects && existing?.category)
-
-    if (hasFullKnowledge) {
-      setKnowledge(existing || null)
-      setError("")
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    setKnowledge(null)
+    const label = cleanChipLabel(item.knowledge?.title || item.name)
+    const what = chipDefinition(
+      usableChipCopy(item.knowledge?.what_it_is) || usableChipCopy(item.plainExplanation) || usableChipCopy(item.reason),
+      label,
+    )
+    setKnowledge({
+      title: label,
+      category: item.knowledge?.category,
+      what_it_is: what,
+      commonly_seen_in: usableChipCopy(item.knowledge?.commonly_seen_in),
+      possible_effects: usableChipCopy(item.knowledge?.possible_effects) || usableChipCopy(item.possibleEffects),
+      affects_allergens: item.knowledge?.affects_allergens || item.affectsAllergens || [],
+      affects_diets: item.knowledge?.affects_diets || item.affectsDiets || [],
+      source: usableChipCopy(item.knowledge?.source) ? item.knowledge?.source : undefined,
+      aliases: item.knowledge?.aliases,
+    })
     setError("")
-
-    let cancelled = false
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => controller.abort(), 8000)
-    void (async () => {
-      try {
-        const researched = await explainIngredientWithAi({
-          ingredient: item.name,
-          productName,
-          conditions: conditionsForApi(),
-          signal: controller.signal,
-        })
-        if (cancelled) return
-        setKnowledge({
-          title: researched.title,
-          category: researched.category,
-          what_it_is: researched.what_it_is,
-          commonly_seen_in: researched.commonly_seen_in,
-          possible_effects: researched.possible_effects,
-          affects_allergens: researched.affects_allergens,
-          affects_diets: researched.affects_diets,
-          source: researched.source,
-          aliases: researched.aliases,
-        })
-      } catch (err) {
-        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return
-        setKnowledge(
-          existing || {
-            title: item.name,
-            what_it_is: item.plainExplanation || item.reason || "",
-            possible_effects: item.possibleEffects || "",
-            affects_allergens: item.affectsAllergens || [],
-            affects_diets: item.affectsDiets || [],
-          },
-        )
-        setError(err instanceof Error ? err.message : "Could not research this ingredient.")
-      } finally {
-        window.clearTimeout(timeoutId)
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-      controller.abort()
-      window.clearTimeout(timeoutId)
-    }
-  }, [item, productName])
+    setLoading(false)
+  }, [item])
 
   if (!item) return null
   const hasFullKnowledge = Boolean(item.knowledge?.what_it_is && item.knowledge?.possible_effects && item.knowledge?.category)
@@ -8655,13 +8616,45 @@ function IngredientExplainSheet({
   )
 }
 
+function usableChipCopy(text?: string | null): string {
+  const raw = String(text || "")
+    .replace(/\*\*/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+  if (!raw || /tap ai|check the ai|could not fully|deeper plain-language|food-label ingredient phrase/i.test(raw)) {
+    return ""
+  }
+  return raw
+}
+
+function cleanChipLabel(name: string): string {
+  const cleaned = String(name || "")
+    .replace(/\([^)]*\d[^)]*\)/g, " ")
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:g|mg|kg|mcg|µg|kcal|kj|%|ml|oz)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  if (!cleaned || /^check the ai$/i.test(cleaned)) return ""
+  return cleaned
+}
+
+function chipDefinition(text: string | undefined, name: string): string {
+  const label = cleanChipLabel(name)
+  const display = label ? label.charAt(0).toUpperCase() + label.slice(1) : "This ingredient"
+  const usable = usableChipCopy(text)
+  if (!usable) return `${display} is listed on this product.`
+  const sentence = usable.split(/(?<=[.!?])\s+/)[0]
+  return sentence.length > 180 ? `${sentence.slice(0, 177)}…` : sentence
+}
+
 function IngredientChip({
   label,
+  detail,
   tone,
   onClick,
   busy = false,
 }: {
   label: string
+  detail?: string
   tone: "caution" | "avoid" | "info"
   onClick: () => void
   busy?: boolean
@@ -8694,8 +8687,9 @@ function IngredientChip({
         fontWeight: 600,
         fontFamily: SOFT_SLATE.fontFamily,
         cursor: busy ? "wait" : "pointer",
-        whiteSpace: "nowrap",
-        maxWidth: "100%",
+        whiteSpace: "normal",
+        maxWidth: 280,
+        textAlign: "left",
         opacity: busy ? 0.8 : 1,
       }}
     >
@@ -8720,7 +8714,14 @@ function IngredientChip({
           <path d="M9 9l6 6" />
         </svg>
       )}
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{busy ? "Looking this up…" : label}</span>
+      <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+        <span style={{ fontWeight: 700 }}>{busy ? "Looking this up…" : label}</span>
+        {detail && !busy ? (
+          <span style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.35, color: SOFT_SLATE.textSecondary }}>
+            {detail}
+          </span>
+        ) : null}
+      </span>
     </button>
   )
 }
@@ -8728,6 +8729,7 @@ function IngredientChip({
 function AllergySignalsCard({
   signals,
   allergens,
+  ingredients = [],
   verdict,
   reason,
   labelInsights,
@@ -8736,6 +8738,7 @@ function AllergySignalsCard({
 }: {
   signals: AllergySignal[]
   allergens: string[]
+  ingredients?: string[]
   verdict: CompareVerdict
   reason: string
   labelInsights: LabelInsight[]
@@ -8752,6 +8755,25 @@ function AllergySignalsCard({
     return status === "caution" || status === "flagged" || status === "review"
   })
   const flaggedItems = cautionItems
+  const shownNames = new Set(
+    [...flaggedItems, ...avoidItems]
+      .map((item) => cleanChipLabel(item.name).toLowerCase())
+      .filter(Boolean),
+  )
+  const insightChips = (labelInsights.length
+    ? labelInsights
+    : ingredients.map((name) => ({
+        ingredient: name,
+        title: name,
+        what_it_is: "",
+      })))
+    .map((insight) => {
+      const label = cleanChipLabel(insight.title || insight.ingredient || "")
+      if (!label || shownNames.has(label.toLowerCase())) return null
+      shownNames.add(label.toLowerCase())
+      return { ...insight, label }
+    })
+    .filter(Boolean) as (LabelInsight & { label: string })[]
 
   return (
     <div
@@ -8807,12 +8829,13 @@ function AllergySignalsCard({
                 {flaggedItems.map((item) => (
                   <IngredientChip
                     key={`flag-${item.name}`}
-                    label={item.name}
+                    label={cleanChipLabel(item.name) || item.name}
+                    detail={chipDefinition(usableChipCopy(item.plainExplanation) || usableChipCopy(item.reason) || item.knowledge?.what_it_is, item.name)}
                     tone="caution"
                     busy={loadingIngredient === item.name}
                     onClick={() =>
                       onOpenIngredient({
-                        name: item.name,
+                        name: cleanChipLabel(item.name) || item.name,
                         status: item.status,
                         reason: item.reason,
                         plainExplanation: item.plainExplanation,
@@ -8834,12 +8857,13 @@ function AllergySignalsCard({
                 {avoidItems.map((item) => (
                   <IngredientChip
                     key={`avoid-${item.name}`}
-                    label={item.name}
+                    label={cleanChipLabel(item.name) || item.name}
+                    detail={chipDefinition(usableChipCopy(item.plainExplanation) || usableChipCopy(item.reason) || item.knowledge?.what_it_is, item.name)}
                     tone="avoid"
                     busy={loadingIngredient === item.name}
                     onClick={() =>
                       onOpenIngredient({
-                        name: item.name,
+                        name: cleanChipLabel(item.name) || item.name,
                         status: item.status,
                         reason: item.reason,
                         plainExplanation: item.plainExplanation,
@@ -8859,24 +8883,25 @@ function AllergySignalsCard({
         <AllergenList allergens={allergens} />
       )}
 
-      {labelInsights.length > 0 && (
+      {insightChips.length > 0 && (
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>
             On this label
           </div>
           <p style={{ margin: "0 0 10px", fontSize: 13, color: SOFT_SLATE.textSecondary, lineHeight: 1.4 }}>
-            Sugar, E-numbers, and other known additives — open a chip for a short plain-language note.
+            Each chip is an ingredient or declared allergen from this product, with what it is.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {labelInsights.slice(0, 40).map((insight) => (
+            {insightChips.slice(0, 40).map((insight) => (
               <IngredientChip
-                key={`insight-${insight.title}`}
-                label={insight.title}
+                key={`insight-${insight.label}`}
+                label={insight.label}
+                detail={chipDefinition(insight.what_it_is, insight.label)}
                 tone="info"
                 busy={loadingIngredient === (insight.ingredient || insight.title)}
                 onClick={() =>
                   onOpenIngredient({
-                    name: insight.ingredient || insight.title,
+                    name: insight.label,
                     status: "info",
                     possibleEffects: insight.possible_effects,
                     affectsAllergens: insight.affects_allergens,
@@ -8908,7 +8933,9 @@ function whySafetyScore(
   verdict: CompareVerdict,
   signals: AllergySignal[],
   allergens: string[],
+  breakdown?: { summary?: string } | null,
 ) {
+  if (breakdown?.summary) return breakdown.summary
   const avoid = signals.filter((item) => String(item.status).toLowerCase() === "avoid").map((item) => item.name)
   const flagged = signals
     .filter((item) => {
@@ -9001,6 +9028,10 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
   const productBrand = [scan?.brand, scan?.barcode ? `Barcode ${scan.barcode}` : null].filter(Boolean).join(" · ")
   const imageUrl = scan?.imageUrl
   const safetyScore = typeof scan?.score === "number" ? scan.score : scoreFromVerdict(verdict)
+  const scoreLines = (scan?.scoreBreakdown?.lines || []).filter((line) => line.detail && line.detail !== scan?.scoreBreakdown?.summary)
+  const scoreFormula = scan?.scoreBreakdown?.formula && /[−-]/.test(scan.scoreBreakdown.formula)
+    ? scan.scoreBreakdown.formula
+    : ""
   const nutrients = nutritionRows(scan?.nutrition)
   const aiLive = String(scan?.aiSource || "").toLowerCase() === "gemini"
   const avoidSummary =
@@ -9226,8 +9257,22 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
             </div>
             <SafetySpeedGauge score={safetyScore} />
             <p style={{ margin: "12px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.5 }}>
-              {whySafetyScore(safetyScore, verdict, allergySignals, allergens)}
+              {whySafetyScore(safetyScore, verdict, allergySignals, allergens, scan?.scoreBreakdown)}
             </p>
+            {scoreLines.length > 0 && (
+              <ul style={{ margin: "10px 0 0", paddingLeft: 18, color: SOFT_SLATE.textSecondary, fontSize: 15, lineHeight: 1.45 }}>
+                {scoreLines.map((line) => (
+                  <li key={`${line.code}-${line.detail}`} style={{ marginBottom: 6 }}>
+                    {line.detail}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {scoreFormula ? (
+              <p style={{ margin: "8px 0 0", fontSize: 13, color: SOFT_SLATE.textMuted, lineHeight: 1.4 }}>
+                {scoreFormula}
+              </p>
+            ) : null}
           </div>
 
           <div
@@ -9262,6 +9307,7 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
           <AllergySignalsCard
             signals={allergySignals}
             allergens={allergens}
+            ingredients={scan?.ingredients || []}
             verdict={verdict}
             reason={avoidSummary}
             labelInsights={labelInsights}

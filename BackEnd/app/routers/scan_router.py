@@ -53,6 +53,7 @@ async def scan_barcode(
         use_hosted_ai=True,
         nutri_score_hint=product.get("nutriscore_grade"),
         ingredients_incomplete=bool(product.get("ingredients_incomplete")),
+        declared_allergens=product.get("declared_allergens"),
     )
 
     nutrition = product.get("nutrition") or {}
@@ -84,6 +85,7 @@ async def scan_barcode(
         label_insights=analysis.get("label_insights") or [],
         verdict=analysis["verdict"],
         safety_score=analysis["safety_score"],
+        score_breakdown=analysis.get("score_breakdown"),
         nutri_score_grade=analysis["nutri_score_grade"],
         explanation=analysis["explanation"],
         ai_source=analysis.get("ai_source"),

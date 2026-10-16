@@ -2,6 +2,23 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 
+class ScoreLineOut(BaseModel):
+    code: str
+    label: str
+    detail: str
+    points: Optional[int] = None
+
+
+class ScoreBreakdownOut(BaseModel):
+    score: int
+    band: str
+    system: str
+    summary: str
+    formula: str = ""
+    lines: list[ScoreLineOut] = Field(default_factory=list)
+    clamped: bool = False
+
+
 class AllergyMatchOut(BaseModel):
     ingredient: str
     status: str
@@ -21,6 +38,8 @@ class LabelInsightOut(BaseModel):
     possible_effects: str = ""
     source: str = ""
     aliases: list[str] = Field(default_factory=list)
+    affects_allergens: list[str] = Field(default_factory=list)
+    affects_diets: list[str] = Field(default_factory=list)
     needs_ai: bool = False
 
 
@@ -44,6 +63,7 @@ class OCRScanResponse(BaseModel):
     score: Optional[str] = None
     verdict: Optional[str] = None
     safety_score: Optional[int] = None
+    score_breakdown: Optional[ScoreBreakdownOut] = None
     nutri_score_grade: Optional[str] = None
     explanation: Optional[str] = None
     product_name: Optional[str] = None

@@ -12,20 +12,68 @@ function readError(data: any, fallback: string) {
   return detail?.error || data?.message || data?.error || fallback
 }
 
+function cleanIngredientLabel(value: string): string {
+  return String(value || "")
+    .replace(/\([^)]*\d[^)]*\)/g, " ")
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:g|mg|kg|mcg|µg|ug|kcal|kj|%|ml|oz)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s,;:./()-]+|[\s,;:./()-]+$/g, "")
+    .trim()
+}
+
 function ingredientsFromOff(product: any): string[] {
   const list = Array.isArray(product?.ingredients) ? product.ingredients : []
   const names = list
-    .map((item: any) => String(item?.text || item?.id || "").trim())
-    .filter(Boolean)
-  if (names.length) return names.slice(0, 40)
+    .map((item: any) => cleanIngredientLabel(String(item?.text || item?.id || "")))
+    .filter((item: string) => item.length > 1)
+  if (names.length) return [...new Set(names)].slice(0, 40)
 
   const raw = String(product?.ingredients_text || product?.ingredients_text_en || "")
   if (!raw.trim()) return []
-  return raw
-    .split(/[,;\n]+/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 1 && item.length < 80)
-    .slice(0, 40)
+  return [...new Set(
+    raw
+      .split(/[,;\n]+/)
+      .map((item) => cleanIngredientLabel(item))
+      .filter((item) => item.length > 1 && item.length < 80),
+  )].slice(0, 40)
+}
+
+const OFF_ALLERGENS: Record<string, { category: string; name: string }> = {
+  "en:milk": { category: "milk", name: "Milk" },
+  "en:gluten": { category: "wheat", name: "Gluten" },
+  "en:soybeans": { category: "soy", name: "Soy" },
+  "en:soy": { category: "soy", name: "Soy" },
+  "en:nuts": { category: "tree_nuts", name: "Tree nuts" },
+  "en:peanuts": { category: "peanut", name: "Peanuts" },
+  "en:eggs": { category: "egg", name: "Eggs" },
+  "en:egg": { category: "egg", name: "Eggs" },
+  "en:fish": { category: "fish", name: "Fish" },
+  "en:crustaceans": { category: "shellfish", name: "Shellfish" },
+  "en:molluscs": { category: "shellfish", name: "Shellfish" },
+  "en:celery": { category: "celery", name: "Celery" },
+  "en:mustard": { category: "mustard", name: "Mustard" },
+  "en:sesame-seeds": { category: "sesame", name: "Sesame" },
+  "en:sulphur-dioxide-and-sulphites": { category: "sulphites", name: "Sulphites" },
+  "en:lupin": { category: "lupin", name: "Lupin" },
+}
+
+function declaredAllergensFromOff(product: any): { name: string; category: string; trace: boolean }[] {
+  const found: { name: string; category: string; trace: boolean }[] = []
+  const seen = new Set<string>()
+  const take = (tags: unknown, trace: boolean) => {
+    const values = Array.isArray(tags) ? tags : String(tags || "").split(",")
+    for (const tag of values) {
+      const mapped = OFF_ALLERGENS[String(tag).trim().toLowerCase()]
+      if (!mapped) continue
+      const key = `${mapped.category}:${trace ? 1 : 0}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      found.push({ name: mapped.name, category: mapped.category, trace })
+    }
+  }
+  take(product?.allergens_tags, false)
+  take(product?.traces_tags, true)
+  return found
 }
 
 function asNumber(value: unknown): number | null {
@@ -120,16 +168,6 @@ const CONFIRMED_ALLERGEN_WORDS: Record<string, string[]> = {
   sulphites: ["sulphite", "sulfite", "sulphites", "sulfites"],
 }
 
-const BENIGN_LOCAL = new Set([
-  "sugar",
-  "salt",
-  "water",
-  "vinegar",
-  "citric acid",
-  "black pepper",
-  "pepper",
-])
-
 function allergenSlug(value: string): string {
   return String(value || "")
     .toLowerCase()
@@ -144,13 +182,156 @@ function hasWholeWord(haystack: string, needle: string): boolean {
   return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, "i").test(haystack)
 }
 
+// Offline copy of ai/safety_score.py. Same anchors, same UK front-of-pack
+// cut-offs. The server seed match is stricter; this only runs when the API
+// did not return a score.
+const AVOID_ANCHOR = 32
+const AVOID_EXTRA_HIT = 8
+const AVOID_RED = 4
+const AVOID_AMBER = 2
+const AVOID_UNKNOWN_CAP = 4
+const UNKNOWN_ANCHOR = 64
+const UNKNOWN_STEP = 3
+const UNKNOWN_FLOOR = 46
+const INCOMPLETE_ANCHOR = 58
+const CONDITION_ANCHOR = { none: 58, green: 58, amber: 50, red: 42 } as const
+const CONDITION_EXTRA = 4
+const CONDITION_FLOOR = 40
+const CONDITION_UNKNOWN_CAP = 4
+const SAFE_SCORE = 100
+
+function fsaBand(value: number, low: number, high: number): "green" | "amber" | "red" {
+  if (value > high) return "red"
+  if (value > low) return "amber"
+  return "green"
+}
+
+function activeConditionSet(conditions: string[]): Set<string> {
+  const out = new Set<string>()
+  for (const raw of conditions) {
+    const name = String(raw || "").toLowerCase()
+    if (name.includes("diabetes")) out.add("diabetes")
+    if (name.includes("lactose")) out.add("lactose")
+    if (name.includes("celiac") || name.includes("coeliac")) out.add("celiac")
+    if (name.includes("hypertension") || name.includes("blood pressure")) out.add("hypertension")
+    if (name.includes("kidney")) out.add("kidney")
+    if (name.includes("heart")) out.add("heart")
+    if (name.includes("ibs") || name.includes("crohn")) out.add("ibs")
+  }
+  return out
+}
+
+function evidenceSafetyScore(
+  matches: { ingredient: string; status: string; matched_category: string | null }[],
+  conditions: string[],
+  nutrition: Record<string, number | null | undefined> | undefined,
+  ingredientCount: number,
+) {
+  const active = activeConditionSet(conditions)
+  const nutritionLine = /^(sugars|sodium|sat\.?\s*fat)\s+\d/i
+  const avoid = matches.filter((item) => item.status === "avoid" && !nutritionLine.test(item.ingredient))
+  const unknown = matches.filter((item) => {
+    if (item.status !== "caution" || nutritionLine.test(item.ingredient)) return false
+    if (/^ingredient list$/i.test(item.ingredient.trim())) return false
+    const category = String(item.matched_category || "").toLowerCase()
+    return !active.has(category)
+  })
+  const conditionHits = new Set(
+    matches
+      .filter((item) => item.status === "caution" && !nutritionLine.test(item.ingredient))
+      .map((item) => String(item.matched_category || "").toLowerCase())
+      .filter((name) => active.has(name)),
+  )
+  const sugars = nutrition?.sugars_g
+  const sodium = nutrition?.sodium_mg
+  const satFat = nutrition?.sat_fat_g
+  const bands: { band: "green" | "amber" | "red"; points: number }[] = []
+  if (active.has("diabetes") && typeof sugars === "number") {
+    const band = fsaBand(sugars, 5, 22.5)
+    bands.push({ band, points: band === "red" ? AVOID_RED : band === "amber" ? AVOID_AMBER : 0 })
+    if (band === "amber" || band === "red") conditionHits.add("diabetes")
+  }
+  if ((active.has("hypertension") || active.has("kidney") || active.has("heart")) && typeof sodium === "number") {
+    const band = fsaBand(sodium, 120, 600)
+    bands.push({ band, points: band === "red" ? AVOID_RED : band === "amber" ? AVOID_AMBER : 0 })
+    if (band === "amber" || band === "red") {
+      if (active.has("hypertension")) conditionHits.add("hypertension")
+      else if (active.has("kidney")) conditionHits.add("kidney")
+      else conditionHits.add("heart")
+    }
+  }
+  if (active.has("heart") && typeof satFat === "number") {
+    const band = fsaBand(satFat, 1.5, 5)
+    bands.push({ band, points: band === "red" ? AVOID_RED : band === "amber" ? AVOID_AMBER : 0 })
+    if (band === "amber" || band === "red") conditionHits.add("heart")
+  }
+  const worst = bands.some((item) => item.band === "red")
+    ? "red"
+    : bands.some((item) => item.band === "amber")
+      ? "amber"
+      : bands.some((item) => item.band === "green")
+        ? "green"
+        : "none"
+  const incomplete = ingredientCount === 0 || matches.some((item) => /^ingredient list$/i.test(item.ingredient.trim()))
+
+  let score = SAFE_SCORE
+  let summary = `${SAFE_SCORE} because this label did not match the allergies or conditions you saved. Formula: ${SAFE_SCORE}.`
+  if (avoid.length) {
+    const extra = Math.max(0, avoid.length - 1) * AVOID_EXTRA_HIT
+    const nutrient = Math.min(8, bands.reduce((sum, item) => sum + item.points, 0))
+    const unknownPoints = Math.min(AVOID_UNKNOWN_CAP, unknown.length)
+    const raw = AVOID_ANCHOR - extra - nutrient - unknownPoints
+    score = Math.max(0, Math.min(39, raw))
+    const formula = [String(AVOID_ANCHOR), extra ? `− ${extra}` : "", nutrient ? `− ${nutrient}` : "", unknownPoints ? `− ${unknownPoints}` : ""]
+      .filter(Boolean)
+      .join(" ")
+    summary = `${score} because ${avoid.length} ingredient${avoid.length === 1 ? "" : "s"} matched an allergy or restriction you saved. Formula: ${formula} = ${score}.`
+  } else if (conditionHits.size) {
+    const anchor = CONDITION_ANCHOR[worst === "green" ? "green" : worst]
+    const extra = Math.max(0, conditionHits.size - 1) * CONDITION_EXTRA
+    const unknownPoints = Math.min(CONDITION_UNKNOWN_CAP, unknown.length)
+    score = Math.max(CONDITION_FLOOR, Math.min(69, anchor - extra - unknownPoints))
+    summary = `${score} because a saved condition applies to this label. Formula: ${anchor}${extra ? ` − ${extra}` : ""}${unknownPoints ? ` − ${unknownPoints}` : ""} = ${score}.`
+  } else if (unknown.length) {
+    const steps = Math.max(0, unknown.length - 1) * UNKNOWN_STEP
+    score = Math.max(UNKNOWN_FLOOR, UNKNOWN_ANCHOR - steps)
+    summary = `${score} because ${unknown.length} ingredient${unknown.length === 1 ? "" : "s"} could not be identified. Formula: ${UNKNOWN_ANCHOR}${steps ? ` − ${steps}` : ""} = ${score}.`
+  } else if (incomplete) {
+    score = INCOMPLETE_ANCHOR
+    summary = `${INCOMPLETE_ANCHOR} because this product has no complete ingredient list to check. Formula: ${INCOMPLETE_ANCHOR}.`
+  }
+
+  const band = score >= 70 ? "safe" : score >= 40 ? "caution" : "avoid"
+  return {
+    safety_score: score,
+    score_breakdown: {
+      score,
+      band,
+      system: "scanity-evidence-v1",
+      summary,
+      formula: String(score),
+      lines: [{ code: "offline", label: "Offline check", detail: summary }],
+      clamped: false,
+    },
+  }
+}
+
 /** Lightweight client-side match when the Scanity API is asleep or unreachable. */
+function localDefinition(name: string, plain?: string): string {
+  const label = cleanIngredientLabel(name) || name
+  const display = label.charAt(0).toUpperCase() + label.slice(1)
+  const extra = String(plain || "").replace(/\*\*/g, "").trim()
+  if (extra && !/tap ai|check the ai|could not fully/i.test(extra)) return extra
+  return `${display} is listed on this product.`
+}
+
 function localAllergyAnalysis(
   ingredientNames: string[],
   userAllergies: AllergyList,
   userConditions: AllergyList = [],
   nutrition?: Record<string, number | null | undefined>,
   ingredientsIncomplete = false,
+  declaredAllergens: { name: string; category: string; trace: boolean }[] = [],
 ) {
   const allergy_matches: {
     ingredient: string
@@ -208,16 +389,6 @@ function localAllergyAnalysis(
       }
     }
     if (matched) continue
-    if (!BENIGN_LOCAL.has(lower.trim())) {
-      allergy_matches.push({
-        ingredient: name,
-        status: "caution",
-        matched_category: null,
-        matched_kb_entry: null,
-        reason: "Scanity could not confidently identify this ingredient, so it stays under caution.",
-      })
-      continue
-    }
     if (hasLactose && dairyWords.some((word) => lower.includes(word))) {
       allergy_matches.push({
         ingredient: name,
@@ -240,14 +411,66 @@ function localAllergyAnalysis(
   }
 
   const sugars = nutrition?.sugars_g
-  if (hasDiabetes && typeof sugars === "number" && sugars >= 8) {
-    allergy_matches.push({
-      ingredient: `Sugars ${sugars} g/100g`,
-      status: "caution",
-      matched_category: "diabetes",
-      matched_kb_entry: "sugars",
-      reason: `Sugars look **elevated** on the nutrition panel (${sugars} g/100g).`,
+  if (hasDiabetes && typeof sugars === "number" && sugars > 5) {
+    const high = sugars > 22.5
+    const plain = high
+      ? `The nutrition panel lists ${sugars} g of sugars per 100 g, over the UK high line of 22.5 g.`
+      : `The nutrition panel lists ${sugars} g of sugars per 100 g, in the UK medium band.`
+    const sugarChip = allergy_matches.find((item) => /\bsugars?\b/i.test(item.ingredient))
+    if (sugarChip) {
+      if (sugarChip.status !== "avoid") sugarChip.status = "caution"
+      sugarChip.reason = plain
+    } else {
+      allergy_matches.push({
+        ingredient: "Sugars",
+        status: "caution",
+        matched_category: "diabetes",
+        matched_kb_entry: "sugars",
+        reason: plain,
+      })
+    }
+  }
+
+  const covered = new Set(
+    allergy_matches
+      .map((item) => allergenSlug(String(item.matched_category || "")).replace(/\s+/g, "_"))
+      .filter(Boolean),
+  )
+  for (const declared of declaredAllergens) {
+    const category = allergenSlug(declared.category).replace(/\s+/g, "_")
+    if (!category || covered.has(category)) continue
+    const profileHit = userAllergies.some((allergy) => {
+      const slug = allergenSlug(allergy).replace(/\s+/g, "_")
+      return slug === category || allergenSlug(allergy) === declared.name.toLowerCase()
     })
+    if (profileHit && !declared.trace) {
+      allergy_matches.push({
+        ingredient: declared.name,
+        status: "avoid",
+        matched_category: declared.category,
+        matched_kb_entry: declared.name,
+        reason: `The product label declares ${declared.name.toLowerCase()} as an allergen, which you asked Scanity to watch for.`,
+      })
+    } else if (profileHit && declared.trace) {
+      allergy_matches.push({
+        ingredient: declared.name,
+        status: "caution",
+        matched_category: declared.category,
+        matched_kb_entry: declared.name,
+        reason: `The label says this product may contain ${declared.name.toLowerCase()}, which you asked Scanity to watch for.`,
+      })
+    } else {
+      allergy_matches.push({
+        ingredient: declared.name,
+        status: "safe",
+        matched_category: declared.category,
+        matched_kb_entry: declared.name,
+        reason: declared.trace
+          ? `The product label says it may contain ${declared.name.toLowerCase()}.`
+          : `The product label declares ${declared.name.toLowerCase()} as an allergen.`,
+      })
+    }
+    covered.add(category)
   }
 
   if (ingredientsIncomplete && !allergy_matches.some((item) => item.status === "avoid")) {
@@ -265,21 +488,48 @@ function localAllergyAnalysis(
     .map((item) => item.ingredient)
   const avoidCount = allergy_flags.length
   const cautionCount = allergy_matches.filter((item) => item.status === "caution").length
-  let safety_score = ingredientNames.length ? 100 : 58
-  if (avoidCount) safety_score = Math.max(0, 26 - 7 * (avoidCount - 1))
-  else if (cautionCount) safety_score = Math.max(40, 66 - cautionCount * 8)
-  if (!ingredientNames.length) safety_score = Math.min(safety_score, 58)
-  if (hasDiabetes && typeof sugars === "number") {
-    if (sugars >= 22) safety_score = Math.min(safety_score, 48)
-    else if (sugars >= 8) safety_score = Math.min(safety_score, 58)
-  }
-  const verdict = avoidCount ? "avoid" : cautionCount ? "caution" : ingredientNames.length ? "safe" : "caution"
+  const scored = evidenceSafetyScore(
+    allergy_matches,
+    conditions,
+    nutrition,
+    ingredientNames.length,
+  )
+  const safety_score = scored.safety_score
+  const verdict = avoidCount ? "avoid" : cautionCount || !ingredientNames.length || ingredientsIncomplete ? "caution" : "safe"
+
+  const label_insights = [...ingredientNames, ...allergy_matches.map((item) => item.ingredient)]
+    .filter((name, index, all) => {
+      const label = cleanIngredientLabel(name)
+      return label.length > 1 && all.findIndex((item) => cleanIngredientLabel(item).toLowerCase() === label.toLowerCase()) === index
+    })
+    .slice(0, 40)
+    .map((name) => {
+      const match = allergy_matches.find(
+        (item) => cleanIngredientLabel(item.ingredient).toLowerCase() === cleanIngredientLabel(name).toLowerCase(),
+      )
+      const title = cleanIngredientLabel(name)
+      return {
+        ingredient: title,
+        title,
+        category: match?.matched_category ? "Allergen" : "Ingredient",
+        what_it_is: localDefinition(title, match?.reason),
+        commonly_seen_in: "",
+        possible_effects: "",
+        affects_allergens: match?.status === "avoid" && match.matched_category ? [match.matched_category] : [],
+        affects_diets: [],
+        source: "Scanity label note",
+        aliases: [],
+        needs_ai: false,
+      }
+    })
 
   return {
     allergy_flags,
     allergy_matches,
+    label_insights,
     verdict,
     safety_score,
+    score_breakdown: scored.score_breakdown,
     nutri_score_grade: null as string | null,
     explanation: avoidCount
       ? `**Avoid** — ${allergy_flags.slice(0, 3).map((n) => `**${n}**`).join(", ")} lined up with an allergy or dietary restriction you asked Scanity to watch for.`
@@ -359,6 +609,7 @@ async function lookupViaOpenFoodFacts(
     userConditions,
     nutrition,
     incomplete,
+    declaredAllergensFromOff(product),
   )
   analysis.nutri_score_grade = nutriFromOff || estimateNutriScoreGrade(nutrition)
 
@@ -386,6 +637,7 @@ async function lookupViaOpenFoodFacts(
     label_insights: analysis.label_insights || [],
     verdict: analysis.verdict || null,
     safety_score: analysis.safety_score ?? null,
+    score_breakdown: analysis.score_breakdown || null,
     nutri_score_grade: analysis.nutri_score_grade || null,
     explanation: analysis.explanation || null,
     ai_source: analysis.ai_source || "local",
@@ -755,19 +1007,29 @@ export async function lookupBarcodeProduct(
           officialNutriGrade(off.nutri_score_grade) || officialNutriGrade(data.nutri_score_grade)
         data.nutri_score_grade =
           official || estimateNutriScoreGrade(data.product?.nutrition)
+        const apiScored =
+          typeof data.safety_score === "number" &&
+          Number.isFinite(data.safety_score) &&
+          typeof data.verdict === "string" &&
+          data.verdict.length > 0
         const ingredientsChanged = shownNames.join("\n") !== apiNames.join("\n")
-        if (ingredientsChanged && shownNames.length) {
+        // A reached API score stays. Replacing it with the thinner offline
+        // matcher made the same product jump between two different numbers.
+        if (!apiScored && ingredientsChanged && shownNames.length) {
           const local = localAllergyAnalysis(
             shownNames,
             userAllergies,
             userConditions,
             data.product.nutrition,
             Boolean(off.product.ingredients_incomplete),
+            declaredAllergensFromOff(off.product),
           )
           data.allergy_flags = local.allergy_flags
           data.allergy_matches = local.allergy_matches
+          data.label_insights = local.label_insights
           data.verdict = local.verdict
           data.safety_score = local.safety_score
+          data.score_breakdown = local.score_breakdown
           data.explanation = local.explanation
           data.ai_source = local.ai_source
         } else if (
@@ -776,6 +1038,21 @@ export async function lookupBarcodeProduct(
         ) {
           data.verdict = "caution"
           data.safety_score = Math.min(Number(data.safety_score ?? 58), 58)
+          data.score_breakdown = {
+            score: data.safety_score,
+            band: "caution",
+            system: "scanity-evidence-v1",
+            summary: `${data.safety_score} because the ingredient list is incomplete, so this cannot stay in Safe.`,
+            formula: String(data.safety_score),
+            lines: [
+              {
+                code: "incomplete",
+                label: "Incomplete label",
+                detail: "The ingredient list is incomplete, so Scanity cannot mark this Safe.",
+              },
+            ],
+            clamped: false,
+          }
           data.explanation =
             "Flagged — the ingredient list from Open Food Facts is incomplete, so Scanity cannot confirm this product is safe for your saved allergies."
         }

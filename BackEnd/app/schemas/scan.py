@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import UUID
 
-from app.schemas.ocr import AllergyMatchOut, LabelInsightOut
+from app.schemas.ocr import AllergyMatchOut, LabelInsightOut, ScoreBreakdownOut
 
 
 class BarcodeScanRequest(BaseModel):
@@ -44,6 +44,7 @@ class BarcodeScanResponse(BaseModel):
     label_insights: list[LabelInsightOut] = Field(default_factory=list)
     verdict: Optional[str] = None
     safety_score: Optional[int] = None
+    score_breakdown: Optional[ScoreBreakdownOut] = None
     nutri_score_grade: Optional[str] = None
     explanation: Optional[str] = None
     ai_source: Optional[str] = None

@@ -49,6 +49,106 @@ def _split_flags(raw: str | None) -> list[str]:
 
 
 _E_CODE = re.compile(r"e\d{3,4}[a-z]?$")
+_AMOUNT_RE = re.compile(
+    r"\([^)]*\d[^)]*\)|\b\d+(?:[.,]\d+)?\s*(?:g|mg|kg|mcg|µg|ug|kcal|kj|%|ml|oz)\b",
+    re.IGNORECASE,
+)
+_PLACEHOLDER_COPY = re.compile(
+    r"tap ai|check the ai|could not fully|deeper plain-language|food-label ingredient phrase",
+    re.IGNORECASE,
+)
+
+
+def clean_ingredient_label(value: str) -> str:
+    """Drop amounts such as '17.45 g' so a chip name stays an ingredient."""
+    text = _AMOUNT_RE.sub(" ", value or "")
+    text = re.sub(r"\s+", " ", text).strip(" ,;:-/()[]{}")
+    return text
+
+
+def is_placeholder_copy(value: str) -> bool:
+    return bool(_PLACEHOLDER_COPY.search(value or ""))
+
+
+def _first_sentence(value: str) -> str:
+    sentence = re.split(r"(?<=[.!?])\s+", (value or "").strip(), maxsplit=1)[0].strip()
+    if len(sentence) > 180:
+        return sentence[:177].rstrip() + "…"
+    return sentence
+
+
+def _row_names_this_ingredient(ingredient: str, knowledge: dict | None) -> bool:
+    """True when this knowledge row is that ingredient, not a loose overlap."""
+    normalized = _normalize(clean_ingredient_label(ingredient) or ingredient)
+    if not normalized or not knowledge:
+        return False
+    names = [_normalize(str(knowledge.get("ingredient_name") or ""))]
+    names.extend(_normalize(str(alias)) for alias in (knowledge.get("aliases") or []))
+    names = [name for name in names if name]
+    if normalized in names:
+        return True
+    compact = normalized.replace(" ", "")
+    if any(name.replace(" ", "") == compact for name in names):
+        return True
+    e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", normalized)
+    if e_match and any(name.replace(" ", "") == f"e{e_match.group(1)}" for name in names):
+        return True
+    canonical = _normalize(str(knowledge.get("ingredient_name") or ""))
+    if (
+        canonical
+        and len(canonical) >= 4
+        and not _is_phrase_row(knowledge)
+        and re.search(rf"(?<![a-z0-9]){re.escape(canonical)}(?![a-z0-9])", normalized)
+    ):
+        return True
+    return False
+
+
+def chip_title(ingredient: str, knowledge: dict | None = None) -> str:
+    """Chip label is the product ingredient. Canonical names are for exact or E-number hits only."""
+    cleaned = clean_ingredient_label(ingredient) or str(ingredient or "").strip()
+    if not knowledge or not _row_names_this_ingredient(cleaned, knowledge):
+        return cleaned
+    normalized = _normalize(cleaned)
+    canonical = str(knowledge.get("ingredient_name") or "").strip()
+    names = [_normalize(canonical)]
+    names.extend(_normalize(str(alias)) for alias in (knowledge.get("aliases") or []))
+    e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", normalized)
+    if normalized in names or e_match:
+        return canonical or cleaned
+    return cleaned
+
+
+def shopper_definition(ingredient: str, knowledge: dict | None = None) -> str:
+    """One accurate sentence. Never a 'check the AI' placeholder."""
+    cleaned = clean_ingredient_label(ingredient) or str(ingredient or "").strip()
+    display = cleaned[:1].upper() + cleaned[1:] if cleaned else "This ingredient"
+    named = bool(knowledge) and _row_names_this_ingredient(cleaned, knowledge)
+    what = ""
+    allergens: list[str] = []
+    if named and knowledge:
+        raw = str(knowledge.get("what_it_is") or "").strip()
+        if raw and not is_placeholder_copy(raw):
+            what = _first_sentence(raw)
+        allergens = [
+            str(item).replace("_", " ").strip()
+            for item in (knowledge.get("affects_allergens") or [])
+            if str(item).strip()
+        ]
+    exact = False
+    if named and knowledge:
+        normalized = _normalize(cleaned)
+        exact_names = [_normalize(str(knowledge.get("ingredient_name") or ""))]
+        exact_names.extend(_normalize(str(alias)) for alias in (knowledge.get("aliases") or []))
+        e_match = re.search(r"\be(\d{3,4}[a-z]?)\b", normalized)
+        exact = normalized in exact_names or bool(e_match)
+    if exact and what:
+        if allergens and not any(item.lower() in what.lower() for item in allergens[:3]):
+            return f"{what} Linked to {', '.join(allergens[:3])}."
+        return what
+    if allergens:
+        return f"{display} is listed on this product. It is linked to {', '.join(allergens[:3])}."
+    return f"{display} is listed on this product."
 
 
 def _is_phrase_row(row: dict) -> bool:
@@ -340,13 +440,16 @@ def lookup_ingredient_knowledge(ingredient: str) -> dict | None:
             continue
         if key in SKIP_CONTAINS:
             continue
+        # Short single words ("milk", "nut", "oil") must not rename a different ingredient.
+        if " " not in key and len(key) < 8:
+            continue
         row = index.get(key)
-        if not row:
+        if not row or _is_phrase_row(row):
             continue
         if re.search(rf"(?<![a-z0-9]){re.escape(key)}(?![a-z0-9])", normalized):
             return dict(row)
         compact_key = key.replace(" ", "")
-        if len(compact_key) >= 4 and re.search(
+        if " " in key and len(compact_key) >= 8 and re.search(
             rf"(?<![a-z0-9]){re.escape(compact_key)}(?![a-z0-9])",
             compact,
         ):
@@ -363,46 +466,52 @@ def enrich_flag_with_knowledge(flag: dict) -> dict:
     if not knowledge and flag.get("matched_kb_entry"):
         knowledge = lookup_ingredient_knowledge(str(flag.get("matched_kb_entry")))
     out = dict(flag)
-    unidentified = (
-        str(out.get("status") or "").lower() == "caution"
-        and not out.get("matched_kb_entry")
-    )
-    if knowledge and unidentified:
-        # A loose knowledge hit must not turn an unidentified ingredient into Avoid.
+    named = bool(knowledge) and _row_names_this_ingredient(ingredient, knowledge)
+    definition = shopper_definition(ingredient, knowledge if named else None)
+    plain = str(out.get("plain_explanation") or "").strip()
+    if not plain or is_placeholder_copy(plain):
+        out["plain_explanation"] = definition
+    if not knowledge:
+        return out
+    if not named:
+        # A loose hit must not rename the chip or borrow another ingredient's allergens.
         out["knowledge"] = {
-            "title": knowledge["ingredient_name"],
-            "category": knowledge["category"],
-            "what_it_is": knowledge["what_it_is"],
-            "commonly_seen_in": knowledge["commonly_seen_in"],
-            "possible_effects": knowledge["possible_effects"],
+            "title": chip_title(ingredient),
+            "category": "",
+            "what_it_is": definition,
+            "commonly_seen_in": "",
+            "possible_effects": "",
             "affects_allergens": [],
             "affects_diets": [],
-            "source": knowledge["source"],
-            "aliases": knowledge["aliases"],
+            "source": "",
+            "aliases": [],
         }
         return out
-    if knowledge:
-        out["knowledge"] = {
-            "title": knowledge["ingredient_name"],
-            "category": knowledge["category"],
-            "what_it_is": knowledge["what_it_is"],
-            "commonly_seen_in": knowledge["commonly_seen_in"],
-            "possible_effects": knowledge["possible_effects"],
-            "affects_allergens": knowledge.get("affects_allergens") or [],
-            "affects_diets": knowledge.get("affects_diets") or [],
-            "source": knowledge["source"],
-            "aliases": knowledge["aliases"],
-        }
-        if not out.get("possible_effects") and knowledge.get("possible_effects"):
-            out["possible_effects"] = knowledge["possible_effects"]
-        out["affects_allergens"] = _union_flags(
-            [{"affects_allergens": out.get("affects_allergens")}, knowledge],
-            "affects_allergens",
-        )
-        out["affects_diets"] = _union_flags(
-            [{"affects_diets": out.get("affects_diets")}, knowledge],
-            "affects_diets",
-        )
-        if not out.get("plain_explanation") and knowledge.get("possible_effects"):
-            out["plain_explanation"] = knowledge["possible_effects"]
+    what = str(knowledge.get("what_it_is") or "").strip()
+    if not what or is_placeholder_copy(what):
+        what = definition
+    effects = str(knowledge.get("possible_effects") or "").strip()
+    if is_placeholder_copy(effects):
+        effects = ""
+    out["knowledge"] = {
+        "title": chip_title(ingredient, knowledge),
+        "category": knowledge["category"],
+        "what_it_is": what,
+        "commonly_seen_in": knowledge["commonly_seen_in"],
+        "possible_effects": effects,
+        "affects_allergens": knowledge.get("affects_allergens") or [],
+        "affects_diets": knowledge.get("affects_diets") or [],
+        "source": knowledge["source"],
+        "aliases": knowledge["aliases"],
+    }
+    if not out.get("possible_effects") and effects:
+        out["possible_effects"] = effects
+    out["affects_allergens"] = _union_flags(
+        [{"affects_allergens": out.get("affects_allergens")}, knowledge],
+        "affects_allergens",
+    )
+    out["affects_diets"] = _union_flags(
+        [{"affects_diets": out.get("affects_diets")}, knowledge],
+        "affects_diets",
+    )
     return out

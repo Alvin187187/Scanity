@@ -70,6 +70,23 @@ export type LabelInsight = {
   aliases?: string[]
 }
 
+export type ScoreLine = {
+  code: string
+  label: string
+  detail: string
+  points?: number | null
+}
+
+export type ScoreBreakdown = {
+  score: number
+  band: string
+  system: string
+  summary: string
+  formula?: string
+  lines: ScoreLine[]
+  clamped?: boolean
+}
+
 export type StoredScan = {
   id: string
   name: string
@@ -89,6 +106,7 @@ export type StoredScan = {
   ingredientsText?: string
   nutrition?: Record<string, number | undefined>
   score: number
+  scoreBreakdown?: ScoreBreakdown
   favorite?: boolean
   aiSource?: string
 }
@@ -176,9 +194,10 @@ export function restoreScanToHistory(scan: StoredScan, index = 0) {
 export function scoreFromVerdict(verdict: StoredScan["verdict"]): number {
   // Fallback only when the API did not return safety_score.
   // Bands: 0-39 avoid, 40-69 caution, 70-100 safe.
+  // Same anchors as ai/safety_score.py when the API did not send a score.
   if (verdict === "safe") return 100
   if (verdict === "caution") return 58
-  if (verdict === "avoid") return 22
+  if (verdict === "avoid") return 32
   return 58
 }
 
@@ -241,6 +260,42 @@ function stringList(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined
   const items = value.map((item) => String(item).trim()).filter(Boolean)
   return items.length ? items : undefined
+}
+
+export function scoreBreakdownFromUnknown(value: unknown): ScoreBreakdown | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const record = value as Record<string, unknown>
+  const summary = String(record.summary || "").trim()
+  const score = Number(record.score)
+  if (!summary || !Number.isFinite(score)) return undefined
+  const lines = Array.isArray(record.lines)
+    ? record.lines
+        .map((item) => {
+          if (!item || typeof item !== "object") return null
+          const line = item as Record<string, unknown>
+          const detail = String(line.detail || "").trim()
+          const label = String(line.label || "").trim()
+          const code = String(line.code || label || "line").trim()
+          if (!detail && !label) return null
+          const points = Number(line.points)
+          return {
+            code,
+            label: label || code,
+            detail: detail || label,
+            points: Number.isFinite(points) ? points : undefined,
+          }
+        })
+        .filter(Boolean) as ScoreLine[]
+    : []
+  return {
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    band: String(record.band || "").trim() || "caution",
+    system: String(record.system || "").trim() || "scanity-evidence-v1",
+    summary,
+    formula: String(record.formula || "").trim() || undefined,
+    lines,
+    clamped: Boolean(record.clamped),
+  }
 }
 
 function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
@@ -331,6 +386,7 @@ export function storedScanFromAnalysis(input: {
   labelInsights?: unknown
   nutrition?: Record<string, number | undefined>
   safetyScore?: number | null
+  scoreBreakdown?: unknown
   aiSource?: string | null
   id?: string
 }): StoredScan {
@@ -376,6 +432,7 @@ export function storedScanFromAnalysis(input: {
     ingredientsText: input.ingredientsText || ingredients.join(", "),
     nutrition: input.nutrition,
     score,
+    scoreBreakdown: scoreBreakdownFromUnknown(input.scoreBreakdown),
     aiSource: input.aiSource || undefined,
   }
 }

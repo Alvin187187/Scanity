@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import re
 
+from ai.safety_score import FSA_NUTRIENTS, fsa_band, nutrition_flag_copy
+
 # Ingredient markers that matter for each condition.
 CONDITION_MARKERS: dict[str, dict] = {
     "diabetes": {
@@ -268,22 +270,43 @@ def apply_condition_rules(
                 item["plain_explanation"] = spec["plain"]
                 item["matched_kb_entry"] = item.get("matched_kb_entry") or hit
 
-    # Nutrition-panel checks (per 100g style numbers from OFF / scan).
+    # Nutrition-panel checks use the same UK front-of-pack cut-offs as the score.
+    # One nutrient produces one flag. The score reads the number once, not again
+    # from this flag row.
     nutrition = nutrition or {}
-    sugars = nutrition.get("sugars_g")
-    sodium = nutrition.get("sodium_mg")
-    sat_fat = nutrition.get("sat_fat_g")
+
+    def _nutrient_markers(name: str) -> set[str]:
+        target = _normalize(name)
+        if target.startswith("sugar"):
+            return set(CONDITION_MARKERS["diabetes"]["markers"])
+        if target.startswith("sodium"):
+            return set(CONDITION_MARKERS["hypertension"]["markers"])
+        if "fat" in target:
+            return {"palm oil", "hydrogenated", "partially hydrogenated", "lard", "tallow", "saturated fat"}
+        return set()
 
     def _append_nutrition_flag(name: str, status: str, condition: str, reason: str, plain: str) -> None:
-        existing = next((row for row in out if _normalize(str(row.get("ingredient"))) == _normalize(name)), None)
+        markers = _nutrient_markers(name)
+        target = _normalize(name)
+        existing = None
+        for row in out:
+            ingredient = str(row.get("ingredient") or "")
+            if _normalize(ingredient) == target or (markers and _marker_hit(ingredient, markers)):
+                existing = row
+                break
         if existing:
             current = str(existing.get("status") or "safe").lower()
             if severity_rank.get(status, 0) > severity_rank.get(current, 0):
                 existing["status"] = status
                 existing["condition"] = condition
                 existing["reason"] = reason
-                existing["plain_explanation"] = plain
                 existing["matched_category"] = existing.get("matched_category") or condition
+            if plain:
+                prior = str(existing.get("plain_explanation") or "").strip()
+                if prior and plain not in prior:
+                    existing["plain_explanation"] = f"{prior} {plain}"
+                elif not prior:
+                    existing["plain_explanation"] = plain
             return
         out.append(
             {
@@ -292,57 +315,36 @@ def apply_condition_rules(
                 "matched_category": condition,
                 "matched_kb_entry": name,
                 "condition": condition,
+                "panel": True,
                 "reason": reason,
                 "plain_explanation": plain,
             }
         )
 
-    if "diabetes" in active and isinstance(sugars, (int, float)):
-        if sugars >= 22:
-            _append_nutrition_flag(
-                f"Sugars {sugars:g} g/100g",
-                "caution",
-                "diabetes",
-                "Nutrition panel shows high sugars for a diabetes profile.",
-                "High sugars per 100g. For diabetes, this drink/food can spike blood sugar quickly.",
-            )
-        elif sugars >= 8:
-            _append_nutrition_flag(
-                f"Sugars {sugars:g} g/100g",
-                "caution",
-                "diabetes",
-                "Nutrition panel sugars are elevated for a diabetes profile.",
-                "Moderate-to-notable sugars per 100g. Check serving size if you manage diabetes.",
-            )
-
-    if "hypertension" in active and isinstance(sodium, (int, float)):
-        if sodium >= 600:
-            _append_nutrition_flag(
-                f"Sodium {sodium:g} mg/100g",
-                "caution",
-                "hypertension",
-                "Nutrition panel sodium is high for hypertension.",
-                "High sodium per 100g. Lower-salt options are usually better with high blood pressure.",
-            )
-        elif sodium >= 300:
-            _append_nutrition_flag(
-                f"Sodium {sodium:g} mg/100g",
-                "caution",
-                "hypertension",
-                "Nutrition panel sodium is notable for hypertension.",
-                "Notable sodium per 100g. Keep daily salt budget in mind.",
-            )
-
-    if "heart" in active and isinstance(sat_fat, (int, float)) and sat_fat >= 5:
-        _append_nutrition_flag(
-            f"Sat. fat {sat_fat:g} g/100g",
-            "caution",
-            "heart",
-            "Saturated fat is elevated for a heart-disease profile.",
-            "Higher saturated fat per 100g. Heart-aware eating usually limits this.",
-        )
+    for key, spec in FSA_NUTRIENTS.items():
+        owners = [name for name in spec["conditions"] if name in active]
+        if not owners:
+            continue
+        value = nutrition.get(key)
+        band = fsa_band(value, spec["low"], spec["high"])
+        if band not in {"amber", "red"}:
+            continue
+        name, reason, plain = nutrition_flag_copy(key, value, band, owners[0])
+        _append_nutrition_flag(name, "caution", owners[0], reason, plain)
 
     return out
+
+
+def explain_personalized_score(
+    flags: list,
+    *,
+    conditions: list | None = None,
+    nutrition: dict | None = None,
+) -> dict:
+    """Score plus the lines that produced it. Same inputs always rebuild it."""
+    from ai.safety_score import build_safety_score
+
+    return build_safety_score(flags, conditions=conditions, nutrition=nutrition)
 
 
 def compute_personalized_score(
@@ -352,63 +354,9 @@ def compute_personalized_score(
     nutrition: dict | None = None,
 ) -> int:
     """
-    Personalized 0-100 score using allergies + conditions + nutrition.
+    Personalized 0-100 evidence index.
 
     Bands: 0-39 Avoid, 40-69 Caution, 70-100 Safe.
+    The number is fully described by explain_personalized_score().
     """
-    active = normalize_conditions(conditions)
-    nutrition = nutrition or {}
-
-    if not flags:
-        # Incomplete label — stay in Caution (40-69). 78 used to sit in the
-        # Safe band even when there was nothing to check.
-        if "diabetes" in active and isinstance(nutrition.get("sugars_g"), (int, float)):
-            sugars = float(nutrition["sugars_g"])
-            if sugars >= 22:
-                return 48
-            if sugars >= 8:
-                return 58
-        return 58
-
-    avoid_items = [item for item in flags if item.get("status") == "avoid"]
-    caution_items = [item for item in flags if item.get("status") == "caution"]
-
-    if avoid_items:
-        # Hard low band for profile allergen / lactose / gluten hits.
-        return max(0, 26 - 7 * (len(avoid_items) - 1))
-
-    score = 100
-
-    for item in caution_items:
-        # Condition-backed cautions hurt more than "unmapped ingredient".
-        if item.get("condition") or item.get("matched_category") in active:
-            score -= 12
-        elif str(item.get("ingredient") or "").lower().startswith("sugars "):
-            score -= 14
-        elif str(item.get("ingredient") or "").lower().startswith("sodium "):
-            score -= 12
-        else:
-            score -= 3
-
-    # Extra nutrition pressure even if ingredient list missed sugar words.
-    sugars = nutrition.get("sugars_g")
-    if "diabetes" in active and isinstance(sugars, (int, float)):
-        if sugars >= 22:
-            score -= 22
-        elif sugars >= 12:
-            score -= 14
-        elif sugars >= 5:
-            score -= 8
-
-    sodium = nutrition.get("sodium_mg")
-    if "hypertension" in active and isinstance(sodium, (int, float)):
-        if sodium >= 600:
-            score -= 18
-        elif sodium >= 300:
-            score -= 10
-
-    if caution_items:
-        # Keep caution-band ceiling so UI does not say Safe with open issues.
-        score = min(score, 66)
-
-    return max(0, min(100, int(round(score))))
+    return explain_personalized_score(flags, conditions=conditions, nutrition=nutrition)["score"]

@@ -57,7 +57,8 @@ Scanity API (Render, FastAPI)
         |-- PostgreSQL (Supabase or local)   accounts, profiles, product cache
         |-- Supabase Auth JWKS               token verification
         |-- ai/allergy_engine.py             allergen flags
-        |-- ai/condition_engine.py           diet + nutrition flags, safety score
+        |-- ai/condition_engine.py           diet + nutrition flags
+        |-- ai/safety_score.py               0–100 evidence index + breakdown
         |-- seed/*.csv                       loaded into process memory
         |-- Gemini (Google AI Studio or OpenRouter)
         |-- RapidOCR (PP-OCRv5)              package-name fallback
@@ -74,7 +75,7 @@ The browser does **not** hold the Gemini key. Package vision and explanations ru
 
 - look a barcode up on Open Food Facts
 - read a package name on the device with Tesseract.js and search Open Food Facts by that title
-- apply a thinner copy of the allergy bands (`localAllergyAnalysis` in `FrontEnd/src/api/scan.ts`) so chips still appear
+- apply a thinner ingredient match that still uses the same 0–100 anchors (`localAllergyAnalysis` in `FrontEnd/src/api/scan.ts`) so chips still appear
 
 Scan history on the phone lives in `localStorage` (`scanityScanHistory`, active result under `scanityProductResult`). The `scan_histories` table exists in the schema and is cleared on account deletion, but the shopper history the UI reopens is the browser copy.
 
@@ -192,12 +193,12 @@ The camera (or a gallery photo with no barcode) is aimed at the **product name**
 3. **`apply_condition_rules`** (`ai/condition_engine.py`) — raise severity for saved conditions, and append nutrition-panel flags (sugars, sodium, saturated fat).
 4. **Enrich again** so new flags pick up knowledge rows.
 5. **`overall_verdict`** — Avoid if any avoid, else Caution if any caution or if the flag list is empty, else Safe.
-6. **`compute_safety_score`** — delegates to `compute_personalized_score`.
+6. **`compute_safety_score`** — builds the 0–100 evidence index in `ai/safety_score.py` and returns `score_breakdown` with it. The verdict and the score use the same band.
 7. **`nutri_score_grade`** — official letter if Open Food Facts sent one, otherwise the local estimate.
 8. **`explain_scan`** — Gemini (prompt grounded with RAG), else Ollama, else a fixed template. The verdict string passed in is already decided.
 9. **`_label_insights`** — up to 40 chips. Flagged names come first. A name with no CSV row is still returned with `needs_ai: true` so the chip can call `/scan/ai/ingredient-explain`.
 
-Gemini never votes on the verdict. An unknown ingredient is Caution. An empty ingredient list is Caution (score 58), not Safe.
+Gemini never votes on the verdict or the score. An unknown ingredient is Caution (64 for the first one). An empty ingredient list is Caution (58), not Safe.
 
 ---
 
@@ -236,50 +237,88 @@ Two ways a condition attaches to an ingredient:
 1. **Feature flags.** If the ingredient’s `affects_diets` includes an active condition, severity becomes Avoid for lactose and celiac, Caution for diabetes, hypertension, heart, kidney, and IBS.
 2. **Marker words** in `CONDITION_MARKERS`, used when feature flags did not already cover that diet. Longer markers win (`high fructose corn syrup` before `sugar`). Examples: diabetes watches sugar, syrup, maltodextrin, honey; lactose watches milk, whey, casein, cream; celiac watches wheat, barley, rye, malt, gluten; hypertension watches salt, MSG, soy sauce; kidney watches salt, phosphate, potassium; heart watches salt, palm oil, hydrogenated fat; IBS watches inulin, polyols, onion, garlic, wheat.
 
-**Nutrition panel** (numbers are per 100 g from Open Food Facts):
+**Nutrition panel** (numbers are per 100 g from Open Food Facts). The cut-offs are the UK front-of-pack traffic lights, and they are the same numbers the score uses. One nutrient adds at most one caution. A green value does not add a flag.
 
-| Profile | Input | Threshold | Flag |
+| Profile | Input | Medium (amber) | High (red) |
 | --- | --- | --- | --- |
-| diabetes | sugars g | ≥ 22, or ≥ 8 | Caution, “Sugars … g/100g” |
-| hypertension | sodium mg | ≥ 600, or ≥ 300 | Caution, “Sodium … mg/100g” |
-| heart | saturated fat g | ≥ 5 | Caution, “Sat. fat … g/100g” |
+| diabetes | sugars | over 5.0 g and at most 22.5 g | over 22.5 g |
+| hypertension, kidney, or heart | sodium | over 120 mg and at most 600 mg | over 600 mg |
+| heart | saturated fat | over 1.5 g and at most 5.0 g | over 5.0 g |
 
-These are extra flag rows. They feed the same verdict and score as ingredient rows.
+Sodium lines follow salt × 2.5 from the same guide (0.3 g salt = 120 mg sodium, 1.5 g salt = 600 mg sodium). A value sitting on the line is still medium, because the published high rule is “over” that line.
 
 ---
 
 ## Safety score
 
-The safety score is **personal**. It uses the shopper’s saved allergies and conditions plus this product’s ingredients (and sugars / sodium when those nutrients exist). It is **not** Nutri-Score. Implementation: `compute_personalized_score` in `ai/condition_engine.py`.
+The safety score is a **personal evidence index** from 0 to 100. The same product and the same saved allergies and conditions always rebuild the same number. Gemini does not choose it and is not allowed to invent a different one. Implementation: `build_safety_score` in `ai/safety_score.py`. The API returns that number as `safety_score` and the arithmetic as `score_breakdown` (summary, formula, and one line per input that moved it). The result screen prints those lines under the gauge.
 
-| Score | Band shown |
+It is **not** Nutri-Score, and it is **not** a clinical probability. “32” means “one confirmed profile hit, inside Avoid.” It does not mean a 32% chance of a reaction.
+
+| Score | Band | What had to be true |
+| --- | --- | --- |
+| 70–100 | Safe | Every ingredient was identified, and none matched a saved allergy or condition |
+| 40–69 | Caution | Something still needs a look: a condition hit, an unidentified ingredient, or no ingredient list |
+| 0–39 | Avoid | At least one confirmed allergy or hard diet hit (lactose, celiac, and the same kind of seed match) |
+
+The band is chosen first, from the same flags as Safe / Caution / Avoid. The number is then placed **inside** that band. A later cap is not used, so one mild caution and five serious cautions no longer collapse to the same score.
+
+A product that **declares** an allergen you saved (for example “Contains: milk” from the catalog) is a confirmed match, scored like any other Avoid hit, even when that word was missing from the ingredient lines. A “may contain” declaration for a saved allergy starts at **50** in Caution. It is not treated as an unidentified ingredient, and it is not Avoid.
+
+### Why this system
+
+Scanity needs one number a shopper can compare, that always agrees with the verdict, and that can be checked without trusting a model. Three familiar scales were considered and not used for this number:
+
+- **Asking the model for 0–100.** The same label came back as different scores, and the written reason often mentioned ingredients or nutrients the rules had not used.
+- **One subtraction from 100 with a hidden ceiling.** Any caution was forced to 66 or below, so the score stopped showing how many issues there were. Nutrition was also subtracted twice: once as a flag and again as a gram value.
+- **Rescaling Nutri-Score, or a daily guideline such as the WHO free-sugar and sodium limits, onto 0–100.** Nutri-Score ignores the shopper’s allergies, so a Nutri-Score A product can still be Avoid. WHO limits are for a whole day. A barcode does not include the rest of the day’s intake, so those limits cannot be applied honestly to one product.
+
+What Scanity uses instead is an **evidence index with published nutrient cut-offs**:
+
+1. **The band is a verified match, not a guess.** Avoid and condition flags come from `seed/seed_allergens.csv`, `seed/ingredient_knowledge.csv`, and the condition marker list. An ingredient that matches none of those stays Caution. It is not marked Safe, and it is not marked Avoid.
+2. **Nutrients use the UK front-of-pack traffic lights** (*Guide to creating a front of pack (FoP) nutrition label for pre-packed products sold through retail outlets*, Department of Health, 2016). Those cut-offs are already defined **per 100 g**, which is the unit Open Food Facts sends. They apply to diabetes (sugars), high blood pressure and kidney disease (sodium), and heart disease (saturated fat and sodium). A nutrient the shopper’s conditions do not use does not move this score. Total fat is not scored, because the catalog payload Scanity keeps does not include it. The per-portion “red” rule from the same guide is not used, because serving sizes in the catalog are inconsistent.
+3. **Each band has a written anchor**, so the arithmetic can be repeated by hand. The anchors sit a few points inside the band on purpose, so a single hit cannot be mistaken for the next band after rounding.
+4. **A nutrient is counted once.** If the panel has sugars, the word “sugar” on the ingredient list does not take a second deduction. If the panel is missing, the ingredient word still counts, at the mild condition anchor.
+5. **The breakdown is the explanation.** Chat and the safety report are told to quote `score_breakdown` and not to supply another score or another reason.
+
+### Anchors
+
+**Safe — 100.** Nothing on the checked list matched.
+
+**Avoid — start at 32.** One confirmed match. 32 is 7 below the top of 0–39, so it cannot be read as the Caution floor (40). Each further confirmed match subtracts **8**. A relevant UK front-of-pack high nutrient subtracts **4**, a medium nutrient subtracts **2**, with those nutrient steps capped at 8. Each unidentified ingredient subtracts **1**, capped at 4. The floor is **0**.
+
+**Condition caution — 42, 50, or 58.**
+
+| Worst relevant nutrient | Anchor | Meaning |
+| --- | --- | --- |
+| High (red) | 42 | Over the UK high line |
+| Medium (amber) | 50 | Between the low and high lines |
+| Low, or no panel value | 58 | The condition matched a label word, but the measured nutrient is not medium or high |
+
+Each further saved condition that also matches subtracts **4**. Each unidentified ingredient subtracts **1**, capped at 4. The floor is **40**, so a condition caution cannot fall into Avoid. Only a confirmed avoid match does that.
+
+**Unidentified ingredient — start at 64.** 64 is 6 below the Safe floor (70). Each further unidentified ingredient subtracts **3**. The floor is **46**, so a list of unknown names cannot be shown as Avoid.
+
+**No ingredient list — 58.** Twelve below the Safe floor. Absence of a list is not a confirmed allergen and is not a Safe result. If a saved condition still has a medium or high nutrient on the panel, the condition anchor above is used instead, because the panel is real evidence.
+
+Worked examples:
+
+| What was found | Score |
 | --- | --- |
-| 70–100 | Safe |
-| 40–69 | Caution / Flagged |
-| 0–39 | Avoid |
+| Water only, no profile hit | 100 |
+| One unidentified ingredient | 64 |
+| Six unidentified ingredients (64 − 3 × 5) | 49 |
+| No ingredient list | 58 |
+| Diabetes, sugars 18 g/100 g (medium) | 50 |
+| Diabetes, sugars over 22.5 g/100 g (high) | 42 |
+| Diabetes, sugar on the label, sugars 2 g/100 g (low) | 58 |
+| One allergen or lactose/celiac hit | 32 |
+| That same hit, plus sugars 20 g/100 g and diabetes (32 − 2) | 30 |
+| Two confirmed hits (32 − 8) | 24 |
 
-**Avoid (0–39).** Any ingredient marked avoid (saved allergy, lactose restriction, celiac / gluten, and similar hard hits) puts the product in this band:
+Overall product verdict is **Avoid > Caution > Safe**, and the score’s band is that same verdict. Chips follow the flags: red Avoid, gold Flagged, info chips from the ingredient-knowledge file.
 
-`max(0, 26 − 7 × (number of avoid items − 1))`
-
-One avoid item scores **26**. Each extra avoid item drops the score by 7, not below 0.
-
-**Caution only (40–69).** Start at 100, then subtract:
-
-- 12 for a caution tied to a saved condition
-- 14 for a “sugars …” nutrition line
-- 12 for a “sodium …” nutrition line
-- 3 for an unmatched / unknown ingredient
-
-Diabetes also subtracts from sugars per 100 g: 22 if ≥ 22 g, 14 if ≥ 12 g, 8 if ≥ 5 g. Hypertension subtracts from sodium: 18 if ≥ 600 mg, 10 if ≥ 300 mg. If any caution remains, the score is **capped at 66**, so the UI cannot say Safe while something is still flagged.
-
-**Empty or incomplete ingredient list.** Score **58** (Caution). Extra sugar rules for diabetes can pull that to **48**.
-
-**No flags.** Score **100**, unless nutrition rules for a saved condition still apply.
-
-Overall product verdict is **Avoid > Caution > Safe**. Chips follow the same flags: red Avoid, gold Flagged, info chips from the ingredient-knowledge file.
-
-When the API is down, the browser uses a **simpler copy** of these bands (substring match, dairy words, sugar words, the same avoid formula, and a smaller caution penalty). The full formula lives only on the server.
+When the API is down, the browser uses a thinner ingredient match (substring allergy and a short condition list) but the **same anchors and the same UK cut-offs**. A score the API already returned is kept. The browser does not replace it with the thinner match, which is what made one product show two different numbers.
 
 ---
 
@@ -360,9 +399,9 @@ History filters (all vs saved) are also local (`scanityHistoryFilter`).
 
 ## Technical safety
 
-- **Verdicts are deterministic.** `ai/allergy_engine.py` and `ai/condition_engine.py` decide flags. Gemini cannot change Safe / Caution / Avoid.
-- **Unknown is not Safe.** An ingredient that does not match the seed, the pantry list, or ingredient knowledge is Caution.
-- **Incomplete labels stay Caution.** An empty ingredient list scores in the Caution band.
+- **Verdicts and the score are deterministic.** `ai/allergy_engine.py` and `ai/condition_engine.py` decide flags. `ai/safety_score.py` turns those flags into 0–100 and returns the lines that produced the number. Gemini cannot change Safe / Caution / Avoid or the score.
+- **Unknown is not Safe, and it is not Avoid.** An ingredient that does not match the seed, the pantry list, or ingredient knowledge is Caution, starting at 64.
+- **Incomplete labels stay Caution.** An empty ingredient list scores 58 unless a saved condition has a medium or high nutrient on the panel.
 - **Severity only moves up.** Condition rules do not downgrade an Avoid to Safe.
 - **Gemini keys stay on the server.** The Vercel app does not embed `GEMINI_API_KEY`.
 - **Auth.** Passwords and sessions go through Supabase. Scan, profile, OCR, and AI routes require a bearer token checked against Supabase JWKS (ES256).
@@ -392,7 +431,7 @@ This is still a student system: seed rows are mixed in quality, Open Food Facts 
 | Package-name vision | Gemini on the API (`GEMINI_API_KEY` on Render) |
 | Local OCR fallback on the API | RapidOCR (PP-OCRv5, ONNX Runtime) |
 | Explanations and chip copy | Gemini when configured; otherwise Ollama or local templates |
-| Allergy / condition rules | `ai/allergy_engine.py`, `ai/condition_engine.py`, CSV seeds in `seed/` |
+| Allergy / condition rules and the 0–100 score | `ai/allergy_engine.py`, `ai/condition_engine.py`, `ai/safety_score.py`, CSV seeds in `seed/` |
 | Optional retrieval | Local CSV corpus; optional RAGFlow HTTP API |
 | Optional local LLM | Ollama (explanations only, not verdicts) |
 
@@ -410,7 +449,7 @@ Scanity is a **decision aid for a school project**, not medical care.
 - Cross-contact, recipe changes, regional SKUs, and missing Open Food Facts data are outside what the engine can see.
 - Unverified seed rows and OCR mistakes can both miss a trigger or flag the wrong product.
 - Nutri-Score is about nutrient density, not allergen safety, and the local estimate is not an official front-of-pack claim.
-- Gemini text can be incomplete or slightly wrong; the chips and score are the source of truth.
+- Gemini text can be incomplete or slightly wrong. The chips, the verdict, and `score_breakdown` are the source of truth for the score. The model is instructed to quote that breakdown rather than invent a reason.
 
 If a shopper has a serious allergy or a prescribed diet, they should treat Scanity as a second look at a label they still read themselves, not as clearance to eat.
 

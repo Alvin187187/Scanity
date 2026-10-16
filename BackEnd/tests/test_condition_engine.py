@@ -10,7 +10,8 @@ def test_diabetes_flags_sugar_and_lowers_score():
     sugar = next(item for item in flags if "sugar" in item["ingredient"].lower())
     assert sugar["status"] == "caution"
     score = compute_personalized_score(flags, conditions=["diabetes"], nutrition={"sugars_g": 18})
-    assert 40 <= score <= 69
+    # 18 g/100g is UK front-of-pack amber, so the condition anchor is 50.
+    assert score == 50
 
 
 def test_lactose_avoids_milk():
@@ -18,7 +19,7 @@ def test_lactose_avoids_milk():
     flags = apply_condition_rules(flags, ["lactose"], None)
     assert overall_verdict(flags) == "avoid"
     score = compute_safety_score(flags, conditions=["lactose"])
-    assert score <= 39
+    assert score == 32
 
 
 def test_black_coffee_without_sugar_stays_safer_for_diabetes():
@@ -28,8 +29,8 @@ def test_black_coffee_without_sugar_stays_safer_for_diabetes():
         user_conditions=["diabetes", "lactose"],
         nutrition={"sugars_g": 0.2},
     )
-    assert result["verdict"] in {"safe", "caution"}
-    assert result["safety_score"] >= 70
+    assert result["verdict"] == "safe"
+    assert result["safety_score"] == 100
 
 
 def test_diabetes_flags_sweetener_aliases_and_e_numbers():
@@ -68,4 +69,7 @@ def test_sweet_coffee_drink_caution_for_diabetes():
         nutrition={"sugars_g": 20},
     )
     assert result["verdict"] == "avoid"  # lactose + milk
-    assert result["safety_score"] <= 39
+    # One avoid (32) and amber sugars (20 g/100g, −2).
+    assert result["safety_score"] == 30
+    assert result["score_breakdown"]["band"] == "avoid"
+    assert result["score_breakdown"]["clamped"] is False
