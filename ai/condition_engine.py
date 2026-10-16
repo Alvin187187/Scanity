@@ -178,18 +178,33 @@ def normalize_conditions(conditions: list | None) -> set[str]:
     return out
 
 
+_PLANT_MILK = re.compile(
+    r"\b(?:coconut|oat|almond|soy|soya|rice|cashew|hemp)\s+milks?\b"
+)
+# These are not salt. "sodium caseinate" must not become a blood-pressure flag.
+_NON_SALT_SODIUM = re.compile(
+    r"\b(?:caseinate|ascorbate|citrate|citrates|stearoyl|erythorbate)\b"
+)
+
+
 def _marker_hit(ingredient: str, markers: set[str]) -> str | None:
+    """Whole words only. 'wheat' must not hit buckwheat, and 'rice' must not hit licorice."""
     normalized = _normalize(ingredient)
     if not normalized:
         return None
+    padded = f" {normalized} "
     # Longer markers first so "high fructose corn syrup" wins over "sugar".
     for marker in sorted(markers, key=len, reverse=True):
-        if not marker:
+        token = _normalize(marker)
+        if not token:
             continue
-        if normalized == marker or f" {marker} " in f" {normalized} ":
-            return marker
-        if marker in normalized and len(marker) >= 4:
-            return marker
+        if f" {token} " not in padded and f" {token}s " not in padded:
+            continue
+        if token == "sodium" and _NON_SALT_SODIUM.search(normalized):
+            continue
+        if token == "milk" and _PLANT_MILK.search(normalized):
+            continue
+        return marker
     return None
 
 

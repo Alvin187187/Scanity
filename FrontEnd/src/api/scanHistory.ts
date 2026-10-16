@@ -51,6 +51,9 @@ export type AllergySignal = {
   reason?: string
   plainExplanation?: string
   matchedCategory?: string
+  condition?: string
+  declaration?: string
+  identified?: boolean
   possibleEffects?: string
   affectsAllergens?: string[]
   affectsDiets?: string[]
@@ -316,6 +319,9 @@ function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
         plain_explanation?: string
         plainExplanation?: string
         matched_category?: string
+        condition?: string
+        declaration?: string
+        identified?: boolean
         possible_effects?: string
         possibleEffects?: string
         affects_allergens?: unknown
@@ -333,6 +339,9 @@ function allergySignalsFromUnknown(value: unknown): AllergySignal[] {
         reason: record.reason,
         plainExplanation: record.plainExplanation || record.plain_explanation,
         matchedCategory: record.matched_category,
+        condition: record.condition,
+        declaration: record.declaration,
+        identified: typeof record.identified === "boolean" ? record.identified : undefined,
         possibleEffects: record.possibleEffects || record.possible_effects,
         affectsAllergens: stringList(record.affectsAllergens || record.affects_allergens),
         affectsDiets: stringList(record.affectsDiets || record.affects_diets),

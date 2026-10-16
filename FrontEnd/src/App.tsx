@@ -8638,12 +8638,42 @@ function cleanChipLabel(name: string): string {
 }
 
 function chipDefinition(text: string | undefined, name: string): string {
-  const label = cleanChipLabel(name)
-  const display = label ? label.charAt(0).toUpperCase() + label.slice(1) : "This ingredient"
   const usable = usableChipCopy(text)
-  if (!usable) return `${display} is listed on this product.`
+  if (!usable || /listed on this product/i.test(usable)) return ""
   const sentence = usable.split(/(?<=[.!?])\s+/)[0]
-  return sentence.length > 180 ? `${sentence.slice(0, 177)}…` : sentence
+  return sentence.length > 110 ? `${sentence.slice(0, 107)}…` : sentence
+}
+
+function isUnidentifiedSignal(item: AllergySignal): boolean {
+  if (String(item.status || "").toLowerCase() === "avoid") return false
+  if (item.identified === false) return true
+  const text = `${item.reason || ""} ${item.plainExplanation || ""}`
+  return /did not match a known|could not check|was not readable/i.test(text)
+}
+
+function appliesToProfile(item: AllergySignal): boolean {
+  const status = String(item.status || "").toLowerCase()
+  if (status === "avoid") return true
+  if (status !== "caution" || isUnidentifiedSignal(item)) return false
+  const text = `${item.reason || ""} ${item.plainExplanation || ""}`
+  if (/may contain|incomplete|ingredient list/i.test(text)) return true
+  if (item.condition || item.declaration === "trace" || item.matchedCategory) return true
+  return /\d/.test(text) && /sugar|sodium|fat/i.test(text)
+}
+
+function chipApplies(item: AllergySignal): string {
+  const reason = usableChipCopy(item.reason)
+  if (reason) {
+    const sentence = reason.split(/(?<=[.!?])\s+/)[0]
+    if (sentence && !/did not match a known|listed on this product/i.test(sentence)) {
+      return sentence.length > 120 ? `${sentence.slice(0, 117)}…` : sentence
+    }
+  }
+  const category = String(item.matchedCategory || item.condition || "").replace(/[_-]+/g, " ").trim()
+  if (String(item.status).toLowerCase() === "avoid" && category) {
+    return `Matches ${category} on your profile.`
+  }
+  return ""
 }
 
 function IngredientChip({
@@ -8745,18 +8775,16 @@ function AllergySignalsCard({
   onOpenIngredient: (item: IngredientSheetPayload) => void
   loadingIngredient?: string | null
 }) {
+  const [showOther, setShowOther] = useState(false)
   const derived: AllergySignal[] =
     signals.length > 0
       ? signals
       : allergens.map((name) => ({ name, status: "avoid" }))
   const avoidItems = derived.filter((item) => String(item.status).toLowerCase() === "avoid")
-  const cautionItems = derived.filter((item) => {
-    const status = String(item.status).toLowerCase()
-    return status === "caution" || status === "flagged" || status === "review"
-  })
-  const flaggedItems = cautionItems
+  const watchItems = derived.filter((item) => appliesToProfile(item) && String(item.status).toLowerCase() !== "avoid")
+  const unknownItems = derived.filter((item) => isUnidentifiedSignal(item))
   const shownNames = new Set(
-    [...flaggedItems, ...avoidItems]
+    [...watchItems, ...avoidItems, ...unknownItems]
       .map((item) => cleanChipLabel(item.name).toLowerCase())
       .filter(Boolean),
   )
@@ -8789,23 +8817,13 @@ function AllergySignalsCard({
       }}
     >
       <div>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>Allergy signals</h3>
-        <p style={{ margin: "6px 0 0", fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
-          Flagged means a saved dietary restriction needs a closer look, or Scanity could not fully confirm an ingredient yet. Avoid means it lined up with an allergy or dietary restriction you asked Scanity to watch for.
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>What applies to you</h3>
+        <p style={{ margin: "6px 0 0", fontSize: 16, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
+          Avoid matches an allergy you saved. Watch matches a condition or a may-contain line.
         </p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 12 }}>
-        <div style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: SOFT_SLATE.caution }} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted }}>Flagged</span>
-          </div>
-          <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.caution, lineHeight: 1 }}>
-            {flaggedItems.length}
-          </div>
-          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Needs a closer look</div>
-        </div>
         <div style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: SOFT_SLATE.unsafe }} />
@@ -8814,24 +8832,34 @@ function AllergySignalsCard({
           <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.unsafe, lineHeight: 1 }}>
             {avoidItems.length}
           </div>
-          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Linked to your profile</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Matches your profile</div>
+        </div>
+        <div style={{ padding: "14px 14px", borderRadius: 14, boxShadow: SOFT_SLATE.insetSm }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: SOFT_SLATE.caution }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted }}>Watch</span>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: SOFT_SLATE.caution, lineHeight: 1 }}>
+            {watchItems.length}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 12, color: SOFT_SLATE.textSecondary }}>Condition or trace</div>
         </div>
       </div>
 
       <StatusBadge verdict={verdict} reason={reason} size="lg" />
 
-      {(flaggedItems.length > 0 || avoidItems.length > 0) ? (
+      {(watchItems.length > 0 || avoidItems.length > 0) ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {flaggedItems.length > 0 && (
+          {avoidItems.length > 0 && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.caution, marginBottom: 8 }}>Flagged</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.unsafe, marginBottom: 8 }}>Avoid</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {flaggedItems.map((item) => (
+                {avoidItems.map((item) => (
                   <IngredientChip
-                    key={`flag-${item.name}`}
+                    key={`avoid-${item.name}`}
                     label={cleanChipLabel(item.name) || item.name}
-                    detail={chipDefinition(usableChipCopy(item.plainExplanation) || usableChipCopy(item.reason) || item.knowledge?.what_it_is, item.name)}
-                    tone="caution"
+                    detail={chipApplies(item)}
+                    tone="avoid"
                     busy={loadingIngredient === item.name}
                     onClick={() =>
                       onOpenIngredient({
@@ -8850,16 +8878,16 @@ function AllergySignalsCard({
               </div>
             </div>
           )}
-          {avoidItems.length > 0 && (
+          {watchItems.length > 0 && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.unsafe, marginBottom: 8 }}>Avoid</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.caution, marginBottom: 8 }}>Watch</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {avoidItems.map((item) => (
+                {watchItems.map((item) => (
                   <IngredientChip
-                    key={`avoid-${item.name}`}
+                    key={`watch-${item.name}`}
                     label={cleanChipLabel(item.name) || item.name}
-                    detail={chipDefinition(usableChipCopy(item.plainExplanation) || usableChipCopy(item.reason) || item.knowledge?.what_it_is, item.name)}
-                    tone="avoid"
+                    detail={chipApplies(item)}
+                    tone="caution"
                     busy={loadingIngredient === item.name}
                     onClick={() =>
                       onOpenIngredient({
@@ -8883,16 +8911,39 @@ function AllergySignalsCard({
         <AllergenList allergens={allergens} />
       )}
 
+      {unknownItems.length > 0 && (
+        <p style={{ margin: 0, fontSize: 14, color: SOFT_SLATE.textSecondary, lineHeight: 1.45 }}>
+          {unknownItems.length === 1
+            ? `${cleanChipLabel(unknownItems[0].name) || unknownItems[0].name} was not identified. It is not an avoid match.`
+            : `${unknownItems.length} ingredients were not identified. They are not avoid matches.`}
+        </p>
+      )}
+
       {insightChips.length > 0 && (
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted, marginBottom: 6 }}>
-            On this label
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: SOFT_SLATE.textMuted }}>Other ingredients</div>
+            {insightChips.length > 6 && (
+              <button
+                type="button"
+                onClick={() => setShowOther((open) => !open)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: SOFT_SLATE.green,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  minHeight: 44,
+                  cursor: "pointer",
+                  fontFamily: SOFT_SLATE.fontFamily,
+                }}
+              >
+                {showOther ? "Show less" : `Show ${insightChips.length - 6} more`}
+              </button>
+            )}
           </div>
-          <p style={{ margin: "0 0 10px", fontSize: 13, color: SOFT_SLATE.textSecondary, lineHeight: 1.4 }}>
-            Each chip is an ingredient or declared allergen from this product, with what it is.
-          </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {insightChips.slice(0, 40).map((insight) => (
+            {(showOther ? insightChips : insightChips.slice(0, 6)).map((insight) => (
               <IngredientChip
                 key={`insight-${insight.label}`}
                 label={insight.label}
@@ -9043,24 +9094,43 @@ function ProductResultScreen({ go }: { go: (s: Screen) => void }) {
     : ""
   const nutrients = nutritionRows(scan?.nutrition)
   const aiLive = String(scan?.aiSource || "").toLowerCase() === "gemini"
-  const avoidSummary =
-    allergens.length > 0
-      ? `Matches your allergies: ${allergens.slice(0, 3).join(", ")}.`
-      : verdict === "safe"
-        ? "No saved allergy matches on this label."
-        : verdict === "caution"
-          ? "Some ingredients still need a quick human check."
-          : "Based on your saved allergy profile."
+  const avoidNames = allergySignals
+    .filter((item) => String(item.status).toLowerCase() === "avoid")
+    .map((item) => cleanChipLabel(item.name) || item.name)
+    .filter(Boolean)
+  const watchNames = allergySignals
+    .filter((item) => appliesToProfile(item) && String(item.status).toLowerCase() !== "avoid")
+    .map((item) => cleanChipLabel(item.name) || item.name)
+    .filter(Boolean)
+  const avoidSummary = avoidNames.length
+    ? `Avoid ${avoidNames.slice(0, 2).join(" and ")}.`
+    : watchNames.length
+      ? `Watch ${watchNames.slice(0, 2).join(" and ")}.`
+      : "Nothing on this label matches your saved profile."
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, chatOpen])
 
   const quickPrompts = [
-    { label: "Why flagged?", message: "Why was this flagged for me? One sentence." },
-    { label: "Top risk", message: "What is the top risk, in one sentence?" },
-    { label: "Check the label", message: "What should I double-check on the package?" },
-  ]
+    ...avoidNames.slice(0, 2).map((name) => ({
+      label: `Why avoid ${name}?`,
+      message: `Why should I avoid ${name} in ${productName}? One sentence.`,
+    })),
+    ...watchNames.slice(0, avoidNames.length ? 1 : 2).map((name) => ({
+      label: `Why watch ${name}?`,
+      message: `Why should I watch ${name} in ${productName}? One sentence.`,
+    })),
+  ].slice(0, 3)
+  if (quickPrompts.length === 0) {
+    quickPrompts.push({
+      label: verdict === "avoid" ? "What should I avoid?" : "Why is this safe?",
+      message:
+        verdict === "avoid"
+          ? `What should I avoid in ${productName}? One sentence.`
+          : `Why is ${productName} safe for my saved profile? One sentence.`,
+    })
+  }
 
   const sendChat = async (raw: string) => {
     const message = raw.trim()

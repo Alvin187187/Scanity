@@ -211,6 +211,10 @@ def _share_flags_across_aliases(rows: list[dict]) -> None:
 
     buckets: dict[str, list[int]] = {}
     for index, row in enumerate(rows):
+        # A recipe line that mentions maltodextrin must not pull wheat or milk
+        # onto the maltodextrin row.
+        if _is_phrase_row(row):
+            continue
         seen: set[str] = set()
         for key in [row.get("ingredient_name"), *row.get("aliases", [])]:
             normalized = _normalize(str(key or ""))

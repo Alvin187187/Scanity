@@ -389,7 +389,10 @@ function localAllergyAnalysis(
       }
     }
     if (matched) continue
-    if (hasLactose && dairyWords.some((word) => lower.includes(word))) {
+    const plantMilk = /\b(?:coconut|oat|almond|soy|soya|rice|cashew|hemp)\s+milks?\b/i.test(lower)
+    const dairyHit = dairyWords.some((word) => hasWholeWord(lower, word) || hasWholeWord(lower, `${word}s`))
+    const realDairy = dairyHit && !(plantMilk && !/\b(?:lactose|whey|casein|caseinate|butter|cheese|cream|yogurt|yoghurt|ghee)\b/i.test(lower))
+    if (hasLactose && realDairy) {
       allergy_matches.push({
         ingredient: name,
         status: "avoid",
@@ -399,7 +402,7 @@ function localAllergyAnalysis(
       })
       continue
     }
-    if (hasDiabetes && sugarWords.some((word) => lower.includes(word))) {
+    if (hasDiabetes && sugarWords.some((word) => hasWholeWord(lower, word) || hasWholeWord(lower, `${word}s`))) {
       allergy_matches.push({
         ingredient: name,
         status: "caution",

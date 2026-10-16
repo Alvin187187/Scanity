@@ -14,6 +14,39 @@ def test_diabetes_flags_sugar_and_lowers_score():
     assert score == 50
 
 
+def test_flags_apply_to_the_ingredient_not_a_lookalike():
+    celiac = apply_condition_rules(
+        check_allergies([], ["buckwheat", "maltodextrin", "wheat flour"]),
+        ["celiac"],
+        None,
+    )
+    by_name = {item["ingredient"]: item for item in celiac}
+    assert by_name["buckwheat"].get("condition") != "celiac"
+    assert by_name["maltodextrin"].get("condition") != "celiac"
+    assert by_name["wheat flour"]["status"] == "avoid"
+    assert by_name["wheat flour"].get("condition") == "celiac"
+
+    pressure = apply_condition_rules(
+        check_allergies([], ["sodium caseinate", "sea salt"]),
+        ["hypertension"],
+        None,
+    )
+    by_pressure = {item["ingredient"]: item for item in pressure}
+    assert by_pressure["sodium caseinate"].get("condition") != "hypertension"
+    assert by_pressure["sea salt"]["status"] == "caution"
+    assert by_pressure["sea salt"].get("condition") == "hypertension"
+
+    lactose = apply_condition_rules(
+        check_allergies([], ["coconut milk", "milk powder"]),
+        ["lactose"],
+        None,
+    )
+    by_lactose = {item["ingredient"]: item for item in lactose}
+    assert by_lactose["coconut milk"].get("condition") != "lactose"
+    assert by_lactose["milk powder"]["status"] == "avoid"
+    assert by_lactose["milk powder"].get("condition") == "lactose"
+
+
 def test_lactose_avoids_milk():
     flags = check_allergies([], ["water", "milk powder"])
     flags = apply_condition_rules(flags, ["lactose"], None)
